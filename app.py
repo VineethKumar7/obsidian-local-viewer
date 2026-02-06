@@ -521,451 +521,130 @@ def view_file(filepath):
         return send_file(full_path)
     
     elif ext in ['mp4', 'mkv', 'avi', 'mov', 'webm']:
-        # YouTube-style video player with fullscreen controls
+        # Plyr.js - Professional video player with fullscreen support
         video_content = f'''
+        <link rel="stylesheet" href="https://cdn.plyr.io/3.7.8/plyr.css" />
+        
         <h1 id="videoTitle">🎬 {filename}</h1>
-        <div class="video-wrapper" id="videoWrapper">
-            <video id="videoPlayer" preload="metadata" playsinline>
-                <source src="/stream/{filepath}" type="video/{ext if ext != 'mkv' else 'x-matroska'}">
-                Your browser does not support video playback.
+        
+        <div class="plyr-container">
+            <video id="player" playsinline controls>
+                <source src="/stream/{filepath}" type="video/{ext if ext != 'mkv' else 'mp4'}" />
             </video>
-            
-            <!-- Double-tap zones for skip -->
-            <div class="tap-zone tap-left" id="tapLeft">
-                <div class="tap-feedback">⏪ -10s</div>
-            </div>
-            <div class="tap-zone tap-right" id="tapRight">
-                <div class="tap-feedback">+10s ⏩</div>
-            </div>
-            
-            <!-- Center play button -->
-            <div class="center-play" id="centerPlay" onclick="togglePlay()">▶</div>
-            
-            <!-- Overlay controls -->
-            <div class="video-overlay" id="videoOverlay">
-                <!-- Top bar -->
-                <div class="overlay-top">
-                    <span class="video-title-overlay">{filename}</span>
-                </div>
-                
-                <!-- Bottom controls -->
-                <div class="overlay-bottom">
-                    <!-- Progress bar -->
-                    <div class="progress-container">
-                        <input type="range" id="seekBar" value="0" min="0" max="100" class="seek-bar">
-                        <div class="progress-time">
-                            <span id="currentTime">0:00</span>
-                            <span id="duration">0:00</span>
-                        </div>
-                    </div>
-                    
-                    <!-- Control buttons -->
-                    <div class="control-buttons">
-                        <div class="left-controls">
-                            <button onclick="togglePlay()" id="playBtn" class="ctrl-btn">▶</button>
-                            <button onclick="skip(-10)" class="ctrl-btn">⏪</button>
-                            <button onclick="skip(10)" class="ctrl-btn">⏩</button>
-                            <button onclick="toggleMute()" id="muteBtn" class="ctrl-btn">🔊</button>
-                            <input type="range" id="volumeBar" value="100" min="0" max="100" class="volume-bar">
-                        </div>
-                        <div class="right-controls">
-                            <div class="speed-selector">
-                                <button onclick="toggleSpeedMenu()" id="speedBtn" class="ctrl-btn">1x</button>
-                                <div class="speed-menu" id="speedMenu">
-                                    <button onclick="setSpeed(0.5)">0.5x</button>
-                                    <button onclick="setSpeed(0.75)">0.75x</button>
-                                    <button onclick="setSpeed(1)" class="active">1x</button>
-                                    <button onclick="setSpeed(1.25)">1.25x</button>
-                                    <button onclick="setSpeed(1.5)">1.5x</button>
-                                    <button onclick="setSpeed(1.75)">1.75x</button>
-                                    <button onclick="setSpeed(2)">2x</button>
-                                </div>
-                            </div>
-                            <button onclick="toggleFullscreen()" id="fullscreenBtn" class="ctrl-btn">⛶</button>
-                        </div>
-                    </div>
-                </div>
-            </div>
+        </div>
+        
+        <div class="extra-controls">
+            <span>Quick Skip:</span>
+            <button onclick="player.currentTime -= 10">⏪ -10s</button>
+            <button onclick="player.currentTime -= 5">◀ -5s</button>
+            <button onclick="player.currentTime += 5">+5s ▶</button>
+            <button onclick="player.currentTime += 10">+10s ⏩</button>
         </div>
         
         <style>
-            .video-wrapper {{
-                position: relative;
+            .plyr-container {{
                 max-width: 100%;
                 margin: 20px 0;
-                background: #000;
                 border-radius: 10px;
                 overflow: hidden;
+                background: #000;
             }}
-            .video-wrapper video {{
-                width: 100%;
-                display: block;
-                max-height: 75vh;
+            
+            /* Plyr customizations */
+            .plyr {{
+                --plyr-color-main: #ff0000;
+                --plyr-video-background: #000;
             }}
-            .video-wrapper.fullscreen {{
-                position: fixed;
-                top: 0; left: 0; right: 0; bottom: 0;
-                max-width: 100%;
-                margin: 0;
+            
+            .plyr--fullscreen-active {{
                 border-radius: 0;
-                z-index: 9999;
-            }}
-            .video-wrapper.fullscreen video {{
-                max-height: 100vh;
-                height: 100vh;
-                object-fit: contain;
-            }}
-            .video-wrapper.fullscreen #videoTitle {{ display: none; }}
-            
-            /* Tap zones for double-tap skip */
-            .tap-zone {{
-                position: absolute;
-                top: 0;
-                bottom: 60px;
-                width: 30%;
-                z-index: 10;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }}
-            .tap-left {{ left: 0; }}
-            .tap-right {{ right: 0; }}
-            .tap-feedback {{
-                background: rgba(255,255,255,0.3);
-                color: #fff;
-                padding: 20px 30px;
-                border-radius: 50px;
-                font-size: 24px;
-                opacity: 0;
-                transform: scale(0.8);
-                transition: all 0.2s;
-                pointer-events: none;
-            }}
-            .tap-zone.active .tap-feedback {{
-                opacity: 1;
-                transform: scale(1);
             }}
             
-            /* Center play button */
-            .center-play {{
-                position: absolute;
-                top: 50%;
-                left: 50%;
-                transform: translate(-50%, -50%);
-                font-size: 60px;
-                color: #fff;
-                background: rgba(0,0,0,0.6);
-                width: 100px;
-                height: 100px;
-                border-radius: 50%;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                cursor: pointer;
-                opacity: 0;
-                transition: opacity 0.3s;
-                z-index: 15;
-            }}
-            .video-wrapper.paused .center-play {{ opacity: 1; }}
-            .center-play:hover {{ background: rgba(0,0,0,0.8); }}
-            
-            /* Overlay */
-            .video-overlay {{
-                position: absolute;
-                top: 0; left: 0; right: 0; bottom: 0;
-                background: linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 30%, transparent 70%, rgba(0,0,0,0.5) 100%);
-                opacity: 0;
-                transition: opacity 0.3s;
-                display: flex;
-                flex-direction: column;
-                justify-content: space-between;
-                z-index: 20;
-            }}
-            .video-wrapper:hover .video-overlay,
-            .video-wrapper.paused .video-overlay,
-            .video-wrapper.controls-visible .video-overlay {{
-                opacity: 1;
-            }}
-            
-            .overlay-top {{
-                padding: 15px 20px;
-            }}
-            .video-title-overlay {{
-                color: #fff;
-                font-size: 18px;
-                font-weight: 500;
-                text-shadow: 0 1px 3px rgba(0,0,0,0.5);
-            }}
-            
-            .overlay-bottom {{
-                padding: 10px 20px 15px;
-            }}
-            
-            /* Progress bar */
-            .progress-container {{ margin-bottom: 10px; }}
-            .seek-bar {{
-                width: 100%;
-                height: 5px;
-                -webkit-appearance: none;
-                background: rgba(255,255,255,0.3);
-                border-radius: 3px;
-                cursor: pointer;
-            }}
-            .seek-bar::-webkit-slider-thumb {{
-                -webkit-appearance: none;
-                width: 15px;
-                height: 15px;
-                background: #ff0000;
-                border-radius: 50%;
-                cursor: pointer;
-            }}
-            .progress-time {{
-                display: flex;
-                justify-content: space-between;
-                color: #fff;
-                font-size: 13px;
-                margin-top: 5px;
-            }}
-            
-            /* Control buttons */
-            .control-buttons {{
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-            }}
-            .left-controls, .right-controls {{
+            /* Extra controls below video */
+            .extra-controls {{
+                background: #1e1e1e;
+                padding: 15px;
+                border-radius: 10px;
+                margin-top: 15px;
                 display: flex;
                 align-items: center;
                 gap: 10px;
+                flex-wrap: wrap;
             }}
-            .ctrl-btn {{
-                background: transparent;
-                border: none;
-                color: #fff;
-                font-size: 22px;
-                cursor: pointer;
-                padding: 8px;
-                border-radius: 5px;
-                transition: background 0.2s;
-            }}
-            .ctrl-btn:hover {{ background: rgba(255,255,255,0.2); }}
-            
-            .volume-bar {{
-                width: 80px;
-                height: 4px;
-                -webkit-appearance: none;
-                background: rgba(255,255,255,0.3);
-                border-radius: 2px;
-            }}
-            .volume-bar::-webkit-slider-thumb {{
-                -webkit-appearance: none;
-                width: 12px;
-                height: 12px;
-                background: #fff;
-                border-radius: 50%;
-            }}
-            
-            /* Speed menu */
-            .speed-selector {{ position: relative; }}
-            .speed-menu {{
-                position: absolute;
-                bottom: 50px;
-                right: 0;
-                background: rgba(30,30,30,0.95);
-                border-radius: 8px;
-                padding: 5px 0;
-                display: none;
-            }}
-            .speed-menu.show {{ display: block; }}
-            .speed-menu button {{
-                display: block;
-                width: 100%;
-                padding: 10px 25px;
-                background: transparent;
-                border: none;
-                color: #fff;
-                cursor: pointer;
-                text-align: left;
+            .extra-controls span {{
+                color: #ccc;
                 font-size: 14px;
             }}
-            .speed-menu button:hover {{ background: rgba(255,255,255,0.1); }}
-            .speed-menu button.active {{ color: #ff0000; }}
+            .extra-controls button {{
+                background: #333;
+                color: #fff;
+                border: none;
+                padding: 10px 18px;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 14px;
+                transition: background 0.2s;
+            }}
+            .extra-controls button:hover {{
+                background: #0066cc;
+            }}
             
             /* Mobile adjustments */
             @media (max-width: 768px) {{
-                .volume-bar {{ display: none; }}
-                .ctrl-btn {{ font-size: 18px; padding: 6px; }}
-                .video-title-overlay {{ font-size: 14px; }}
+                .extra-controls {{
+                    justify-content: center;
+                }}
+                .extra-controls button {{
+                    padding: 8px 14px;
+                    font-size: 13px;
+                }}
             }}
         </style>
         
+        <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
         <script>
-            const video = document.getElementById('videoPlayer');
-            const wrapper = document.getElementById('videoWrapper');
-            const overlay = document.getElementById('videoOverlay');
-            const playBtn = document.getElementById('playBtn');
-            const centerPlay = document.getElementById('centerPlay');
-            const seekBar = document.getElementById('seekBar');
-            const volumeBar = document.getElementById('volumeBar');
-            const currentTimeEl = document.getElementById('currentTime');
-            const durationEl = document.getElementById('duration');
-            const muteBtn = document.getElementById('muteBtn');
-            const speedBtn = document.getElementById('speedBtn');
-            const speedMenu = document.getElementById('speedMenu');
-            const fullscreenBtn = document.getElementById('fullscreenBtn');
-            const tapLeft = document.getElementById('tapLeft');
-            const tapRight = document.getElementById('tapRight');
-            
-            let hideControlsTimeout;
-            let lastTapTime = 0;
-            let tapCount = 0;
-            
-            function formatTime(seconds) {{
-                const mins = Math.floor(seconds / 60);
-                const secs = Math.floor(seconds % 60);
-                return mins + ':' + (secs < 10 ? '0' : '') + secs;
-            }}
-            
-            function togglePlay() {{
-                if (video.paused) {{
-                    video.play();
-                }} else {{
-                    video.pause();
+            const player = new Plyr('#player', {{
+                controls: [
+                    'play-large', 'play', 'rewind', 'fast-forward', 'progress', 
+                    'current-time', 'duration', 'mute', 'volume', 
+                    'settings', 'fullscreen'
+                ],
+                settings: ['quality', 'speed'],
+                speed: {{ 
+                    selected: 1, 
+                    options: [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2] 
+                }},
+                keyboard: {{ 
+                    focused: true, 
+                    global: true 
+                }},
+                tooltips: {{ 
+                    controls: true, 
+                    seek: true 
+                }},
+                seekTime: 10,
+                invertTime: false,
+                fullscreen: {{
+                    enabled: true,
+                    fallback: true,
+                    iosNative: true
                 }}
-            }}
-            
-            function skip(seconds) {{
-                video.currentTime = Math.max(0, Math.min(video.duration, video.currentTime + seconds));
-            }}
-            
-            function setSpeed(speed) {{
-                video.playbackRate = speed;
-                speedBtn.textContent = speed + 'x';
-                speedMenu.querySelectorAll('button').forEach(btn => {{
-                    btn.classList.toggle('active', btn.textContent === speed + 'x');
-                }});
-                speedMenu.classList.remove('show');
-            }}
-            
-            function toggleSpeedMenu() {{
-                speedMenu.classList.toggle('show');
-            }}
-            
-            function toggleMute() {{
-                video.muted = !video.muted;
-                muteBtn.textContent = video.muted ? '🔇' : '🔊';
-            }}
-            
-            function toggleFullscreen() {{
-                if (wrapper.classList.contains('fullscreen')) {{
-                    wrapper.classList.remove('fullscreen');
-                    fullscreenBtn.textContent = '⛶';
-                    if (document.exitFullscreen) document.exitFullscreen();
-                }} else {{
-                    wrapper.classList.add('fullscreen');
-                    fullscreenBtn.textContent = '✕';
-                    if (wrapper.requestFullscreen) wrapper.requestFullscreen();
-                }}
-            }}
-            
-            function showControls() {{
-                wrapper.classList.add('controls-visible');
-                clearTimeout(hideControlsTimeout);
-                hideControlsTimeout = setTimeout(() => {{
-                    if (!video.paused) {{
-                        wrapper.classList.remove('controls-visible');
-                    }}
-                }}, 3000);
-            }}
-            
-            // Double-tap to skip
-            function handleTap(zone, skipSeconds) {{
-                const now = Date.now();
-                if (now - lastTapTime < 300) {{
-                    // Double tap
-                    skip(skipSeconds);
-                    zone.classList.add('active');
-                    setTimeout(() => zone.classList.remove('active'), 300);
-                }}
-                lastTapTime = now;
-            }}
-            
-            tapLeft.addEventListener('click', () => handleTap(tapLeft, -10));
-            tapRight.addEventListener('click', () => handleTap(tapRight, 10));
-            
-            // Video events
-            video.addEventListener('loadedmetadata', () => {{
-                durationEl.textContent = formatTime(video.duration);
-                seekBar.max = Math.floor(video.duration);
             }});
             
-            video.addEventListener('timeupdate', () => {{
-                currentTimeEl.textContent = formatTime(video.currentTime);
-                seekBar.value = Math.floor(video.currentTime);
-            }});
-            
-            video.addEventListener('play', () => {{
-                wrapper.classList.remove('paused');
-                playBtn.textContent = '⏸';
-                centerPlay.textContent = '⏸';
-            }});
-            
-            video.addEventListener('pause', () => {{
-                wrapper.classList.add('paused');
-                playBtn.textContent = '▶';
-                centerPlay.textContent = '▶';
-            }});
-            
-            video.addEventListener('click', () => {{
-                togglePlay();
-                showControls();
-            }});
-            
-            seekBar.addEventListener('input', () => {{
-                video.currentTime = seekBar.value;
-            }});
-            
-            volumeBar.addEventListener('input', () => {{
-                video.volume = volumeBar.value / 100;
-                muteBtn.textContent = video.volume === 0 ? '🔇' : '🔊';
-            }});
-            
-            // Show controls on mouse move
-            wrapper.addEventListener('mousemove', showControls);
-            wrapper.addEventListener('touchstart', showControls);
-            
-            // Exit fullscreen on Escape
-            document.addEventListener('fullscreenchange', () => {{
-                if (!document.fullscreenElement) {{
-                    wrapper.classList.remove('fullscreen');
-                    fullscreenBtn.textContent = '⛶';
-                }}
+            // Double-click to toggle fullscreen
+            player.on('dblclick', () => {{
+                player.fullscreen.toggle();
             }});
             
             // Keyboard shortcuts
             document.addEventListener('keydown', (e) => {{
                 if (e.target.tagName === 'INPUT') return;
                 switch(e.key) {{
-                    case ' ': e.preventDefault(); togglePlay(); break;
-                    case 'ArrowLeft': skip(-5); showControls(); break;
-                    case 'ArrowRight': skip(5); showControls(); break;
-                    case 'ArrowUp': e.preventDefault(); video.volume = Math.min(1, video.volume + 0.1); volumeBar.value = video.volume * 100; break;
-                    case 'ArrowDown': e.preventDefault(); video.volume = Math.max(0, video.volume - 0.1); volumeBar.value = video.volume * 100; break;
-                    case 'm': toggleMute(); break;
-                    case 'f': toggleFullscreen(); break;
-                    case 'Escape': if (wrapper.classList.contains('fullscreen')) toggleFullscreen(); break;
+                    case 'f': player.fullscreen.toggle(); break;
+                    case 'j': player.currentTime -= 10; break;
+                    case 'l': player.currentTime += 10; break;
                 }}
             }});
-            
-            // Close speed menu when clicking outside
-            document.addEventListener('click', (e) => {{
-                if (!e.target.closest('.speed-selector')) {{
-                    speedMenu.classList.remove('show');
-                }}
-            }});
-            
-            // Initialize
-            wrapper.classList.add('paused');
         </script>
         '''
         return render_template_string(
@@ -976,7 +655,7 @@ def view_file(filepath):
             vault_name=get_vault_name(),
             is_markdown=False
         )
-    
+
     elif ext in ['mp3', 'wav', 'ogg']:
         # Audio player
         audio_content = f'''
