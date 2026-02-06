@@ -93,6 +93,7 @@ HTML_TEMPLATE = '''
         .file-md::before { content: "📄 "; }
         .file-pdf::before { content: "📕 "; }
         .file-img::before { content: "🖼️ "; }
+        .file-video::before { content: "🎬 "; }
         
         /* Content area */
         .content { 
@@ -436,8 +437,8 @@ def get_file_tree(path, base_path, current_file=""):
                     items.append(f'<li><span class="folder">{entry}</span><ul class="nested">{subtree}</ul></li>')
             else:
                 ext = entry.lower().rsplit('.', 1)[-1] if '.' in entry else ''
-                if ext in ['md', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'txt']:
-                    css_class = 'file-md' if ext == 'md' else 'file-pdf' if ext == 'pdf' else 'file-img' if ext in ['png','jpg','jpeg','gif','webp'] else ''
+                if ext in ['md', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'txt', 'mp4', 'mkv', 'avi', 'mov', 'webm', 'mp3', 'wav', 'ogg']:
+                    css_class = 'file-md' if ext == 'md' else 'file-pdf' if ext == 'pdf' else 'file-img' if ext in ['png','jpg','jpeg','gif','webp'] else 'file-video' if ext in ['mp4','mkv','avi','mov','webm','mp3','wav','ogg'] else ''
                     active = 'active' if rel_path == current_file else ''
                     items.append(f'<li><a href="/view/{rel_path}" class="{css_class} {active}">{entry}</a></li>')
     except PermissionError:
@@ -518,6 +519,172 @@ def view_file(filepath):
     
     elif ext in ['png', 'jpg', 'jpeg', 'gif', 'webp']:
         return send_file(full_path)
+    
+    elif ext in ['mp4', 'mkv', 'avi', 'mov', 'webm']:
+        # Video player with controls
+        video_content = f'''
+        <h1>🎬 {filename}</h1>
+        <div class="video-container">
+            <video id="videoPlayer" controls preload="metadata">
+                <source src="/stream/{filepath}" type="video/{ext if ext != 'mkv' else 'x-matroska'}">
+                Your browser does not support video playback.
+            </video>
+            <div class="video-controls">
+                <div class="control-row">
+                    <button onclick="skip(-10)" title="Back 10s">⏪ -10s</button>
+                    <button onclick="skip(-5)" title="Back 5s">◀ -5s</button>
+                    <button onclick="togglePlay()" id="playBtn" title="Play/Pause">▶ Play</button>
+                    <button onclick="skip(5)" title="Forward 5s">+5s ▶</button>
+                    <button onclick="skip(10)" title="Forward 10s">+10s ⏩</button>
+                </div>
+                <div class="control-row">
+                    <span>Speed:</span>
+                    <button onclick="setSpeed(0.5)" class="speed-btn">0.5x</button>
+                    <button onclick="setSpeed(0.75)" class="speed-btn">0.75x</button>
+                    <button onclick="setSpeed(1)" class="speed-btn active" id="speed1">1x</button>
+                    <button onclick="setSpeed(1.25)" class="speed-btn">1.25x</button>
+                    <button onclick="setSpeed(1.5)" class="speed-btn">1.5x</button>
+                    <button onclick="setSpeed(1.75)" class="speed-btn">1.75x</button>
+                    <button onclick="setSpeed(2)" class="speed-btn">2x</button>
+                </div>
+                <div class="control-row">
+                    <span id="currentTime">0:00</span>
+                    <input type="range" id="seekBar" value="0" min="0" max="100" style="flex:1; margin: 0 10px;">
+                    <span id="duration">0:00</span>
+                </div>
+                <div class="control-row">
+                    <span>Volume:</span>
+                    <input type="range" id="volumeBar" value="100" min="0" max="100" style="width: 150px;">
+                    <button onclick="toggleMute()" id="muteBtn">🔊</button>
+                </div>
+            </div>
+        </div>
+        <style>
+            .video-container {{ max-width: 100%; margin: 20px 0; }}
+            .video-container video {{ width: 100%; max-height: 70vh; background: #000; border-radius: 10px; }}
+            .video-controls {{ background: #1e1e1e; padding: 15px; border-radius: 0 0 10px 10px; margin-top: -5px; }}
+            .control-row {{ display: flex; align-items: center; gap: 10px; margin: 10px 0; flex-wrap: wrap; }}
+            .control-row button {{ background: #0066cc; color: #fff; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-size: 14px; }}
+            .control-row button:hover {{ background: #0055aa; }}
+            .speed-btn {{ background: #444 !important; padding: 6px 12px !important; }}
+            .speed-btn.active {{ background: #0066cc !important; }}
+            .control-row span {{ color: #ccc; font-size: 14px; }}
+            .control-row input[type="range"] {{ cursor: pointer; }}
+        </style>
+        <script>
+            const video = document.getElementById('videoPlayer');
+            const playBtn = document.getElementById('playBtn');
+            const seekBar = document.getElementById('seekBar');
+            const volumeBar = document.getElementById('volumeBar');
+            const currentTimeEl = document.getElementById('currentTime');
+            const durationEl = document.getElementById('duration');
+            const muteBtn = document.getElementById('muteBtn');
+            
+            function formatTime(seconds) {{
+                const mins = Math.floor(seconds / 60);
+                const secs = Math.floor(seconds % 60);
+                return mins + ':' + (secs < 10 ? '0' : '') + secs;
+            }}
+            
+            function togglePlay() {{
+                if (video.paused) {{
+                    video.play();
+                    playBtn.textContent = '⏸ Pause';
+                }} else {{
+                    video.pause();
+                    playBtn.textContent = '▶ Play';
+                }}
+            }}
+            
+            function skip(seconds) {{
+                video.currentTime += seconds;
+            }}
+            
+            function setSpeed(speed) {{
+                video.playbackRate = speed;
+                document.querySelectorAll('.speed-btn').forEach(btn => btn.classList.remove('active'));
+                event.target.classList.add('active');
+            }}
+            
+            function toggleMute() {{
+                video.muted = !video.muted;
+                muteBtn.textContent = video.muted ? '🔇' : '🔊';
+            }}
+            
+            video.addEventListener('loadedmetadata', () => {{
+                durationEl.textContent = formatTime(video.duration);
+                seekBar.max = Math.floor(video.duration);
+            }});
+            
+            video.addEventListener('timeupdate', () => {{
+                currentTimeEl.textContent = formatTime(video.currentTime);
+                seekBar.value = Math.floor(video.currentTime);
+            }});
+            
+            video.addEventListener('play', () => {{ playBtn.textContent = '⏸ Pause'; }});
+            video.addEventListener('pause', () => {{ playBtn.textContent = '▶ Play'; }});
+            
+            seekBar.addEventListener('input', () => {{
+                video.currentTime = seekBar.value;
+            }});
+            
+            volumeBar.addEventListener('input', () => {{
+                video.volume = volumeBar.value / 100;
+            }});
+            
+            // Keyboard shortcuts for video
+            document.addEventListener('keydown', (e) => {{
+                if (e.target.tagName === 'INPUT') return;
+                switch(e.key) {{
+                    case ' ': e.preventDefault(); togglePlay(); break;
+                    case 'ArrowLeft': skip(-5); break;
+                    case 'ArrowRight': skip(5); break;
+                    case 'ArrowUp': e.preventDefault(); video.volume = Math.min(1, video.volume + 0.1); volumeBar.value = video.volume * 100; break;
+                    case 'ArrowDown': e.preventDefault(); video.volume = Math.max(0, video.volume - 0.1); volumeBar.value = video.volume * 100; break;
+                    case 'm': toggleMute(); break;
+                }}
+            }});
+        </script>
+        '''
+        return render_template_string(
+            HTML_TEMPLATE,
+            title=filename,
+            tree=tree,
+            content=video_content,
+            vault_name=get_vault_name(),
+            is_markdown=False
+        )
+    
+    elif ext in ['mp3', 'wav', 'ogg']:
+        # Audio player
+        audio_content = f'''
+        <h1>🎵 {filename}</h1>
+        <div class="audio-container">
+            <audio id="audioPlayer" controls style="width: 100%;">
+                <source src="/stream/{filepath}" type="audio/{ext}">
+                Your browser does not support audio playback.
+            </audio>
+            <div class="audio-controls" style="background: #1e1e1e; padding: 15px; border-radius: 10px; margin-top: 10px;">
+                <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+                    <span style="color: #ccc;">Speed:</span>
+                    <button onclick="document.getElementById('audioPlayer').playbackRate=0.5" style="background:#444;color:#fff;border:none;padding:6px 12px;border-radius:5px;cursor:pointer;">0.5x</button>
+                    <button onclick="document.getElementById('audioPlayer').playbackRate=0.75" style="background:#444;color:#fff;border:none;padding:6px 12px;border-radius:5px;cursor:pointer;">0.75x</button>
+                    <button onclick="document.getElementById('audioPlayer').playbackRate=1" style="background:#0066cc;color:#fff;border:none;padding:6px 12px;border-radius:5px;cursor:pointer;">1x</button>
+                    <button onclick="document.getElementById('audioPlayer').playbackRate=1.25" style="background:#444;color:#fff;border:none;padding:6px 12px;border-radius:5px;cursor:pointer;">1.25x</button>
+                    <button onclick="document.getElementById('audioPlayer').playbackRate=1.5" style="background:#444;color:#fff;border:none;padding:6px 12px;border-radius:5px;cursor:pointer;">1.5x</button>
+                    <button onclick="document.getElementById('audioPlayer').playbackRate=2" style="background:#444;color:#fff;border:none;padding:6px 12px;border-radius:5px;cursor:pointer;">2x</button>
+                </div>
+            </div>
+        </div>
+        '''
+        return render_template_string(
+            HTML_TEMPLATE,
+            title=filename,
+            tree=tree,
+            content=audio_content,
+            vault_name=get_vault_name(),
+            is_markdown=False
+        )
     
     else:
         # Plain text files
@@ -675,6 +842,102 @@ def raw_file(filepath):
     if os.path.exists(full_path):
         return send_file(full_path)
     abort(404)
+
+@app.route('/stream/<path:filepath>')
+def stream_file(filepath):
+    """Stream video/audio files with range request support for seeking."""
+    from flask import request, Response
+    
+    full_path = os.path.join(VAULT_PATH, filepath)
+    
+    # Security check
+    if not os.path.abspath(full_path).startswith(os.path.abspath(VAULT_PATH)):
+        abort(403)
+    
+    if not os.path.exists(full_path):
+        abort(404)
+    
+    ext = filepath.lower().rsplit('.', 1)[-1] if '.' in filepath else ''
+    
+    # Determine MIME type
+    mime_types = {
+        'mp4': 'video/mp4',
+        'mkv': 'video/x-matroska',
+        'avi': 'video/x-msvideo',
+        'mov': 'video/quicktime',
+        'webm': 'video/webm',
+        'mp3': 'audio/mpeg',
+        'wav': 'audio/wav',
+        'ogg': 'audio/ogg',
+    }
+    mime_type = mime_types.get(ext, 'application/octet-stream')
+    
+    file_size = os.path.getsize(full_path)
+    
+    # Handle range requests for seeking
+    range_header = request.headers.get('Range')
+    
+    if range_header:
+        # Parse range header
+        byte_start = 0
+        byte_end = file_size - 1
+        
+        if range_header.startswith('bytes='):
+            range_spec = range_header[6:]
+            if '-' in range_spec:
+                parts = range_spec.split('-')
+                if parts[0]:
+                    byte_start = int(parts[0])
+                if parts[1]:
+                    byte_end = int(parts[1])
+        
+        # Ensure valid range
+        byte_end = min(byte_end, file_size - 1)
+        content_length = byte_end - byte_start + 1
+        
+        def generate():
+            with open(full_path, 'rb') as f:
+                f.seek(byte_start)
+                remaining = content_length
+                chunk_size = 1024 * 1024  # 1MB chunks
+                while remaining > 0:
+                    chunk = f.read(min(chunk_size, remaining))
+                    if not chunk:
+                        break
+                    remaining -= len(chunk)
+                    yield chunk
+        
+        response = Response(
+            generate(),
+            status=206,  # Partial Content
+            mimetype=mime_type,
+            direct_passthrough=True
+        )
+        response.headers['Content-Range'] = f'bytes {byte_start}-{byte_end}/{file_size}'
+        response.headers['Accept-Ranges'] = 'bytes'
+        response.headers['Content-Length'] = content_length
+        return response
+    
+    else:
+        # Full file request
+        def generate():
+            with open(full_path, 'rb') as f:
+                chunk_size = 1024 * 1024  # 1MB chunks
+                while True:
+                    chunk = f.read(chunk_size)
+                    if not chunk:
+                        break
+                    yield chunk
+        
+        response = Response(
+            generate(),
+            status=200,
+            mimetype=mime_type,
+            direct_passthrough=True
+        )
+        response.headers['Accept-Ranges'] = 'bytes'
+        response.headers['Content-Length'] = file_size
+        return response
 
 def get_local_ip():
     """Get the local network IP address"""
