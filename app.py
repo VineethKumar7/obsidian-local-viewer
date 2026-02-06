@@ -144,6 +144,23 @@ HTML_TEMPLATE = '''
         .toolbar button.secondary { background: #555; }
         .toolbar button.secondary:hover { background: #444; }
         
+        /* Sidebar close button (mobile only) */
+        .sidebar-close {
+            display: none;
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: #ff4444;
+            color: #fff;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+        .sidebar-close:hover { background: #cc3333; }
+        
         /* Typography */
         .content h1 { 
             color: #1a1a1a; 
@@ -213,13 +230,79 @@ HTML_TEMPLATE = '''
         /* Mobile responsive */
         @media (max-width: 768px) {
             body { flex-direction: column; }
-            .sidebar { width: 100%; max-height: 35vh; position: fixed; top: 0; left: 0; right: 0; }
-            .sidebar.hidden { transform: translateY(-100%); max-height: 0; }
-            .toggle-btn { top: auto; bottom: 20px; left: 50%; transform: translateX(-50%); }
-            .toggle-btn.sidebar-open { left: 50%; transform: translateX(-50%); }
-            .content { padding: 25px; margin-top: 0; }
-            .content h1 { font-size: 1.6em; }
-            .toolbar { top: auto; bottom: 70px; right: 15px; flex-direction: column; }
+            
+            /* Sidebar as overlay on mobile */
+            .sidebar { 
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                width: 100%;
+                max-height: 100vh;
+                z-index: 300;
+                padding: 60px 20px 20px;
+                transform: translateY(0);
+                overflow-y: auto;
+            }
+            .sidebar.hidden { 
+                transform: translateY(-100%);
+                pointer-events: none;
+            }
+            
+            /* Close button inside sidebar on mobile */
+            .sidebar-close {
+                position: absolute;
+                top: 15px;
+                right: 15px;
+                background: #ff4444;
+                color: #fff;
+                border: none;
+                padding: 8px 14px;
+                border-radius: 6px;
+                font-size: 14px;
+                cursor: pointer;
+            }
+            
+            /* Toggle button as floating action button */
+            .toggle-btn { 
+                position: fixed;
+                top: 15px;
+                left: 15px;
+                z-index: 200;
+                background: #0066cc;
+                padding: 10px 14px;
+                font-size: 16px;
+            }
+            .toggle-btn.sidebar-open { 
+                left: 15px;
+                opacity: 0;
+                pointer-events: none;
+            }
+            
+            .content { 
+                padding: 60px 20px 20px;
+                margin-top: 0;
+            }
+            .content h1 { font-size: 1.5em; margin-top: 10px; }
+            
+            /* Toolbar on mobile */
+            .toolbar { 
+                top: 12px;
+                right: 15px;
+                gap: 8px;
+            }
+            .toolbar button {
+                padding: 8px 12px;
+                font-size: 12px;
+            }
+            .toolbar button span.btn-text { display: none; }
+            
+            /* Show close button on mobile */
+            .sidebar-close { display: block; }
+            
+            /* Hide menu text on mobile toggle btn */
+            .toggle-btn .btn-text { display: none; }
         }
         
         /* Print styles for PDF */
@@ -230,16 +313,17 @@ HTML_TEMPLATE = '''
     </style>
 </head>
 <body>
-    <button class="toggle-btn sidebar-open" onclick="toggleSidebar()" title="Toggle Sidebar">☰</button>
+    <button class="toggle-btn" onclick="toggleSidebar()" title="Toggle Sidebar">☰ <span class="btn-text">Menu</span></button>
     
     <div class="toolbar">
         {% if is_markdown %}
-        <button onclick="downloadPDF()" title="Download as PDF">📥 PDF</button>
+        <button onclick="downloadPDF()" title="Download as PDF">📥 <span class="btn-text">PDF</span></button>
         {% endif %}
-        <button class="secondary" onclick="toggleFullscreen()" title="Toggle Fullscreen">⛶ Fullscreen</button>
+        <button class="secondary" onclick="toggleFullscreen()" title="Toggle Fullscreen">⛶</button>
     </div>
     
-    <div class="sidebar">
+    <div class="sidebar hidden" id="sidebar">
+        <button class="sidebar-close" onclick="toggleSidebar()">✕ Close</button>
         <h2>📚 {{ vault_name }}</h2>
         {{ tree|safe }}
     </div>
@@ -250,10 +334,26 @@ HTML_TEMPLATE = '''
     </div>
     
     <script>
-        let sidebarOpen = true;
+        // Check if mobile
+        const isMobile = window.innerWidth <= 768;
+        let sidebarOpen = !isMobile; // Start closed on mobile, open on desktop
+        
+        // Initialize sidebar state
+        document.addEventListener('DOMContentLoaded', function() {
+            const sidebar = document.getElementById('sidebar');
+            const toggleBtn = document.querySelector('.toggle-btn');
+            
+            if (isMobile) {
+                sidebar.classList.add('hidden');
+                toggleBtn.classList.remove('sidebar-open');
+            } else {
+                sidebar.classList.remove('hidden');
+                toggleBtn.classList.add('sidebar-open');
+            }
+        });
         
         function toggleSidebar() {
-            const sidebar = document.querySelector('.sidebar');
+            const sidebar = document.getElementById('sidebar');
             const toggleBtn = document.querySelector('.toggle-btn');
             const content = document.querySelector('.content');
             
@@ -262,11 +362,11 @@ HTML_TEMPLATE = '''
             if (sidebarOpen) {
                 sidebar.classList.remove('hidden');
                 toggleBtn.classList.add('sidebar-open');
-                content.classList.remove('fullscreen');
+                if (!isMobile) content.classList.remove('fullscreen');
             } else {
                 sidebar.classList.add('hidden');
                 toggleBtn.classList.remove('sidebar-open');
-                content.classList.add('fullscreen');
+                if (!isMobile) content.classList.add('fullscreen');
             }
         }
         
@@ -298,10 +398,19 @@ HTML_TEMPLATE = '''
                 e.preventDefault();
                 toggleFullscreen();
             }
-            // Escape to show sidebar
-            if (e.key === 'Escape' && !sidebarOpen) {
+            // Escape to close sidebar on mobile
+            if (e.key === 'Escape' && sidebarOpen && isMobile) {
                 toggleSidebar();
             }
+        });
+        
+        // Close sidebar when clicking a link on mobile
+        document.querySelectorAll('.sidebar a').forEach(link => {
+            link.addEventListener('click', function() {
+                if (isMobile && sidebarOpen) {
+                    toggleSidebar();
+                }
+            });
         });
     </script>
 </body>
