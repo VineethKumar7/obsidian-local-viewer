@@ -30,16 +30,16 @@ HTML_TEMPLATE = '''
         
         /* Sidebar */
         .sidebar { 
-            width: 300px; 
-            background: #1e1e1e; 
-            color: #ccc; 
-            padding: 20px; 
+            width: 280px; 
+            background: #252526; 
+            color: #cccccc; 
             overflow-y: auto; 
             flex-shrink: 0;
-            box-shadow: 2px 0 10px rgba(0,0,0,0.3);
+            box-shadow: 1px 0 3px rgba(0,0,0,0.3);
             transition: transform 0.3s ease, width 0.3s ease;
             position: relative;
             z-index: 100;
+            font-size: 13px;
         }
         .sidebar.hidden { 
             transform: translateX(-100%);
@@ -47,26 +47,100 @@ HTML_TEMPLATE = '''
             padding: 0;
             overflow: hidden;
         }
+        .sidebar-header {
+            padding: 12px 16px;
+            background: #1e1e1e;
+            border-bottom: 1px solid #3c3c3c;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
         .sidebar h2 { 
-            color: #fff; 
-            margin-bottom: 20px; 
-            font-size: 18px; 
-            padding-bottom: 15px;
-            border-bottom: 1px solid #333;
+            color: #cccccc; 
+            font-size: 11px; 
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin: 0;
         }
-        .sidebar ul { list-style: none; }
-        .sidebar li { margin: 3px 0; }
+        .sidebar-content {
+            padding: 8px 0;
+        }
+        .sidebar ul { list-style: none; margin: 0; padding: 0; }
+        .sidebar > .sidebar-content > ul { padding: 0 8px; }
+        
+        /* Folder styles */
+        .folder-item {
+            user-select: none;
+        }
+        .folder-header {
+            display: flex;
+            align-items: center;
+            padding: 4px 8px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background 0.15s;
+            color: #cccccc;
+        }
+        .folder-header:hover {
+            background: #2a2d2e;
+        }
+        .folder-icon {
+            width: 20px;
+            height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 4px;
+            font-size: 10px;
+            transition: transform 0.2s;
+            color: #888;
+        }
+        .folder-icon.collapsed {
+            transform: rotate(-90deg);
+        }
+        .folder-name {
+            color: #cccccc;
+            font-weight: 500;
+        }
+        .folder-name::before {
+            content: "📁 ";
+            font-size: 14px;
+            margin-right: 4px;
+        }
+        .folder-item.open > .folder-header .folder-name::before {
+            content: "📂 ";
+        }
+        
+        /* Nested content */
+        .folder-children {
+            overflow: hidden;
+            max-height: 0;
+            transition: max-height 0.25s ease-out;
+            margin-left: 12px;
+            padding-left: 8px;
+            border-left: 1px solid #3c3c3c;
+        }
+        .folder-item.open > .folder-children {
+            max-height: 5000px;
+            transition: max-height 0.4s ease-in;
+        }
+        
+        /* File styles */
         .sidebar a { 
-            color: #7eb8da; 
+            color: #cccccc; 
             text-decoration: none; 
-            font-size: 14px; 
-            display: block; 
-            padding: 8px 12px; 
-            border-radius: 6px;
-            transition: background 0.2s;
+            font-size: 13px; 
+            display: flex;
+            align-items: center;
+            padding: 4px 8px; 
+            border-radius: 4px;
+            transition: background 0.15s;
+            margin: 1px 0;
         }
-        .sidebar a:hover { background: #2d2d2d; }
-        .sidebar a.active { background: #0066cc; color: white; }
+        .sidebar a:hover { background: #2a2d2e; }
+        .sidebar a.active { background: #094771; color: #fff; }
+        .sidebar a::before { margin-right: 6px; font-size: 14px; }
         
         /* Toggle button */
         .toggle-btn {
@@ -88,12 +162,11 @@ HTML_TEMPLATE = '''
         .toggle-btn.sidebar-open { left: 315px; }
         
         /* File icons */
-        .folder { color: #f0c674 !important; font-weight: 600; }
-        .folder::before { content: "📁 "; }
-        .file-md::before { content: "📄 "; }
-        .file-pdf::before { content: "📕 "; }
-        .file-img::before { content: "🖼️ "; }
-        .file-video::before { content: "🎬 "; }
+        .file-md::before { content: "📄"; }
+        .file-pdf::before { content: "📕"; }
+        .file-img::before { content: "🖼️"; }
+        .file-video::before { content: "🎬"; }
+        .file-txt::before { content: "📝"; }
         
         /* Content area */
         .content { 
@@ -215,8 +288,8 @@ HTML_TEMPLATE = '''
         .content strong { color: #1a1a1a; }
         .content hr { border: none; border-top: 2px solid #eee; margin: 30px 0; }
         
-        /* Nested folders */
-        .nested { margin-left: 15px; border-left: 1px solid #333; padding-left: 10px; }
+        /* Nested folders - legacy, now using folder-children */
+        .nested { display: none; }
         
         /* Welcome page */
         .welcome { text-align: center; padding: 60px 40px; }
@@ -325,8 +398,16 @@ HTML_TEMPLATE = '''
     
     <div class="sidebar hidden" id="sidebar">
         <button class="sidebar-close" onclick="toggleSidebar()">✕ Close</button>
-        <h2>📚 {{ vault_name }}</h2>
-        {{ tree|safe }}
+        <div class="sidebar-header">
+            <h2>{{ vault_name }}</h2>
+            <div style="display: flex; gap: 8px; margin-top: 10px;">
+                <button onclick="expandAllFolders()" style="flex:1; padding: 4px 8px; font-size: 11px; background: #3c3c3c; color: #ccc; border: none; border-radius: 3px; cursor: pointer;" title="Expand All">+ All</button>
+                <button onclick="collapseAllFolders()" style="flex:1; padding: 4px 8px; font-size: 11px; background: #3c3c3c; color: #ccc; border: none; border-radius: 3px; cursor: pointer;" title="Collapse All">− All</button>
+            </div>
+        </div>
+        <div class="sidebar-content">
+            {{ tree|safe }}
+        </div>
     </div>
     <div class="content-wrapper">
         <div class="content">
@@ -379,6 +460,28 @@ HTML_TEMPLATE = '''
             }
         }
         
+        function toggleFolder(header) {
+            const folderItem = header.parentElement;
+            const icon = header.querySelector('.folder-icon');
+            
+            folderItem.classList.toggle('open');
+            icon.classList.toggle('collapsed');
+        }
+        
+        function collapseAllFolders() {
+            document.querySelectorAll('.folder-item').forEach(item => {
+                item.classList.remove('open');
+                item.querySelector('.folder-icon').classList.add('collapsed');
+            });
+        }
+        
+        function expandAllFolders() {
+            document.querySelectorAll('.folder-item').forEach(item => {
+                item.classList.add('open');
+                item.querySelector('.folder-icon').classList.remove('collapsed');
+            });
+        }
+        
         function downloadPDF() {
             const currentPath = window.location.pathname;
             if (currentPath.startsWith('/view/')) {
@@ -418,8 +521,8 @@ HTML_TEMPLATE = '''
 </html>
 '''
 
-def get_file_tree(path, base_path, current_file=""):
-    """Recursively build HTML file tree"""
+def get_file_tree(path, base_path, current_file="", depth=0):
+    """Recursively build HTML file tree with collapsible folders"""
     items = []
     try:
         entries = sorted(os.listdir(path), key=lambda x: (not os.path.isdir(os.path.join(path, x)), x.lower()))
@@ -432,15 +535,26 @@ def get_file_tree(path, base_path, current_file=""):
             rel_path = os.path.relpath(full_path, base_path)
             
             if os.path.isdir(full_path):
-                subtree = get_file_tree(full_path, base_path, current_file)
+                subtree = get_file_tree(full_path, base_path, current_file, depth + 1)
                 if subtree:  # Only show folders that have content
-                    items.append(f'<li><span class="folder">{entry}</span><ul class="nested">{subtree}</ul></li>')
+                    # Check if any child is active (to auto-expand)
+                    is_parent_of_active = current_file and current_file.startswith(rel_path + os.sep)
+                    open_class = 'open' if is_parent_of_active or depth == 0 else ''
+                    collapsed_class = '' if is_parent_of_active or depth == 0 else 'collapsed'
+                    items.append(f'''<li class="folder-item {open_class}">
+                        <div class="folder-header" onclick="toggleFolder(this)">
+                            <span class="folder-icon {collapsed_class}">▼</span>
+                            <span class="folder-name">{entry}</span>
+                        </div>
+                        <ul class="folder-children">{subtree}</ul>
+                    </li>''')
             else:
                 ext = entry.lower().rsplit('.', 1)[-1] if '.' in entry else ''
                 if ext in ['md', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'txt', 'mp4', 'mkv', 'avi', 'mov', 'webm', 'mp3', 'wav', 'ogg']:
-                    css_class = 'file-md' if ext == 'md' else 'file-pdf' if ext == 'pdf' else 'file-img' if ext in ['png','jpg','jpeg','gif','webp'] else 'file-video' if ext in ['mp4','mkv','avi','mov','webm','mp3','wav','ogg'] else ''
+                    css_class = 'file-md' if ext == 'md' else 'file-pdf' if ext == 'pdf' else 'file-img' if ext in ['png','jpg','jpeg','gif','webp'] else 'file-video' if ext in ['mp4','mkv','avi','mov','webm','mp3','wav','ogg'] else 'file-txt'
                     active = 'active' if rel_path == current_file else ''
-                    items.append(f'<li><a href="/view/{rel_path}" class="{css_class} {active}">{entry}</a></li>')
+                    display_name = entry[:-3] if ext == 'md' else entry  # Remove .md extension for cleaner look
+                    items.append(f'<li><a href="/view/{rel_path}" class="{css_class} {active}">{display_name}</a></li>')
     except PermissionError:
         pass
     except Exception as e:
@@ -809,19 +923,51 @@ def download_pdf(filepath):
     except Exception as e:
         print(f"PDF conversion error: {e}")
     
-    # Fallback: Try weasyprint
+    # Fallback: Try weasyprint (check venv first, then system)
     try:
-        from weasyprint import HTML
+        # Try importing from venv via subprocess (more reliable)
+        with tempfile.NamedTemporaryFile(suffix='.html', delete=False, mode='w', encoding='utf-8') as html_file:
+            html_file.write(full_html)
+            html_path = html_file.name
+        
         with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as pdf_file:
-            HTML(string=full_html).write_pdf(pdf_file.name)
-            return send_file(
-                pdf_file.name,
-                mimetype='application/pdf',
-                as_attachment=True,
-                download_name=filename
-            )
-    except ImportError:
-        pass
+            pdf_path = pdf_file.name
+        
+        # Try venv weasyprint first, then system
+        weasyprint_paths = [
+            '/tmp/pdfenv/bin/python3',  # venv with weasyprint
+            'python3',  # system python
+        ]
+        
+        for python_path in weasyprint_paths:
+            try:
+                result = subprocess.run(
+                    [python_path, '-c', f'''
+import sys
+from weasyprint import HTML
+HTML(filename="{html_path}").write_pdf("{pdf_path}")
+print("success")
+'''],
+                    capture_output=True,
+                    timeout=60
+                )
+                if result.returncode == 0 and os.path.exists(pdf_path) and os.path.getsize(pdf_path) > 0:
+                    os.unlink(html_path)
+                    return send_file(
+                        pdf_path,
+                        mimetype='application/pdf',
+                        as_attachment=True,
+                        download_name=filename
+                    )
+            except (FileNotFoundError, subprocess.TimeoutExpired):
+                continue
+        
+        # Cleanup
+        if os.path.exists(html_path):
+            os.unlink(html_path)
+        if os.path.exists(pdf_path):
+            os.unlink(pdf_path)
+            
     except Exception as e:
         print(f"WeasyPrint error: {e}")
     
