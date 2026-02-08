@@ -1,28 +1,55 @@
 # 📚 Obsidian Local Viewer
 
-**View your Obsidian vault from any device on your local network** — tablets, phones, or other computers.
+**View and annotate your Obsidian vault from any device on your local network** — tablets, phones, or other computers.
 
-A lightweight Python server that renders your markdown files beautifully in any web browser. No cloud sync, no account needed — your notes stay on your machine.
+A lightweight Python server that renders your markdown files beautifully in any web browser. Supports **Apple Pencil annotations** on iPad! No cloud sync, no account needed — your notes stay on your machine.
 
 ![Python](https://img.shields.io/badge/Python-3.7+-blue.svg)
 ![License](https://img.shields.io/badge/License-MIT-green.svg)
 
 ## ✨ Features
 
-- 📁 **Folder tree navigation** — Browse your entire vault structure
-- 📄 **Beautiful markdown rendering** — Headers, code blocks, tables, lists, blockquotes
-- 📕 **PDF support** — View PDFs directly in the browser
+- 📁 **Folder tree navigation** — Browse your entire vault structure with collapsible folders
+- 📄 **Beautiful markdown rendering** — Headers, code blocks, tables, lists, blockquotes, LaTeX math
+- ✏️ **Apple Pencil annotations** — Draw, highlight, and annotate directly on markdown and PDFs
+- 📕 **PDF support** — Full PDF.js viewer with zoom controls (works great on iPad!)
+- 🎬 **Video playback** — Watch videos with Plyr.js player (YouTube-style controls)
 - 🖼️ **Image support** — PNG, JPG, GIF, WebP displayed inline
-- 📱 **Mobile-friendly** — Responsive design works great on tablets
+- 📱 **Mobile-friendly** — Responsive design optimized for tablets
 - 🔒 **Local only** — Your notes never leave your network
 - ⚡ **Fast & lightweight** — No heavy dependencies
 
+## ✏️ Annotation Features
+
+Perfect for studying on iPad with Apple Pencil:
+
+- **Pen tool** — Write notes with pressure-sensitive strokes
+- **Highlighter** — Semi-transparent highlighting
+- **Eraser** — Remove mistakes
+- **Color palette** — Multiple colors to choose from
+- **Stroke size slider** — Adjust pen thickness with live preview
+- **Undo/Redo** — Fix mistakes easily
+- **Auto-save** — Annotations saved automatically to `annotations/` folder
+- **Palm rejection** — Rest your hand while writing
+
+### Annotation Keyboard Shortcuts
+
+| Key | Action |
+|-----|--------|
+| `P` | Pen tool |
+| `H` | Highlighter |
+| `E` | Eraser |
+| `Ctrl+Z` | Undo |
+| `Ctrl+Y` | Redo |
+| `Esc` | Exit annotation mode |
+
 ## 🎯 Who Is This For?
 
-- **Students** who want to study their notes on a tablet while their laptop runs the server
-- **Writers** who want to read their drafts on a different device
-- **Anyone with an Obsidian vault** (or any markdown folder) who wants easy access from other devices on their WiFi
+- **Students** who want to study and annotate notes on a tablet
+- **Writers** who want to read and markup their drafts on a different device
+- **Anyone with an Obsidian vault** who wants easy access from other devices on their WiFi
 - **People who don't want to pay for Obsidian Sync** but still want multi-device access at home
+- **iPad users** who want to annotate PDFs and notes with Apple Pencil
 
 ## 📦 Installation
 
@@ -82,6 +109,7 @@ python app.py
 2. Note the **Network URL** shown (e.g., `http://192.168.1.100:5000`)
 3. Open that URL on your tablet/phone (must be on the same WiFi network)
 4. Browse and read your notes!
+5. Click ✏️ **Annotate** to draw with Apple Pencil
 
 ```
 ╔══════════════════════════════════════════════════════╗
@@ -105,10 +133,32 @@ python app.py
 
 | Type | Extension | How it's displayed |
 |------|-----------|-------------------|
-| Markdown | `.md` | Rendered as formatted HTML |
-| PDF | `.pdf` | Displayed in browser's PDF viewer |
+| Markdown | `.md` | Rendered as formatted HTML with annotation support |
+| PDF | `.pdf` | PDF.js viewer with zoom and annotation support |
+| Video | `.mp4`, `.mkv`, `.avi`, `.mov`, `.webm` | Plyr.js video player |
 | Images | `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp` | Displayed inline |
 | Text | `.txt` | Shown as plain text |
+
+## 📂 Annotation Storage
+
+Annotations are saved as JSON files in the `annotations/` folder at the root of your vault:
+
+```
+MyVault/
+├── annotations/
+│   ├── Notes_lecture1.md.json
+│   ├── PDFs_textbook.pdf.json
+│   └── ...
+├── Notes/
+│   └── lecture1.md
+└── PDFs/
+    └── textbook.pdf
+```
+
+This makes annotations:
+- ✅ Easy to backup
+- ✅ Git-trackable
+- ✅ Portable with your vault
 
 ## 🔒 Security Notes
 
@@ -150,6 +200,11 @@ sudo systemctl start obsidian-viewer
 
 Create `~/Library/LaunchAgents/com.obsidian-viewer.plist` with appropriate configuration.
 
+## ⚠️ Known Limitations
+
+- **Long PDFs**: Annotation canvas is capped at ~16,000px height due to browser limits. For very long PDFs, annotations work on the first several pages.
+- **No sync**: Annotations are local to the server machine. Access from multiple devices shows the same annotations (stored on server).
+
 ## 🤝 Contributing
 
 Contributions are welcome! Feel free to:
@@ -167,6 +222,9 @@ MIT License — feel free to use this however you want.
 - Built for the [Obsidian](https://obsidian.md/) community
 - Uses [Flask](https://flask.palletsprojects.com/) for the web server
 - Uses [Python-Markdown](https://python-markdown.github.io/) for rendering
+- Uses [PDF.js](https://mozilla.github.io/pdf.js/) for PDF viewing
+- Uses [Plyr](https://plyr.io/) for video playback
+- Uses [MathJax](https://www.mathjax.org/) for LaTeX rendering
 
 ---
 
