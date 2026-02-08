@@ -147,7 +147,15 @@ HTML_TEMPLATE = '''
             touch-action: manipulation;
             -webkit-tap-highlight-color: transparent;
         }
-        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; display: flex; height: 100vh; background: #f5f5f5; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; 
+            display: flex; 
+            height: 100vh; 
+            background: #f5f5f5;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+            text-rendering: optimizeLegibility;
+        }
         
         /* Sidebar */
         .sidebar { 
@@ -662,6 +670,10 @@ HTML_TEMPLATE = '''
             left: 0;
             /* Allow finger scrolling, only Apple Pencil draws */
             touch-action: pan-x pan-y;
+            /* Smooth anti-aliased rendering for handwriting */
+            image-rendering: auto;
+            -webkit-transform: translateZ(0);
+            transform: translateZ(0);
         }
         
         /* Floating annotation toolbar */
@@ -1170,6 +1182,7 @@ HTML_TEMPLATE = '''
         let annotationModeActive = false;
         let lastCanvasWidth = 0;
         let lastCanvasHeight = 0;
+        let canvasDPR = 1; // Device pixel ratio for crisp rendering
         
         // Palm rejection state
         let penIsActive = false;
@@ -1223,6 +1236,7 @@ HTML_TEMPLATE = '''
                 ctx.globalAlpha = 1;
             }
             
+            // Use quadratic curves for smoother strokes (Apple Notes-style)
             ctx.beginPath();
             ctx.moveTo(outline[0].x, outline[0].y);
             
@@ -1231,7 +1245,17 @@ HTML_TEMPLATE = '''
                 const p1 = outline[i];
                 
                 ctx.lineWidth = (p0.width + p1.width) / 2;
-                ctx.lineTo(p1.x, p1.y);
+                
+                if (i < outline.length - 1) {
+                    // Use midpoint as control point for smooth bezier curves
+                    const p2 = outline[i + 1];
+                    const midX = (p1.x + p2.x) / 2;
+                    const midY = (p1.y + p2.y) / 2;
+                    ctx.quadraticCurveTo(p1.x, p1.y, midX, midY);
+                } else {
+                    ctx.lineTo(p1.x, p1.y);
+                }
+                
                 ctx.stroke();
                 ctx.beginPath();
                 ctx.moveTo(p1.x, p1.y);
@@ -1243,7 +1267,8 @@ HTML_TEMPLATE = '''
         function redrawAllStrokes() {
             if (!annotationCanvas || !annotationCtx) return;
             
-            annotationCtx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
+            // Clear using logical dimensions (context is already scaled)
+            annotationCtx.clearRect(0, 0, lastCanvasWidth, lastCanvasHeight);
             
             for (const stroke of annotationStrokes) {
                 drawStroke(annotationCtx, stroke);
@@ -1257,14 +1282,30 @@ HTML_TEMPLATE = '''
             const scrollWidth = Math.max(content.scrollWidth, contentWrapper.clientWidth);
             const scrollHeight = Math.max(content.scrollHeight, contentWrapper.scrollHeight, contentWrapper.clientHeight);
             
+            // Get device pixel ratio for crisp rendering on Retina/high-DPI displays
+            // Use minimum 2x for better quality on non-retina displays
+            canvasDPR = Math.max(2, window.devicePixelRatio || 1);
+            
             // Only resize if dimensions changed significantly
             if (Math.abs(scrollWidth - lastCanvasWidth) > 10 || Math.abs(scrollHeight - lastCanvasHeight) > 10) {
                 // Save current strokes
                 const strokesBackup = [...annotationStrokes];
                 
-                // Resize canvas
-                annotationCanvas.width = scrollWidth;
-                annotationCanvas.height = scrollHeight;
+                // Set canvas size accounting for DPR (internal resolution)
+                annotationCanvas.width = scrollWidth * canvasDPR;
+                annotationCanvas.height = scrollHeight * canvasDPR;
+                
+                // Set CSS size (display size)
+                annotationCanvas.style.width = scrollWidth + 'px';
+                annotationCanvas.style.height = scrollHeight + 'px';
+                
+                // Scale context to match DPR
+                annotationCtx.setTransform(canvasDPR, 0, 0, canvasDPR, 0, 0);
+                
+                // Restore high-quality rendering settings after transform
+                annotationCtx.imageSmoothingEnabled = true;
+                annotationCtx.imageSmoothingQuality = 'high';
+                
                 lastCanvasWidth = scrollWidth;
                 lastCanvasHeight = scrollHeight;
                 
@@ -1282,6 +1323,10 @@ HTML_TEMPLATE = '''
             if (!annotationCanvas || !annotationOverlay || !contentWrapper) return;
             
             annotationCtx = annotationCanvas.getContext('2d');
+            
+            // Enable high-quality rendering for crisp strokes
+            annotationCtx.imageSmoothingEnabled = true;
+            annotationCtx.imageSmoothingQuality = 'high';
             
             // Initial canvas sizing
             resizeCanvas();
@@ -1600,8 +1645,8 @@ HTML_TEMPLATE = '''
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     strokes: annotationStrokes,
-                    canvasWidth: annotationCanvas.width,
-                    canvasHeight: annotationCanvas.height
+                    canvasWidth: lastCanvasWidth,  // Save logical dimensions, not scaled
+                    canvasHeight: lastCanvasHeight
                 })
             }).then(res => res.json()).then(data => {
                 if (data.success) {
