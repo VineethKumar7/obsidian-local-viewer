@@ -268,18 +268,54 @@ HTML_TEMPLATE = '''
             content: "📂 ";
         }
         
-        /* Nested content */
+        /* Nested content - Tree structure with lines */
         .folder-children {
             overflow: hidden;
             max-height: 0;
             transition: max-height 0.25s ease-out;
-            margin-left: 12px;
-            padding-left: 8px;
-            border-left: 1px solid #3c3c3c;
+            margin-left: 8px;
+            padding-left: 16px;
+            position: relative;
         }
         .folder-item.open > .folder-children {
             max-height: 5000px;
             transition: max-height 0.4s ease-in;
+        }
+        
+        /* Vertical line running down the tree */
+        .folder-children::before {
+            content: '';
+            position: absolute;
+            left: 6px;
+            top: 0;
+            bottom: 8px;
+            width: 1px;
+            background: #3c3c3c;
+        }
+        
+        /* Horizontal connector for each item */
+        .folder-children > li {
+            position: relative;
+        }
+        .folder-children > li::before {
+            content: '';
+            position: absolute;
+            left: -10px;
+            top: 14px;
+            width: 10px;
+            height: 1px;
+            background: #3c3c3c;
+        }
+        
+        /* Last item - L-shaped connector (hide line below) */
+        .folder-children > li:last-child::after {
+            content: '';
+            position: absolute;
+            left: -10px;
+            top: 14px;
+            bottom: 0;
+            width: 1px;
+            background: #252526; /* same as sidebar background to hide vertical line */
         }
         
         /* File styles */
@@ -293,10 +329,16 @@ HTML_TEMPLATE = '''
             border-radius: 4px;
             transition: background 0.15s;
             margin: 1px 0;
+            margin-left: 4px;
         }
         .sidebar a:hover { background: #2a2d2e; }
         .sidebar a.active { background: #094771; color: #fff; }
         .sidebar a::before { margin-right: 6px; font-size: 14px; }
+        
+        /* Adjust folder header alignment in nested contexts */
+        .folder-children .folder-header {
+            margin-left: 4px;
+        }
         
         /* Toggle button - hidden on desktop, shown on mobile */
         .toggle-btn {
