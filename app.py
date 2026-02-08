@@ -2031,6 +2031,10 @@ def view_file(filepath):
             .content-wrapper {{
                 background: #525659;
             }}
+            /* Hide main toolbar - PDF has its own header buttons */
+            .toolbar {{
+                display: none !important;
+            }}
             
             @media (max-width: 768px) {{
                 .pdf-header {{
@@ -2068,8 +2072,10 @@ def view_file(filepath):
                         <span id="pdfZoomLevel">100%</span>
                         <button onclick="pdfZoomIn()" title="Zoom In">+</button>
                     </div>
-                    <a href="/raw/{filepath}" target="_blank" title="Open in new tab">↗ Open</a>
-                    <a href="/raw/{filepath}" download="{filename}" title="Download PDF">📥 Download</a>
+                    <a href="/raw/{filepath}" target="_blank" title="Open in new tab">↗</a>
+                    <a href="/raw/{filepath}" download="{filename}" title="Download PDF">📥</a>
+                    <button onclick="openAnnotation()" title="Annotate">✏️</button>
+                    <button onclick="toggleFullscreen()" title="Fullscreen">⛶</button>
                 </div>
             </div>
             <div class="pdf-viewer" id="pdfViewer">
