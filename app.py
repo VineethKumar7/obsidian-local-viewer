@@ -1204,8 +1204,8 @@ HTML_TEMPLATE = '''
             if (!pathText) return;
             
             const path = pathText.textContent;
-            navigator.clipboard.writeText(path).then(() => {
-                // Show copied feedback
+            
+            function showCopiedFeedback() {
                 const copyBtn = document.querySelector('.copy-btn');
                 const copyIcon = document.getElementById('copyIcon');
                 const copyText = document.getElementById('copyText');
@@ -1219,7 +1219,30 @@ HTML_TEMPLATE = '''
                     copyIcon.textContent = '📋';
                     copyText.textContent = 'Copy';
                 }, 2000);
-            });
+            }
+            
+            function fallbackCopy(text) {
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                textArea.style.position = 'fixed';
+                textArea.style.left = '-9999px';
+                document.body.appendChild(textArea);
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    showCopiedFeedback();
+                } catch (e) {
+                    alert('Path: ' + text);
+                }
+                document.body.removeChild(textArea);
+            }
+            
+            // Try modern clipboard API first, fallback to execCommand
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(path).then(showCopiedFeedback).catch(() => fallbackCopy(path));
+            } else {
+                fallbackCopy(path);
+            }
         }
         
         // Keyboard shortcuts
@@ -2355,15 +2378,39 @@ def view_file(filepath):
             
             function copyPdfPath() {{
                 const path = '{filepath}';
-                navigator.clipboard.writeText(path).then(() => {{
-                    const btn = document.querySelector('.pdf-copy-path');
-                    btn.classList.add('copied');
-                    btn.textContent = '✓';
-                    setTimeout(() => {{
-                        btn.classList.remove('copied');
-                        btn.textContent = '📋';
-                    }}, 2000);
-                }});
+                const btn = document.querySelector('.pdf-copy-path');
+                
+                // Try modern clipboard API first, fallback to execCommand
+                if (navigator.clipboard && window.isSecureContext) {{
+                    navigator.clipboard.writeText(path).then(() => showCopied(btn)).catch(() => fallbackCopy(path, btn));
+                }} else {{
+                    fallbackCopy(path, btn);
+                }}
+            }}
+            
+            function fallbackCopy(text, btn) {{
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                textArea.style.position = 'fixed';
+                textArea.style.left = '-9999px';
+                document.body.appendChild(textArea);
+                textArea.select();
+                try {{
+                    document.execCommand('copy');
+                    showCopied(btn);
+                }} catch (e) {{
+                    alert('Path: ' + text);
+                }}
+                document.body.removeChild(textArea);
+            }}
+            
+            function showCopied(btn) {{
+                btn.classList.add('copied');
+                btn.textContent = '✓';
+                setTimeout(() => {{
+                    btn.classList.remove('copied');
+                    btn.textContent = '📋';
+                }}, 2000);
             }}
             
             // Initialize PDF annotation canvas
