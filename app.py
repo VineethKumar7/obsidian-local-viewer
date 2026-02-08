@@ -637,122 +637,144 @@ HTML_TEMPLATE = '''
             overflow-y: hidden;
         }
         
-        /* Annotation Modal Styles */
-        .annotation-modal {
-            position: fixed;
+        /* Overlay Annotation System - Draws on top of content */
+        .annotation-overlay {
+            position: absolute;
             top: 0;
             left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(255, 255, 255, 0.98);
-            z-index: 10000;
-            display: flex;
-            flex-direction: column;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 50;
         }
-        .annotation-modal.hidden {
-            display: none;
+        .annotation-overlay.active {
+            pointer-events: auto;
         }
-        .annotation-header {
-            background: #1e1e1e;
-            padding: 12px 20px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-wrap: wrap;
-            gap: 10px;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-            z-index: 10;
+        .annotation-overlay canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            touch-action: none;
         }
-        .annotation-tools {
+        
+        /* Floating annotation toolbar */
+        .annotation-toolbar {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(30, 30, 30, 0.95);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            padding: 12px 16px;
+            border-radius: 16px;
             display: flex;
             align-items: center;
             gap: 8px;
-            flex-wrap: wrap;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s, visibility 0.3s, transform 0.3s;
         }
+        .annotation-toolbar.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+        .annotation-toolbar.minimized {
+            transform: translateX(-50%) translateY(calc(100% + 10px));
+        }
+        
         .tool-btn, .color-btn {
             width: 40px;
             height: 40px;
             border: 2px solid transparent;
-            border-radius: 8px;
+            border-radius: 10px;
             cursor: pointer;
             font-size: 18px;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: #333;
+            background: #444;
+            color: #fff;
             transition: all 0.2s;
         }
         .tool-btn:hover, .color-btn:hover {
-            background: #444;
-            transform: scale(1.05);
+            background: #555;
+            transform: scale(1.08);
         }
         .tool-btn.active {
             border-color: #0066cc;
             background: #0066cc;
         }
         .color-btn {
-            width: 32px;
-            height: 32px;
+            width: 28px;
+            height: 28px;
             border-radius: 50%;
+            border: 2px solid rgba(255,255,255,0.3);
         }
         .color-btn.active {
             border-color: #fff;
-            box-shadow: 0 0 0 3px #0066cc;
+            box-shadow: 0 0 0 2px #0066cc;
+            transform: scale(1.1);
         }
         .tool-separator {
             width: 1px;
-            height: 30px;
-            background: #444;
-            margin: 0 8px;
+            height: 28px;
+            background: #555;
+            margin: 0 6px;
         }
         .stroke-size-select {
-            background: #333;
-            color: #fff;
-            border: none;
-            padding: 8px 12px;
-            border-radius: 6px;
-            font-size: 14px;
-            cursor: pointer;
-        }
-        .annotation-actions {
-            display: flex;
-            gap: 8px;
-        }
-        .annotation-actions button {
             background: #444;
             color: #fff;
             border: none;
-            padding: 10px 16px;
+            padding: 8px 10px;
             border-radius: 8px;
+            font-size: 13px;
             cursor: pointer;
-            font-size: 14px;
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            transition: background 0.2s;
         }
-        .annotation-actions button:hover {
-            background: #555;
+        .annotation-close-btn {
+            background: #e53935 !important;
+            margin-left: 8px;
         }
-        .annotation-actions .save-btn {
-            background: #43a047;
-        }
-        .annotation-actions .save-btn:hover {
-            background: #388e3c;
-        }
-        .annotation-canvas-container {
-            flex: 1;
-            overflow: auto;
-            position: relative;
-            background: #f5f5f5;
-        }
-        #annotationCanvas {
-            display: block;
-            touch-action: none;
-            cursor: crosshair;
+        .annotation-close-btn:hover {
+            background: #c62828 !important;
         }
         
-        /* Annotation indicator on page */
+        /* Annotation mode indicator */
+        .annotation-mode-badge {
+            position: fixed;
+            top: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #7c3aed;
+            color: #fff;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 15px rgba(124, 58, 237, 0.4);
+        }
+        .annotation-mode-badge.visible {
+            display: flex;
+        }
+        .annotation-mode-badge .dot {
+            width: 8px;
+            height: 8px;
+            background: #4ade80;
+            border-radius: 50%;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        /* Has annotations indicator (when not in annotation mode) */
         .has-annotations-indicator {
             position: fixed;
             bottom: 20px;
@@ -768,15 +790,30 @@ HTML_TEMPLATE = '''
             display: flex;
             align-items: center;
             gap: 8px;
+            transition: transform 0.2s, background 0.2s;
         }
         .has-annotations-indicator:hover {
             background: #6d28d9;
+            transform: scale(1.05);
+        }
+        
+        /* Content wrapper needs position relative for overlay */
+        .content-wrapper {
+            position: relative;
+        }
+        .content {
+            position: relative;
         }
         
         /* Mobile adjustments for annotation */
         @media (max-width: 768px) {
-            .annotation-header {
-                padding: 10px 15px;
+            .annotation-toolbar {
+                bottom: 15px;
+                padding: 10px 12px;
+                gap: 6px;
+                max-width: 95vw;
+                flex-wrap: wrap;
+                justify-content: center;
             }
             .tool-btn {
                 width: 36px;
@@ -784,18 +821,20 @@ HTML_TEMPLATE = '''
                 font-size: 16px;
             }
             .color-btn {
-                width: 28px;
-                height: 28px;
-            }
-            .annotation-actions button {
-                padding: 8px 12px;
-                font-size: 12px;
-            }
-            .annotation-actions button span {
-                display: none;
+                width: 24px;
+                height: 24px;
             }
             .tool-separator {
-                margin: 0 4px;
+                display: none;
+            }
+            .stroke-size-select {
+                padding: 6px 8px;
+                font-size: 12px;
+            }
+            .annotation-mode-badge {
+                top: 70px;
+                font-size: 12px;
+                padding: 6px 12px;
             }
         }
     </style>
@@ -841,43 +880,43 @@ HTML_TEMPLATE = '''
     <div class="toolbar">
         {% if is_markdown %}
         <button onclick="downloadPDF()" title="Download as PDF">📥 <span class="btn-text">PDF</span></button>
-        <button onclick="openAnnotation()" title="Annotate with Apple Pencil">✏️ <span class="btn-text">Annotate</span></button>
+        {% endif %}
+        {% if is_markdown or is_pdf|default(false) %}
+        <button onclick="openAnnotation()" title="Annotate with Apple Pencil (draw on content)">✏️ <span class="btn-text">Annotate</span></button>
         {% endif %}
         <button class="secondary" onclick="toggleFullscreen()" title="Toggle Fullscreen">⛶</button>
     </div>
     
-    <!-- Annotation Modal -->
-    <div id="annotationModal" class="annotation-modal hidden">
-        <div class="annotation-header">
-            <div class="annotation-tools">
-                <button class="tool-btn active" data-tool="pen" title="Pen">🖊️</button>
-                <button class="tool-btn" data-tool="highlighter" title="Highlighter">🖍️</button>
-                <button class="tool-btn" data-tool="eraser" title="Eraser">🧽</button>
-                <div class="tool-separator"></div>
-                <button class="color-btn active" data-color="#000000" style="background:#000000" title="Black"></button>
-                <button class="color-btn" data-color="#e53935" style="background:#e53935" title="Red"></button>
-                <button class="color-btn" data-color="#1e88e5" style="background:#1e88e5" title="Blue"></button>
-                <button class="color-btn" data-color="#43a047" style="background:#43a047" title="Green"></button>
-                <button class="color-btn" data-color="#fb8c00" style="background:#fb8c00" title="Orange"></button>
-                <button class="color-btn" data-color="#8e24aa" style="background:#8e24aa" title="Purple"></button>
-                <div class="tool-separator"></div>
-                <select id="strokeSize" class="stroke-size-select" title="Stroke Size">
-                    <option value="2">Fine</option>
-                    <option value="4" selected>Medium</option>
-                    <option value="8">Thick</option>
-                    <option value="16">Extra Thick</option>
-                </select>
-            </div>
-            <div class="annotation-actions">
-                <button onclick="annotationUndo()" title="Undo (Ctrl+Z)">↩️ Undo</button>
-                <button onclick="annotationRedo()" title="Redo (Ctrl+Y)">↪️ Redo</button>
-                <button onclick="clearAnnotations()" title="Clear All">🗑️ Clear</button>
-                <button class="save-btn" onclick="saveAndCloseAnnotation()" title="Save & Close">💾 Done</button>
-            </div>
-        </div>
-        <div class="annotation-canvas-container">
-            <canvas id="annotationCanvas"></canvas>
-        </div>
+    <!-- Annotation Mode Badge -->
+    <div id="annotationModeBadge" class="annotation-mode-badge">
+        <span class="dot"></span>
+        <span>Annotation Mode</span>
+    </div>
+    
+    <!-- Floating Annotation Toolbar -->
+    <div id="annotationToolbar" class="annotation-toolbar">
+        <button class="tool-btn active" data-tool="pen" title="Pen (P)">🖊️</button>
+        <button class="tool-btn" data-tool="highlighter" title="Highlighter (H)">🖍️</button>
+        <button class="tool-btn" data-tool="eraser" title="Eraser (E)">🧽</button>
+        <div class="tool-separator"></div>
+        <button class="color-btn active" data-color="#000000" style="background:#000000" title="Black"></button>
+        <button class="color-btn" data-color="#e53935" style="background:#e53935" title="Red"></button>
+        <button class="color-btn" data-color="#1e88e5" style="background:#1e88e5" title="Blue"></button>
+        <button class="color-btn" data-color="#43a047" style="background:#43a047" title="Green"></button>
+        <button class="color-btn" data-color="#fb8c00" style="background:#fb8c00" title="Orange"></button>
+        <button class="color-btn" data-color="#8e24aa" style="background:#8e24aa" title="Purple"></button>
+        <div class="tool-separator"></div>
+        <select id="strokeSize" class="stroke-size-select" title="Stroke Size">
+            <option value="2">Fine</option>
+            <option value="4" selected>Medium</option>
+            <option value="8">Thick</option>
+            <option value="16">Extra Thick</option>
+        </select>
+        <div class="tool-separator"></div>
+        <button class="tool-btn" onclick="annotationUndo()" title="Undo (Ctrl+Z)">↩️</button>
+        <button class="tool-btn" onclick="annotationRedo()" title="Redo (Ctrl+Y)">↪️</button>
+        <button class="tool-btn" onclick="clearAnnotations()" title="Clear All">🗑️</button>
+        <button class="tool-btn annotation-close-btn" onclick="exitAnnotationMode()" title="Exit (Esc)">✕</button>
     </div>
     
     <div class="sidebar hidden" id="sidebar">
@@ -893,9 +932,13 @@ HTML_TEMPLATE = '''
             {{ tree|safe }}
         </div>
     </div>
-    <div class="content-wrapper">
-        <div class="content">
+    <div class="content-wrapper" id="contentWrapper">
+        <div class="content" id="contentArea">
             {{ content|safe }}
+        </div>
+        <!-- Annotation overlay canvas - positioned on top of content -->
+        <div id="annotationOverlay" class="annotation-overlay">
+            <canvas id="annotationCanvas"></canvas>
         </div>
     </div>
     
@@ -1085,7 +1128,8 @@ HTML_TEMPLATE = '''
         });
         
         // ============================================
-        // ANNOTATION SYSTEM (Apple Pencil Support)
+        // OVERLAY ANNOTATION SYSTEM (Apple Pencil Support)
+        // Draws directly on top of content
         // ============================================
         
         // Get current file path from URL
@@ -1102,7 +1146,12 @@ HTML_TEMPLATE = '''
         let currentColor = '#000000';
         let currentSize = 4;
         let annotationCanvas, annotationCtx;
+        let annotationOverlay;
+        let contentWrapper;
         let hasUnsavedChanges = false;
+        let annotationModeActive = false;
+        let lastCanvasWidth = 0;
+        let lastCanvasHeight = 0;
         
         // Perfect-freehand inspired stroke smoothing
         function getStrokeOutline(points, size, thinning = 0.5) {
@@ -1143,12 +1192,13 @@ HTML_TEMPLATE = '''
                 ctx.globalCompositeOperation = 'destination-out';
                 ctx.strokeStyle = 'rgba(0,0,0,1)';
             } else if (stroke.tool === 'highlighter') {
-                ctx.globalCompositeOperation = 'multiply';
+                ctx.globalCompositeOperation = 'source-over';
                 ctx.strokeStyle = stroke.color;
-                ctx.globalAlpha = 0.3;
+                ctx.globalAlpha = 0.35;
             } else {
                 ctx.globalCompositeOperation = 'source-over';
                 ctx.strokeStyle = stroke.color;
+                ctx.globalAlpha = 1;
             }
             
             ctx.beginPath();
@@ -1178,56 +1228,150 @@ HTML_TEMPLATE = '''
             }
         }
         
-        function openAnnotation() {
-            if (!currentFilePath) {
-                alert('Please open a markdown file first');
-                return;
+        function resizeCanvas() {
+            if (!annotationCanvas || !contentWrapper) return;
+            
+            const content = document.getElementById('contentArea');
+            const scrollWidth = Math.max(content.scrollWidth, contentWrapper.clientWidth);
+            const scrollHeight = Math.max(content.scrollHeight, contentWrapper.scrollHeight, contentWrapper.clientHeight);
+            
+            // Only resize if dimensions changed significantly
+            if (Math.abs(scrollWidth - lastCanvasWidth) > 10 || Math.abs(scrollHeight - lastCanvasHeight) > 10) {
+                // Save current strokes
+                const strokesBackup = [...annotationStrokes];
+                
+                // Resize canvas
+                annotationCanvas.width = scrollWidth;
+                annotationCanvas.height = scrollHeight;
+                lastCanvasWidth = scrollWidth;
+                lastCanvasHeight = scrollHeight;
+                
+                // Restore strokes
+                annotationStrokes = strokesBackup;
+                redrawAllStrokes();
             }
-            
-            const modal = document.getElementById('annotationModal');
-            modal.classList.remove('hidden');
-            
-            // Setup canvas
+        }
+        
+        function initAnnotationOverlay() {
             annotationCanvas = document.getElementById('annotationCanvas');
+            annotationOverlay = document.getElementById('annotationOverlay');
+            contentWrapper = document.getElementById('contentWrapper');
+            
+            if (!annotationCanvas || !annotationOverlay || !contentWrapper) return;
+            
             annotationCtx = annotationCanvas.getContext('2d');
             
-            // Set canvas size to match content
-            const container = document.querySelector('.annotation-canvas-container');
-            const content = document.querySelector('.content');
+            // Initial canvas sizing
+            resizeCanvas();
             
-            // Make canvas match the document size
-            annotationCanvas.width = Math.max(container.clientWidth, content.scrollWidth, 1200);
-            annotationCanvas.height = Math.max(container.scrollHeight, content.scrollHeight, 800);
+            // Resize observer for dynamic content
+            const resizeObserver = new ResizeObserver(() => {
+                resizeCanvas();
+            });
+            resizeObserver.observe(contentWrapper);
+            resizeObserver.observe(document.getElementById('contentArea'));
             
             // Load existing annotations
             loadAnnotations();
             
-            // Setup event listeners
+            // Setup event listeners (always attached, but only work in annotation mode)
             setupAnnotationEvents();
             
             // Setup tool buttons
             setupToolButtons();
         }
         
+        function enterAnnotationMode() {
+            if (!currentFilePath) {
+                alert('Please open a file first');
+                return;
+            }
+            
+            annotationModeActive = true;
+            
+            // Show toolbar and badge
+            document.getElementById('annotationToolbar').classList.add('visible');
+            document.getElementById('annotationModeBadge').classList.add('visible');
+            
+            // Activate overlay (enable pointer events)
+            annotationOverlay.classList.add('active');
+            
+            // Hide the annotation indicator if visible
+            const indicator = document.querySelector('.has-annotations-indicator');
+            if (indicator) indicator.style.display = 'none';
+            
+            // Resize canvas to match current content
+            resizeCanvas();
+            
+            // Set cursor
+            updateCursor();
+        }
+        
+        function exitAnnotationMode() {
+            annotationModeActive = false;
+            
+            // Hide toolbar and badge
+            document.getElementById('annotationToolbar').classList.remove('visible');
+            document.getElementById('annotationModeBadge').classList.remove('visible');
+            
+            // Deactivate overlay (disable pointer events, allow normal scrolling)
+            annotationOverlay.classList.remove('active');
+            
+            // Save annotations
+            saveAnnotations();
+            
+            // Show indicator if there are annotations
+            updateAnnotationIndicator();
+        }
+        
+        // This is called by the Annotate button in toolbar
+        function openAnnotation() {
+            if (annotationModeActive) {
+                exitAnnotationMode();
+            } else {
+                enterAnnotationMode();
+            }
+        }
+        
         function setupAnnotationEvents() {
+            if (!annotationCanvas) return;
+            
             // Pointer events for Apple Pencil support
-            annotationCanvas.addEventListener('pointerdown', handlePointerDown);
-            annotationCanvas.addEventListener('pointermove', handlePointerMove);
+            annotationCanvas.addEventListener('pointerdown', handlePointerDown, { passive: false });
+            annotationCanvas.addEventListener('pointermove', handlePointerMove, { passive: false });
             annotationCanvas.addEventListener('pointerup', handlePointerUp);
             annotationCanvas.addEventListener('pointerleave', handlePointerUp);
             annotationCanvas.addEventListener('pointercancel', handlePointerUp);
             
-            // Prevent default touch behavior
-            annotationCanvas.addEventListener('touchstart', e => e.preventDefault(), { passive: false });
-            annotationCanvas.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+            // Prevent default touch behavior when in annotation mode
+            annotationCanvas.addEventListener('touchstart', (e) => {
+                if (annotationModeActive) e.preventDefault();
+            }, { passive: false });
+            annotationCanvas.addEventListener('touchmove', (e) => {
+                if (annotationModeActive) e.preventDefault();
+            }, { passive: false });
         }
         
         function handlePointerDown(e) {
-            isDrawing = true;
+            if (!annotationModeActive) return;
             
+            // For Apple Pencil, check pointer type
+            const isPencil = e.pointerType === 'pen';
+            const isTouch = e.pointerType === 'touch';
+            
+            // If it's a touch and not pencil, allow scrolling (don't draw)
+            // But we're in annotation mode, so we draw with touch too
+            
+            isDrawing = true;
+            e.preventDefault();
+            
+            // Get coordinates relative to canvas (accounting for scroll)
             const rect = annotationCanvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
+            const scrollLeft = contentWrapper.scrollLeft || 0;
+            const scrollTop = contentWrapper.scrollTop || 0;
+            
+            const x = e.clientX - rect.left + scrollLeft;
+            const y = e.clientY - rect.top + scrollTop;
             
             currentStroke = {
                 tool: currentTool,
@@ -1245,11 +1389,16 @@ HTML_TEMPLATE = '''
         }
         
         function handlePointerMove(e) {
-            if (!isDrawing || !currentStroke) return;
+            if (!isDrawing || !currentStroke || !annotationModeActive) return;
+            
+            e.preventDefault();
             
             const rect = annotationCanvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
+            const scrollLeft = contentWrapper.scrollLeft || 0;
+            const scrollTop = contentWrapper.scrollTop || 0;
+            
+            const x = e.clientX - rect.left + scrollLeft;
+            const y = e.clientY - rect.top + scrollTop;
             
             currentStroke.points.push({
                 x: x,
@@ -1277,36 +1426,45 @@ HTML_TEMPLATE = '''
             redrawAllStrokes();
         }
         
+        function updateCursor() {
+            if (!annotationCanvas) return;
+            
+            if (currentTool === 'eraser') {
+                annotationCanvas.style.cursor = 'cell';
+            } else if (currentTool === 'highlighter') {
+                annotationCanvas.style.cursor = 'text';
+            } else {
+                annotationCanvas.style.cursor = 'crosshair';
+            }
+        }
+        
         function setupToolButtons() {
             // Tool buttons
-            document.querySelectorAll('.tool-btn').forEach(btn => {
+            document.querySelectorAll('#annotationToolbar .tool-btn[data-tool]').forEach(btn => {
                 btn.addEventListener('click', () => {
-                    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+                    document.querySelectorAll('#annotationToolbar .tool-btn[data-tool]').forEach(b => b.classList.remove('active'));
                     btn.classList.add('active');
                     currentTool = btn.dataset.tool;
-                    
-                    // Update cursor
-                    if (currentTool === 'eraser') {
-                        annotationCanvas.style.cursor = 'cell';
-                    } else {
-                        annotationCanvas.style.cursor = 'crosshair';
-                    }
+                    updateCursor();
                 });
             });
             
             // Color buttons
-            document.querySelectorAll('.color-btn').forEach(btn => {
+            document.querySelectorAll('#annotationToolbar .color-btn').forEach(btn => {
                 btn.addEventListener('click', () => {
-                    document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+                    document.querySelectorAll('#annotationToolbar .color-btn').forEach(b => b.classList.remove('active'));
                     btn.classList.add('active');
                     currentColor = btn.dataset.color;
                 });
             });
             
             // Stroke size
-            document.getElementById('strokeSize').addEventListener('change', (e) => {
-                currentSize = parseInt(e.target.value);
-            });
+            const strokeSelect = document.getElementById('strokeSize');
+            if (strokeSelect) {
+                strokeSelect.addEventListener('change', (e) => {
+                    currentSize = parseInt(e.target.value);
+                });
+            }
         }
         
         function annotationUndo() {
@@ -1339,9 +1497,11 @@ HTML_TEMPLATE = '''
                 redrawAllStrokes();
                 
                 // Delete from server
-                fetch('/api/annotations/' + currentFilePath, {
-                    method: 'DELETE'
-                });
+                if (currentFilePath) {
+                    fetch('/api/annotations/' + currentFilePath, {
+                        method: 'DELETE'
+                    });
+                }
             }
         }
         
@@ -1351,11 +1511,11 @@ HTML_TEMPLATE = '''
             if (saveTimeout) clearTimeout(saveTimeout);
             saveTimeout = setTimeout(() => {
                 saveAnnotations();
-            }, 1000);
+            }, 500); // Save faster for better reliability
         }
         
         function saveAnnotations() {
-            if (!currentFilePath) return;
+            if (!currentFilePath || !annotationCanvas) return;
             
             fetch('/api/annotations/' + currentFilePath, {
                 method: 'POST',
@@ -1380,79 +1540,71 @@ HTML_TEMPLATE = '''
                 .then(data => {
                     if (data.strokes && data.strokes.length > 0) {
                         annotationStrokes = data.strokes;
+                        
+                        // If saved canvas was different size, we might need to scale
+                        // For now, just redraw at current positions
                         redrawAllStrokes();
+                        
+                        // Show indicator that annotations exist
+                        updateAnnotationIndicator();
                     }
                 })
                 .catch(err => console.error('Load failed:', err));
         }
         
-        function saveAndCloseAnnotation() {
-            saveAnnotations();
-            closeAnnotation();
-        }
-        
-        function closeAnnotation() {
-            const modal = document.getElementById('annotationModal');
-            modal.classList.add('hidden');
-            
-            // Remove event listeners
-            if (annotationCanvas) {
-                annotationCanvas.removeEventListener('pointerdown', handlePointerDown);
-                annotationCanvas.removeEventListener('pointermove', handlePointerMove);
-                annotationCanvas.removeEventListener('pointerup', handlePointerUp);
-                annotationCanvas.removeEventListener('pointerleave', handlePointerUp);
-                annotationCanvas.removeEventListener('pointercancel', handlePointerUp);
-            }
-            
-            // Show indicator if there are annotations
-            showAnnotationIndicator();
-        }
-        
-        function checkForAnnotations() {
-            if (!currentFilePath) return;
-            
-            fetch('/api/annotations/' + currentFilePath)
-                .then(res => res.json())
-                .then(data => {
-                    if (data.strokes && data.strokes.length > 0) {
-                        showAnnotationIndicator();
-                    }
-                })
-                .catch(() => {});
-        }
-        
-        function showAnnotationIndicator() {
+        function updateAnnotationIndicator() {
             // Remove existing indicator
             const existing = document.querySelector('.has-annotations-indicator');
             if (existing) existing.remove();
             
-            if (!currentFilePath || annotationStrokes.length === 0) return;
+            // Don't show if in annotation mode or no annotations
+            if (annotationModeActive || !currentFilePath || annotationStrokes.length === 0) return;
             
             const indicator = document.createElement('div');
             indicator.className = 'has-annotations-indicator';
-            indicator.innerHTML = '✏️ View Annotations';
-            indicator.onclick = openAnnotation;
+            indicator.innerHTML = '✏️ ' + annotationStrokes.length + ' annotation' + (annotationStrokes.length > 1 ? 's' : '');
+            indicator.onclick = enterAnnotationMode;
             document.body.appendChild(indicator);
         }
         
+        // Initialize overlay when DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+            // Wait a bit for content to render
+            setTimeout(initAnnotationOverlay, 100);
+        });
+        
         // Keyboard shortcuts for annotation
         document.addEventListener('keydown', (e) => {
-            const modal = document.getElementById('annotationModal');
-            if (!modal || modal.classList.contains('hidden')) return;
+            // Global shortcuts
+            if (e.key === 'Escape' && annotationModeActive) {
+                exitAnnotationMode();
+                return;
+            }
+            
+            // Shortcuts only when annotation mode is active
+            if (!annotationModeActive) return;
             
             // Undo: Ctrl+Z
             if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
                 e.preventDefault();
                 annotationUndo();
+                return;
             }
             // Redo: Ctrl+Y or Ctrl+Shift+Z
             if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
                 e.preventDefault();
                 annotationRedo();
+                return;
             }
-            // Escape to close
-            if (e.key === 'Escape') {
-                saveAndCloseAnnotation();
+            // Tool shortcuts
+            if (e.key === 'p' || e.key === 'P') {
+                document.querySelector('#annotationToolbar .tool-btn[data-tool="pen"]').click();
+            }
+            if (e.key === 'h' || e.key === 'H') {
+                document.querySelector('#annotationToolbar .tool-btn[data-tool="highlighter"]').click();
+            }
+            if (e.key === 'e' || e.key === 'E') {
+                document.querySelector('#annotationToolbar .tool-btn[data-tool="eraser"]').click();
             }
         });
     </script>
@@ -1676,7 +1828,8 @@ def view_file(filepath):
             tree=tree,
             content=pdf_content,
             vault_name=get_vault_name(),
-            is_markdown=False
+            is_markdown=False,
+            is_pdf=True
         )
     
     elif ext in ['png', 'jpg', 'jpeg', 'gif', 'webp']:
