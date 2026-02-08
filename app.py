@@ -752,16 +752,62 @@ HTML_TEMPLATE = '''
             background: #555;
             margin: 0 6px;
         }
-        .stroke-size-select {
+        .stroke-size-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
             background: #444;
-            color: #fff;
-            border: none;
-            padding: 8px 10px;
+            padding: 6px 12px;
             border-radius: 8px;
-            font-size: 13px;
+        }
+        .stroke-size-preview {
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #333;
+            border-radius: 50%;
+        }
+        .stroke-size-dot {
+            background: #fff;
+            border-radius: 50%;
+            transition: width 0.1s, height 0.1s;
+        }
+        .stroke-size-slider {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 80px;
+            height: 6px;
+            background: #666;
+            border-radius: 3px;
+            outline: none;
             cursor: pointer;
-            touch-action: manipulation;
-            -webkit-tap-highlight-color: transparent;
+        }
+        .stroke-size-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            background: #fff;
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+        .stroke-size-slider::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            background: #fff;
+            border-radius: 50%;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+        .stroke-size-label {
+            color: #ccc;
+            font-size: 11px;
+            min-width: 24px;
+            text-align: center;
         }
         .annotation-close-btn {
             background: #e53935 !important;
@@ -857,9 +903,15 @@ HTML_TEMPLATE = '''
             .tool-separator {
                 display: none;
             }
-            .stroke-size-select {
-                padding: 6px 8px;
-                font-size: 12px;
+            .stroke-size-container {
+                padding: 4px 8px;
+            }
+            .stroke-size-slider {
+                width: 60px;
+            }
+            .stroke-size-preview {
+                width: 24px;
+                height: 24px;
             }
             .annotation-mode-badge {
                 top: 70px;
@@ -936,12 +988,13 @@ HTML_TEMPLATE = '''
         <button class="color-btn" data-color="#fb8c00" style="background:#fb8c00" title="Orange"></button>
         <button class="color-btn" data-color="#8e24aa" style="background:#8e24aa" title="Purple"></button>
         <div class="tool-separator"></div>
-        <select id="strokeSize" class="stroke-size-select" title="Stroke Size">
-            <option value="2">Fine</option>
-            <option value="4" selected>Medium</option>
-            <option value="8">Thick</option>
-            <option value="16">Extra Thick</option>
-        </select>
+        <div class="stroke-size-container" title="Stroke Size">
+            <div class="stroke-size-preview">
+                <div class="stroke-size-dot" id="strokeSizeDot"></div>
+            </div>
+            <input type="range" id="strokeSize" class="stroke-size-slider" min="1" max="24" value="4">
+            <span class="stroke-size-label" id="strokeSizeLabel">4</span>
+        </div>
         <div class="tool-separator"></div>
         <button class="tool-btn" onclick="annotationUndo()" title="Undo (Ctrl+Z)">↩️</button>
         <button class="tool-btn" onclick="annotationRedo()" title="Redo (Ctrl+Y)">↪️</button>
@@ -1581,12 +1634,31 @@ HTML_TEMPLATE = '''
                 });
             });
             
-            // Stroke size
-            const strokeSelect = document.getElementById('strokeSize');
-            if (strokeSelect) {
-                strokeSelect.addEventListener('change', (e) => {
+            // Stroke size slider
+            const strokeSlider = document.getElementById('strokeSize');
+            const strokeSizeDot = document.getElementById('strokeSizeDot');
+            const strokeSizeLabel = document.getElementById('strokeSizeLabel');
+            
+            function updateStrokeSizePreview(size) {
+                if (strokeSizeDot) {
+                    // Scale the dot preview (max 24px in a 28px container)
+                    const dotSize = Math.max(4, Math.min(24, size));
+                    strokeSizeDot.style.width = dotSize + 'px';
+                    strokeSizeDot.style.height = dotSize + 'px';
+                }
+                if (strokeSizeLabel) {
+                    strokeSizeLabel.textContent = size;
+                }
+            }
+            
+            if (strokeSlider) {
+                // Real-time update while sliding
+                strokeSlider.addEventListener('input', (e) => {
                     currentSize = parseInt(e.target.value);
+                    updateStrokeSizePreview(currentSize);
                 });
+                // Initialize preview
+                updateStrokeSizePreview(currentSize);
             }
         }
         
