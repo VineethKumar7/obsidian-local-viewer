@@ -3,10 +3,11 @@
 Obsidian Local Viewer - View your Obsidian vault from any device on your network
 """
 
-from flask import Flask, render_template_string, send_file, abort, redirect, url_for, Response
+from flask import Flask, render_template_string, send_file, abort, redirect, url_for, Response, request, jsonify
 import os
 import sys
 import re
+import json
 import argparse
 import socket
 import markdown
@@ -635,6 +636,168 @@ HTML_TEMPLATE = '''
             overflow-x: auto;
             overflow-y: hidden;
         }
+        
+        /* Annotation Modal Styles */
+        .annotation-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255, 255, 255, 0.98);
+            z-index: 10000;
+            display: flex;
+            flex-direction: column;
+        }
+        .annotation-modal.hidden {
+            display: none;
+        }
+        .annotation-header {
+            background: #1e1e1e;
+            padding: 12px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 10;
+        }
+        .annotation-tools {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+        .tool-btn, .color-btn {
+            width: 40px;
+            height: 40px;
+            border: 2px solid transparent;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #333;
+            transition: all 0.2s;
+        }
+        .tool-btn:hover, .color-btn:hover {
+            background: #444;
+            transform: scale(1.05);
+        }
+        .tool-btn.active {
+            border-color: #0066cc;
+            background: #0066cc;
+        }
+        .color-btn {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+        }
+        .color-btn.active {
+            border-color: #fff;
+            box-shadow: 0 0 0 3px #0066cc;
+        }
+        .tool-separator {
+            width: 1px;
+            height: 30px;
+            background: #444;
+            margin: 0 8px;
+        }
+        .stroke-size-select {
+            background: #333;
+            color: #fff;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+        }
+        .annotation-actions {
+            display: flex;
+            gap: 8px;
+        }
+        .annotation-actions button {
+            background: #444;
+            color: #fff;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: background 0.2s;
+        }
+        .annotation-actions button:hover {
+            background: #555;
+        }
+        .annotation-actions .save-btn {
+            background: #43a047;
+        }
+        .annotation-actions .save-btn:hover {
+            background: #388e3c;
+        }
+        .annotation-canvas-container {
+            flex: 1;
+            overflow: auto;
+            position: relative;
+            background: #f5f5f5;
+        }
+        #annotationCanvas {
+            display: block;
+            touch-action: none;
+            cursor: crosshair;
+        }
+        
+        /* Annotation indicator on page */
+        .has-annotations-indicator {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #7c3aed;
+            color: #fff;
+            padding: 10px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(124, 58, 237, 0.3);
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .has-annotations-indicator:hover {
+            background: #6d28d9;
+        }
+        
+        /* Mobile adjustments for annotation */
+        @media (max-width: 768px) {
+            .annotation-header {
+                padding: 10px 15px;
+            }
+            .tool-btn {
+                width: 36px;
+                height: 36px;
+                font-size: 16px;
+            }
+            .color-btn {
+                width: 28px;
+                height: 28px;
+            }
+            .annotation-actions button {
+                padding: 8px 12px;
+                font-size: 12px;
+            }
+            .annotation-actions button span {
+                display: none;
+            }
+            .tool-separator {
+                margin: 0 4px;
+            }
+        }
     </style>
     <!-- MathJax for LaTeX equation rendering -->
     <script>
@@ -678,8 +841,43 @@ HTML_TEMPLATE = '''
     <div class="toolbar">
         {% if is_markdown %}
         <button onclick="downloadPDF()" title="Download as PDF">📥 <span class="btn-text">PDF</span></button>
+        <button onclick="openAnnotation()" title="Annotate with Apple Pencil">✏️ <span class="btn-text">Annotate</span></button>
         {% endif %}
         <button class="secondary" onclick="toggleFullscreen()" title="Toggle Fullscreen">⛶</button>
+    </div>
+    
+    <!-- Annotation Modal -->
+    <div id="annotationModal" class="annotation-modal hidden">
+        <div class="annotation-header">
+            <div class="annotation-tools">
+                <button class="tool-btn active" data-tool="pen" title="Pen">🖊️</button>
+                <button class="tool-btn" data-tool="highlighter" title="Highlighter">🖍️</button>
+                <button class="tool-btn" data-tool="eraser" title="Eraser">🧽</button>
+                <div class="tool-separator"></div>
+                <button class="color-btn active" data-color="#000000" style="background:#000000" title="Black"></button>
+                <button class="color-btn" data-color="#e53935" style="background:#e53935" title="Red"></button>
+                <button class="color-btn" data-color="#1e88e5" style="background:#1e88e5" title="Blue"></button>
+                <button class="color-btn" data-color="#43a047" style="background:#43a047" title="Green"></button>
+                <button class="color-btn" data-color="#fb8c00" style="background:#fb8c00" title="Orange"></button>
+                <button class="color-btn" data-color="#8e24aa" style="background:#8e24aa" title="Purple"></button>
+                <div class="tool-separator"></div>
+                <select id="strokeSize" class="stroke-size-select" title="Stroke Size">
+                    <option value="2">Fine</option>
+                    <option value="4" selected>Medium</option>
+                    <option value="8">Thick</option>
+                    <option value="16">Extra Thick</option>
+                </select>
+            </div>
+            <div class="annotation-actions">
+                <button onclick="annotationUndo()" title="Undo (Ctrl+Z)">↩️ Undo</button>
+                <button onclick="annotationRedo()" title="Redo (Ctrl+Y)">↪️ Redo</button>
+                <button onclick="clearAnnotations()" title="Clear All">🗑️ Clear</button>
+                <button class="save-btn" onclick="saveAndCloseAnnotation()" title="Save & Close">💾 Done</button>
+            </div>
+        </div>
+        <div class="annotation-canvas-container">
+            <canvas id="annotationCanvas"></canvas>
+        </div>
     </div>
     
     <div class="sidebar hidden" id="sidebar">
@@ -880,6 +1078,381 @@ HTML_TEMPLATE = '''
                 MathJax.typesetPromise().catch(function(err) {
                     console.log('MathJax typeset failed: ' + err.message);
                 });
+            }
+            
+            // Check for existing annotations and show indicator
+            checkForAnnotations();
+        });
+        
+        // ============================================
+        // ANNOTATION SYSTEM (Apple Pencil Support)
+        // ============================================
+        
+        // Get current file path from URL
+        const currentFilePath = window.location.pathname.startsWith('/view/') 
+            ? window.location.pathname.replace('/view/', '') 
+            : null;
+        
+        // Annotation state
+        let annotationStrokes = [];
+        let redoStack = [];
+        let currentStroke = null;
+        let isDrawing = false;
+        let currentTool = 'pen';
+        let currentColor = '#000000';
+        let currentSize = 4;
+        let annotationCanvas, annotationCtx;
+        let hasUnsavedChanges = false;
+        
+        // Perfect-freehand inspired stroke smoothing
+        function getStrokeOutline(points, size, thinning = 0.5) {
+            if (points.length < 2) return [];
+            
+            const outline = [];
+            const totalLength = points.length;
+            
+            for (let i = 0; i < totalLength; i++) {
+                const point = points[i];
+                const pressure = point.pressure || 0.5;
+                
+                // Calculate dynamic width based on pressure and position
+                const t = i / (totalLength - 1);
+                const tapering = Math.sin(t * Math.PI);
+                const width = size * (1 - thinning + thinning * pressure) * (0.5 + 0.5 * tapering);
+                
+                outline.push({
+                    x: point.x,
+                    y: point.y,
+                    width: Math.max(1, width)
+                });
+            }
+            
+            return outline;
+        }
+        
+        function drawStroke(ctx, stroke, isEraser = false) {
+            if (!stroke.points || stroke.points.length < 2) return;
+            
+            const outline = getStrokeOutline(stroke.points, stroke.size);
+            
+            ctx.save();
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            
+            if (isEraser || stroke.tool === 'eraser') {
+                ctx.globalCompositeOperation = 'destination-out';
+                ctx.strokeStyle = 'rgba(0,0,0,1)';
+            } else if (stroke.tool === 'highlighter') {
+                ctx.globalCompositeOperation = 'multiply';
+                ctx.strokeStyle = stroke.color;
+                ctx.globalAlpha = 0.3;
+            } else {
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.strokeStyle = stroke.color;
+            }
+            
+            ctx.beginPath();
+            ctx.moveTo(outline[0].x, outline[0].y);
+            
+            for (let i = 1; i < outline.length; i++) {
+                const p0 = outline[i - 1];
+                const p1 = outline[i];
+                
+                ctx.lineWidth = (p0.width + p1.width) / 2;
+                ctx.lineTo(p1.x, p1.y);
+                ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(p1.x, p1.y);
+            }
+            
+            ctx.restore();
+        }
+        
+        function redrawAllStrokes() {
+            if (!annotationCanvas || !annotationCtx) return;
+            
+            annotationCtx.clearRect(0, 0, annotationCanvas.width, annotationCanvas.height);
+            
+            for (const stroke of annotationStrokes) {
+                drawStroke(annotationCtx, stroke);
+            }
+        }
+        
+        function openAnnotation() {
+            if (!currentFilePath) {
+                alert('Please open a markdown file first');
+                return;
+            }
+            
+            const modal = document.getElementById('annotationModal');
+            modal.classList.remove('hidden');
+            
+            // Setup canvas
+            annotationCanvas = document.getElementById('annotationCanvas');
+            annotationCtx = annotationCanvas.getContext('2d');
+            
+            // Set canvas size to match content
+            const container = document.querySelector('.annotation-canvas-container');
+            const content = document.querySelector('.content');
+            
+            // Make canvas match the document size
+            annotationCanvas.width = Math.max(container.clientWidth, content.scrollWidth, 1200);
+            annotationCanvas.height = Math.max(container.scrollHeight, content.scrollHeight, 800);
+            
+            // Load existing annotations
+            loadAnnotations();
+            
+            // Setup event listeners
+            setupAnnotationEvents();
+            
+            // Setup tool buttons
+            setupToolButtons();
+        }
+        
+        function setupAnnotationEvents() {
+            // Pointer events for Apple Pencil support
+            annotationCanvas.addEventListener('pointerdown', handlePointerDown);
+            annotationCanvas.addEventListener('pointermove', handlePointerMove);
+            annotationCanvas.addEventListener('pointerup', handlePointerUp);
+            annotationCanvas.addEventListener('pointerleave', handlePointerUp);
+            annotationCanvas.addEventListener('pointercancel', handlePointerUp);
+            
+            // Prevent default touch behavior
+            annotationCanvas.addEventListener('touchstart', e => e.preventDefault(), { passive: false });
+            annotationCanvas.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+        }
+        
+        function handlePointerDown(e) {
+            isDrawing = true;
+            
+            const rect = annotationCanvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            currentStroke = {
+                tool: currentTool,
+                color: currentColor,
+                size: currentSize,
+                points: [{
+                    x: x,
+                    y: y,
+                    pressure: e.pressure || 0.5
+                }]
+            };
+            
+            // Clear redo stack when new stroke starts
+            redoStack = [];
+        }
+        
+        function handlePointerMove(e) {
+            if (!isDrawing || !currentStroke) return;
+            
+            const rect = annotationCanvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            
+            currentStroke.points.push({
+                x: x,
+                y: y,
+                pressure: e.pressure || 0.5
+            });
+            
+            // Draw current stroke
+            redrawAllStrokes();
+            drawStroke(annotationCtx, currentStroke);
+        }
+        
+        function handlePointerUp(e) {
+            if (!isDrawing || !currentStroke) return;
+            
+            isDrawing = false;
+            
+            if (currentStroke.points.length > 1) {
+                annotationStrokes.push(currentStroke);
+                hasUnsavedChanges = true;
+                autoSaveAnnotations();
+            }
+            
+            currentStroke = null;
+            redrawAllStrokes();
+        }
+        
+        function setupToolButtons() {
+            // Tool buttons
+            document.querySelectorAll('.tool-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.tool-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentTool = btn.dataset.tool;
+                    
+                    // Update cursor
+                    if (currentTool === 'eraser') {
+                        annotationCanvas.style.cursor = 'cell';
+                    } else {
+                        annotationCanvas.style.cursor = 'crosshair';
+                    }
+                });
+            });
+            
+            // Color buttons
+            document.querySelectorAll('.color-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    document.querySelectorAll('.color-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    currentColor = btn.dataset.color;
+                });
+            });
+            
+            // Stroke size
+            document.getElementById('strokeSize').addEventListener('change', (e) => {
+                currentSize = parseInt(e.target.value);
+            });
+        }
+        
+        function annotationUndo() {
+            if (annotationStrokes.length > 0) {
+                const stroke = annotationStrokes.pop();
+                redoStack.push(stroke);
+                hasUnsavedChanges = true;
+                redrawAllStrokes();
+                autoSaveAnnotations();
+            }
+        }
+        
+        function annotationRedo() {
+            if (redoStack.length > 0) {
+                const stroke = redoStack.pop();
+                annotationStrokes.push(stroke);
+                hasUnsavedChanges = true;
+                redrawAllStrokes();
+                autoSaveAnnotations();
+            }
+        }
+        
+        function clearAnnotations() {
+            if (annotationStrokes.length === 0) return;
+            
+            if (confirm('Clear all annotations? This cannot be undone.')) {
+                annotationStrokes = [];
+                redoStack = [];
+                hasUnsavedChanges = true;
+                redrawAllStrokes();
+                
+                // Delete from server
+                fetch('/api/annotations/' + currentFilePath, {
+                    method: 'DELETE'
+                });
+            }
+        }
+        
+        let saveTimeout = null;
+        function autoSaveAnnotations() {
+            // Debounce auto-save
+            if (saveTimeout) clearTimeout(saveTimeout);
+            saveTimeout = setTimeout(() => {
+                saveAnnotations();
+            }, 1000);
+        }
+        
+        function saveAnnotations() {
+            if (!currentFilePath) return;
+            
+            fetch('/api/annotations/' + currentFilePath, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    strokes: annotationStrokes,
+                    canvasWidth: annotationCanvas.width,
+                    canvasHeight: annotationCanvas.height
+                })
+            }).then(res => res.json()).then(data => {
+                if (data.success) {
+                    hasUnsavedChanges = false;
+                }
+            }).catch(err => console.error('Save failed:', err));
+        }
+        
+        function loadAnnotations() {
+            if (!currentFilePath) return;
+            
+            fetch('/api/annotations/' + currentFilePath)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.strokes && data.strokes.length > 0) {
+                        annotationStrokes = data.strokes;
+                        redrawAllStrokes();
+                    }
+                })
+                .catch(err => console.error('Load failed:', err));
+        }
+        
+        function saveAndCloseAnnotation() {
+            saveAnnotations();
+            closeAnnotation();
+        }
+        
+        function closeAnnotation() {
+            const modal = document.getElementById('annotationModal');
+            modal.classList.add('hidden');
+            
+            // Remove event listeners
+            if (annotationCanvas) {
+                annotationCanvas.removeEventListener('pointerdown', handlePointerDown);
+                annotationCanvas.removeEventListener('pointermove', handlePointerMove);
+                annotationCanvas.removeEventListener('pointerup', handlePointerUp);
+                annotationCanvas.removeEventListener('pointerleave', handlePointerUp);
+                annotationCanvas.removeEventListener('pointercancel', handlePointerUp);
+            }
+            
+            // Show indicator if there are annotations
+            showAnnotationIndicator();
+        }
+        
+        function checkForAnnotations() {
+            if (!currentFilePath) return;
+            
+            fetch('/api/annotations/' + currentFilePath)
+                .then(res => res.json())
+                .then(data => {
+                    if (data.strokes && data.strokes.length > 0) {
+                        showAnnotationIndicator();
+                    }
+                })
+                .catch(() => {});
+        }
+        
+        function showAnnotationIndicator() {
+            // Remove existing indicator
+            const existing = document.querySelector('.has-annotations-indicator');
+            if (existing) existing.remove();
+            
+            if (!currentFilePath || annotationStrokes.length === 0) return;
+            
+            const indicator = document.createElement('div');
+            indicator.className = 'has-annotations-indicator';
+            indicator.innerHTML = '✏️ View Annotations';
+            indicator.onclick = openAnnotation;
+            document.body.appendChild(indicator);
+        }
+        
+        // Keyboard shortcuts for annotation
+        document.addEventListener('keydown', (e) => {
+            const modal = document.getElementById('annotationModal');
+            if (!modal || modal.classList.contains('hidden')) return;
+            
+            // Undo: Ctrl+Z
+            if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+                e.preventDefault();
+                annotationUndo();
+            }
+            // Redo: Ctrl+Y or Ctrl+Shift+Z
+            if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+                e.preventDefault();
+                annotationRedo();
+            }
+            // Escape to close
+            if (e.key === 'Escape') {
+                saveAndCloseAnnotation();
             }
         });
     </script>
@@ -1570,6 +2143,61 @@ def stream_file(filepath):
         response.headers['Accept-Ranges'] = 'bytes'
         response.headers['Content-Length'] = file_size
         return response
+
+# ============================================
+# ANNOTATION ENDPOINTS
+# ============================================
+
+def get_annotation_path(filepath):
+    """Get the annotation file path for a given file"""
+    annotations_dir = os.path.join(VAULT_PATH, '.annotations')
+    os.makedirs(annotations_dir, exist_ok=True)
+    
+    # Replace path separators with underscores and add .json extension
+    safe_name = filepath.replace('/', '_').replace('\\', '_')
+    return os.path.join(annotations_dir, f"{safe_name}.json")
+
+@app.route('/api/annotations/<path:filepath>', methods=['GET'])
+def get_annotations(filepath):
+    """Get annotations for a file"""
+    annotation_path = get_annotation_path(filepath)
+    
+    if os.path.exists(annotation_path):
+        try:
+            with open(annotation_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)
+            return jsonify(data)
+        except Exception as e:
+            return jsonify({'strokes': [], 'error': str(e)})
+    
+    return jsonify({'strokes': []})
+
+@app.route('/api/annotations/<path:filepath>', methods=['POST'])
+def save_annotations(filepath):
+    """Save annotations for a file"""
+    try:
+        data = request.get_json()
+        annotation_path = get_annotation_path(filepath)
+        
+        with open(annotation_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f)
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/annotations/<path:filepath>', methods=['DELETE'])
+def delete_annotations(filepath):
+    """Delete annotations for a file"""
+    try:
+        annotation_path = get_annotation_path(filepath)
+        
+        if os.path.exists(annotation_path):
+            os.remove(annotation_path)
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 def get_local_ip():
     """Get the local network IP address"""
