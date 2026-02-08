@@ -1409,24 +1409,19 @@ HTML_TEMPLATE = '''
         }
         
         function initAnnotationOverlay() {
-            // Check if we're in PDF mode
-            const pdfCanvas = document.getElementById('pdfAnnotationCanvas');
-            const pdfOverlay = document.getElementById('pdfAnnotationOverlay');
+            // Check if we're in PDF mode - if pdfViewer exists, skip init (handled by initPdfAnnotation)
             const pdfViewer = document.getElementById('pdfViewer');
-            
-            if (pdfCanvas && pdfOverlay && pdfViewer) {
-                // PDF mode - use PDF annotation elements
-                annotationCanvas = pdfCanvas;
-                annotationOverlay = pdfOverlay;
-                contentWrapper = pdfViewer;
+            if (pdfViewer) {
+                // PDF mode - annotation will be initialized by initPdfAnnotation after PDF loads
                 window.isPdfAnnotationMode = true;
-            } else {
-                // Normal mode
-                annotationCanvas = document.getElementById('annotationCanvas');
-                annotationOverlay = document.getElementById('annotationOverlay');
-                contentWrapper = document.getElementById('contentWrapper');
-                window.isPdfAnnotationMode = false;
+                return;
             }
+            
+            // Normal mode (markdown files)
+            annotationCanvas = document.getElementById('annotationCanvas');
+            annotationOverlay = document.getElementById('annotationOverlay');
+            contentWrapper = document.getElementById('contentWrapper');
+            window.isPdfAnnotationMode = false;
             
             if (!annotationCanvas || !annotationOverlay || !contentWrapper) return;
             
@@ -2117,6 +2112,10 @@ def view_file(filepath):
             .toolbar {{
                 display: none !important;
             }}
+            /* Hide regular annotation overlay - PDF uses its own inside pdf-viewer */
+            #annotationOverlay {{
+                display: none !important;
+            }}
             
             @media (max-width: 768px) {{
                 .pdf-header {{
@@ -2288,6 +2287,16 @@ def view_file(filepath):
                 
                 // Load any saved annotations for this file
                 loadAnnotations();
+                
+                console.log('PDF annotation initialized:', {{
+                    canvasWidth: canvas.width,
+                    canvasHeight: canvas.height,
+                    styleWidth: canvas.style.width,
+                    styleHeight: canvas.style.height,
+                    overlayClass: overlay.className,
+                    totalWidth: totalWidth,
+                    totalHeight: totalHeight
+                }});
             }}
             
             // Resize PDF annotation after re-render
