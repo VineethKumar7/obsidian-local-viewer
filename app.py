@@ -1102,11 +1102,81 @@ HTML_TEMPLATE = '''
         // Persist sidebar state in localStorage
         let sidebarCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
         
+        // ===== RESUME FROM WHERE YOU LEFT OFF =====
+        const currentFilePath = window.location.pathname;
+        
+        function saveScrollPosition() {
+            if (!currentFilePath || currentFilePath === '/') return;
+            const contentWrapper = document.getElementById('contentWrapper');
+            const pdfViewer = document.getElementById('pdfViewer');
+            
+            if (pdfViewer) {
+                localStorage.setItem('scroll_' + currentFilePath, pdfViewer.scrollTop);
+            } else if (contentWrapper) {
+                localStorage.setItem('scroll_' + currentFilePath, contentWrapper.scrollTop);
+            }
+        }
+        
+        function restoreScrollPosition() {
+            if (!currentFilePath || currentFilePath === '/') return;
+            const saved = localStorage.getItem('scroll_' + currentFilePath);
+            if (!saved) return;
+            
+            const scrollPos = parseInt(saved, 10);
+            const contentWrapper = document.getElementById('contentWrapper');
+            const pdfViewer = document.getElementById('pdfViewer');
+            
+            // Delay to ensure content is loaded
+            setTimeout(() => {
+                if (pdfViewer) {
+                    pdfViewer.scrollTop = scrollPos;
+                } else if (contentWrapper) {
+                    contentWrapper.scrollTop = scrollPos;
+                }
+            }, 300);
+        }
+        
+        function saveVideoPosition(videoId) {
+            const video = document.getElementById(videoId);
+            if (video && video.currentTime > 0) {
+                localStorage.setItem('video_' + currentFilePath, video.currentTime);
+            }
+        }
+        
+        function restoreVideoPosition(videoId) {
+            const saved = localStorage.getItem('video_' + currentFilePath);
+            if (!saved) return;
+            
+            const video = document.getElementById(videoId);
+            if (video) {
+                video.currentTime = parseFloat(saved);
+            }
+        }
+        
+        // Save position when leaving page
+        window.addEventListener('beforeunload', saveScrollPosition);
+        
+        // Also save periodically while scrolling (debounced)
+        let scrollSaveTimeout;
+        function debouncedSaveScroll() {
+            clearTimeout(scrollSaveTimeout);
+            scrollSaveTimeout = setTimeout(saveScrollPosition, 500);
+        }
+        
         // Initialize sidebar state
         document.addEventListener('DOMContentLoaded', function() {
             const sidebar = document.getElementById('sidebar');
             const dockToggle = document.getElementById('dockToggle');
             const toggleBtn = document.querySelector('.toggle-btn');
+            
+            // Restore scroll position
+            restoreScrollPosition();
+            
+            // Add scroll listener to save position
+            const contentWrapper = document.getElementById('contentWrapper');
+            if (contentWrapper) {
+                contentWrapper.addEventListener('scroll', debouncedSaveScroll);
+            }
             
             if (isMobile) {
                 // Mobile: use overlay mode
@@ -2512,6 +2582,17 @@ def view_file(filepath):
                 viewer.appendChild(overlay);
                 
                 setTimeout(initPdfAnnotation, 200);
+                
+                // Restore scroll position for PDF
+                const savedScroll = localStorage.getItem('scroll_' + window.location.pathname);
+                if (savedScroll) {{
+                    setTimeout(() => {{ viewer.scrollTop = parseInt(savedScroll, 10); }}, 400);
+                }}
+                
+                // Save scroll position on scroll
+                viewer.addEventListener('scroll', () => {{
+                    localStorage.setItem('scroll_' + window.location.pathname, viewer.scrollTop);
+                }});
             }});
         </script>
         '''
@@ -2643,6 +2724,21 @@ def view_file(filepath):
             // Double-click to toggle fullscreen
             player.on('dblclick', () => {{
                 player.fullscreen.toggle();
+            }});
+            
+            // Resume from last position
+            const savedTime = localStorage.getItem('video_' + window.location.pathname);
+            if (savedTime) {{
+                player.once('canplay', () => {{
+                    player.currentTime = parseFloat(savedTime);
+                }});
+            }}
+            
+            // Save position periodically while playing
+            player.on('timeupdate', () => {{
+                if (player.currentTime > 0) {{
+                    localStorage.setItem('video_' + window.location.pathname, player.currentTime);
+                }}
             }});
             
             // Keyboard shortcuts
