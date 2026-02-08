@@ -1280,7 +1280,6 @@ HTML_TEMPLATE = '''
         function drawStrokeIncremental(ctx, stroke) {
             const points = stroke.points;
             if (points.length < 2) return;
-            console.log('Drawing segment at', points[points.length-1].x, points[points.length-1].y, 'color:', stroke.color);
             
             const p0 = points[points.length - 2];
             const p1 = points[points.length - 1];
@@ -1464,7 +1463,6 @@ HTML_TEMPLATE = '''
             }
             
             annotationModeActive = true;
-            console.log('Entering annotation mode, isPdfMode:', window.isPdfAnnotationMode);
             
             // Show toolbar and badge
             document.getElementById('annotationToolbar').classList.add('visible');
@@ -1473,14 +1471,12 @@ HTML_TEMPLATE = '''
             // Activate overlay (enable pointer events)
             if (annotationOverlay) {
                 annotationOverlay.classList.add('active');
-                console.log('Activated overlay:', annotationOverlay.id);
             }
             
             // Also activate PDF annotation overlay if in PDF mode
             const pdfOverlay = document.getElementById('pdfAnnotationOverlay');
             if (pdfOverlay) {
                 pdfOverlay.classList.add('active');
-                console.log('Activated PDF overlay');
             }
             
             // Hide the annotation indicator if visible
@@ -1555,11 +1551,7 @@ HTML_TEMPLATE = '''
         }
         
         function handlePointerDown(e) {
-            console.log('pointerDown:', e.pointerType, 'annotationModeActive:', annotationModeActive, 'canvas:', annotationCanvas, 'ctx:', annotationCtx);
-            if (!annotationModeActive) {
-                console.log('NOT in annotation mode - click Annotate button first!');
-                return;
-            }
+            if (!annotationModeActive) return;
             
             // Check pointer type - only draw with Apple Pencil or mouse
             const isPencil = e.pointerType === 'pen';
@@ -2314,20 +2306,7 @@ def view_file(filepath):
                 // Load any saved annotations for this file
                 loadAnnotations();
                 
-                console.log('PDF annotation initialized:', {{
-                    canvasWidth: canvasWidth,
-                    canvasHeight: canvasHeight,
-                    totalScrollWidth: totalWidth,
-                    totalScrollHeight: totalHeight,
-                    capped: totalHeight > maxCanvasSize
-                }});
-                
-                // Test draw a small circle to verify canvas works
-                ctx.fillStyle = 'red';
-                ctx.beginPath();
-                ctx.arc(100, 100, 20, 0, Math.PI * 2);
-                ctx.fill();
-                console.log('Test circle drawn at (100,100) - should be visible!');
+                console.log('PDF annotation ready');
             }}
             
             // Resize PDF annotation after re-render
@@ -2351,27 +2330,23 @@ def view_file(filepath):
             
             // Load PDF on page load
             loadPDF().then(() => {{
-                console.log('PDF loaded, setting up annotation...');
-                // Re-add overlay after initial load
                 const viewer = document.getElementById('pdfViewer');
                 
-                // Always create fresh overlay
+                // Create annotation overlay
                 let overlay = document.getElementById('pdfAnnotationOverlay');
                 if (overlay) overlay.remove();
                 
                 overlay = document.createElement('div');
                 overlay.id = 'pdfAnnotationOverlay';
                 overlay.className = 'pdf-annotation-overlay';
-                // Don't set pointer-events here - let CSS class handle it
                 overlay.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;z-index:10;';
                 
                 const canvas = document.createElement('canvas');
                 canvas.id = 'pdfAnnotationCanvas';
-                canvas.style.cssText = 'position:absolute;top:0;left:0;background:rgba(255,0,0,0.1);';
+                canvas.style.cssText = 'position:absolute;top:0;left:0;';
                 overlay.appendChild(canvas);
                 viewer.appendChild(overlay);
                 
-                console.log('Overlay created:', overlay, 'Canvas:', canvas);
                 setTimeout(initPdfAnnotation, 200);
             }});
         </script>
