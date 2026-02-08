@@ -105,6 +105,32 @@ def convert_obsidian_links(html_content, current_file_dir=""):
     
     return re.sub(pattern, replace_link, html_content)
 
+def protect_math_expressions(content):
+    """Protect LaTeX math expressions from markdown processing"""
+    placeholders = {}
+    counter = [0]  # Use list to allow modification in nested function
+    
+    def replace_math(match):
+        placeholder = f"MATH_PLACEHOLDER_{counter[0]}_END"
+        placeholders[placeholder] = match.group(0)
+        counter[0] += 1
+        return placeholder
+    
+    # Protect display math ($$...$$) first - multiline
+    content = re.sub(r'\$\$[\s\S]*?\$\$', replace_math, content)
+    
+    # Protect inline math ($...$) - but not double dollars
+    # Match $ followed by non-space, content, non-space, $
+    content = re.sub(r'(?<!\$)\$(?!\$)(?!\s)(.+?)(?<!\s)(?<!\$)\$(?!\$)', replace_math, content)
+    
+    return content, placeholders
+
+def restore_math_expressions(content, placeholders):
+    """Restore protected math expressions after markdown processing"""
+    for placeholder, original in placeholders.items():
+        content = content.replace(placeholder, original)
+    return content
+
 HTML_TEMPLATE = '''
 <!DOCTYPE html>
 <html>
@@ -557,7 +583,38 @@ HTML_TEMPLATE = '''
             max-width: 100%;
             height: auto;
         }
+        
+        /* Math equation styles */
+        .MathJax {
+            font-size: 1.1em !important;
+        }
+        mjx-container[jax="CHTML"][display="true"] {
+            margin: 1em 0 !important;
+            overflow-x: auto;
+            overflow-y: hidden;
+        }
     </style>
+    <!-- MathJax for LaTeX equation rendering -->
+    <script>
+        MathJax = {
+            tex: {
+                inlineMath: [['$', '$'], ['\\(', '\\)']],
+                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                processEscapes: true,
+                processEnvironments: true
+            },
+            options: {
+                skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+            },
+            startup: {
+                pageReady: () => {
+                    return MathJax.startup.defaultPageReady();
+                }
+            }
+        };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js" async></script>
+    
     <!-- Mermaid.js for diagram rendering -->
     <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
     <script>
@@ -775,6 +832,13 @@ HTML_TEMPLATE = '''
                     nodes: document.querySelectorAll('.mermaid')
                 });
             }
+            
+            // Re-typeset MathJax after content is loaded
+            if (typeof MathJax !== 'undefined' && MathJax.typesetPromise) {
+                MathJax.typesetPromise().catch(function(err) {
+                    console.log('MathJax typeset failed: ' + err.message);
+                });
+            }
         });
     </script>
 </body>
@@ -870,11 +934,17 @@ def view_file(filepath):
             if len(parts) >= 3:
                 md_content = parts[2]
         
+        # Protect math expressions before markdown processing
+        md_content, math_placeholders = protect_math_expressions(md_content)
+        
         # Convert markdown to HTML
         html_content = markdown.markdown(
             md_content, 
             extensions=['tables', 'fenced_code', 'toc', 'nl2br', 'sane_lists']
         )
+        
+        # Restore math expressions after markdown processing
+        html_content = restore_math_expressions(html_content, math_placeholders)
         
         # Convert Obsidian [[wiki-links]] to HTML links
         current_dir = os.path.dirname(filepath)
@@ -1208,11 +1278,17 @@ def download_pdf(filepath):
         if len(parts) >= 3:
             md_content = parts[2]
     
+    # Protect math expressions before markdown processing
+    md_content, math_placeholders = protect_math_expressions(md_content)
+    
     # Convert to HTML
     html_content = markdown.markdown(
         md_content,
         extensions=['tables', 'fenced_code', 'toc', 'nl2br', 'sane_lists']
     )
+    
+    # Restore math expressions
+    html_content = restore_math_expressions(html_content, math_placeholders)
     
     # Full HTML document for PDF
     title = os.path.basename(filepath).replace('.md', '')
