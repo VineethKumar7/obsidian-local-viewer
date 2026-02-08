@@ -527,6 +527,59 @@ HTML_TEMPLATE = '''
         .welcome h1 { border: none; font-size: 2.5em; margin-bottom: 20px; }
         .welcome p { font-size: 18px; color: #666; max-width: 500px; margin: 0 auto; }
         
+        /* File path bar */
+        .file-path-bar {
+            background: #f8f9fa;
+            border-bottom: 1px solid #e9ecef;
+            padding: 8px 16px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-family: 'SF Mono', Monaco, 'Courier New', monospace;
+            font-size: 13px;
+            color: #666;
+        }
+        .file-path-bar .path-icon {
+            color: #888;
+        }
+        .file-path-bar .path-text {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .file-path-bar .path-separator {
+            color: #ccc;
+            margin: 0 2px;
+        }
+        .file-path-bar .path-segment {
+            color: #555;
+        }
+        .file-path-bar .path-segment:last-child {
+            color: #333;
+            font-weight: 500;
+        }
+        .file-path-bar .copy-btn {
+            background: #e9ecef;
+            border: none;
+            padding: 4px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            color: #555;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .file-path-bar .copy-btn:hover {
+            background: #dee2e6;
+        }
+        .file-path-bar .copy-btn.copied {
+            background: #d4edda;
+            color: #155724;
+        }
+        
         /* Fullscreen mode adjustments */
         .fullscreen-mode .sidebar { display: none; }
         .fullscreen-mode .toggle-btn { left: 15px; }
@@ -1023,6 +1076,16 @@ HTML_TEMPLATE = '''
         </div>
     </div>
     <div class="content-wrapper" id="contentWrapper">
+        {% if file_path %}
+        <div class="file-path-bar" id="filePathBar">
+            <span class="path-icon">📄</span>
+            <span class="path-text" id="pathText">{{ file_path }}</span>
+            <button class="copy-btn" onclick="copyFilePath()" title="Copy path">
+                <span id="copyIcon">📋</span>
+                <span id="copyText">Copy</span>
+            </button>
+        </div>
+        {% endif %}
         <div class="content" id="contentArea">
             {{ content|safe }}
         </div>
@@ -1134,6 +1197,29 @@ HTML_TEMPLATE = '''
                 const filepath = currentPath.replace('/view/', '');
                 window.location.href = '/pdf/' + filepath;
             }
+        }
+        
+        function copyFilePath() {
+            const pathText = document.getElementById('pathText');
+            if (!pathText) return;
+            
+            const path = pathText.textContent;
+            navigator.clipboard.writeText(path).then(() => {
+                // Show copied feedback
+                const copyBtn = document.querySelector('.copy-btn');
+                const copyIcon = document.getElementById('copyIcon');
+                const copyText = document.getElementById('copyText');
+                
+                copyBtn.classList.add('copied');
+                copyIcon.textContent = '✓';
+                copyText.textContent = 'Copied!';
+                
+                setTimeout(() => {
+                    copyBtn.classList.remove('copied');
+                    copyIcon.textContent = '📋';
+                    copyText.textContent = 'Copy';
+                }, 2000);
+            });
         }
         
         // Keyboard shortcuts
@@ -1987,7 +2073,8 @@ def view_file(filepath):
             tree=tree, 
             content=title_html + html_content,
             vault_name=get_vault_name(),
-            is_markdown=True
+            is_markdown=True,
+            file_path=filepath
         )
     
     elif ext == 'pdf':
@@ -2358,7 +2445,8 @@ def view_file(filepath):
             content=pdf_content,
             vault_name=get_vault_name(),
             is_markdown=False,
-            is_pdf=True
+            is_pdf=True,
+            file_path=filepath
         )
     
     elif ext in ['png', 'jpg', 'jpeg', 'gif', 'webp']:
@@ -2497,7 +2585,8 @@ def view_file(filepath):
             tree=tree,
             content=video_content,
             vault_name=get_vault_name(),
-            is_markdown=False
+            is_markdown=False,
+            file_path=filepath
         )
 
     elif ext in ['mp3', 'wav', 'ogg']:
@@ -2528,7 +2617,8 @@ def view_file(filepath):
             tree=tree,
             content=audio_content,
             vault_name=get_vault_name(),
-            is_markdown=False
+            is_markdown=False,
+            file_path=filepath
         )
     
     else:
@@ -2542,7 +2632,8 @@ def view_file(filepath):
         return render_template_string(
             HTML_TEMPLATE, 
             title=filename, 
-            tree=tree, 
+            tree=tree,
+            file_path=filepath, 
             content=content,
             vault_name=get_vault_name(),
             is_markdown=False
