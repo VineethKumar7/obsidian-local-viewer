@@ -605,13 +605,20 @@ HTML_TEMPLATE = '''
             
             /* Toolbar on mobile */
             .toolbar { 
-                top: 12px;
+                top: auto;
+                bottom: 20px;
                 right: 15px;
                 gap: 8px;
+                flex-direction: column;
+                align-items: flex-end;
             }
             .toolbar button {
-                padding: 8px 12px;
-                font-size: 12px;
+                padding: 10px 14px;
+                font-size: 14px;
+                border-radius: 50%;
+                width: 48px;
+                height: 48px;
+                justify-content: center;
             }
             .toolbar button span.btn-text { display: none; }
             
