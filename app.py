@@ -136,11 +136,17 @@ HTML_TEMPLATE = '''
 <!DOCTYPE html>
 <html>
 <head>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
     <title>{{ title }} - Obsidian Viewer</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📚</text></svg>">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        /* Prevent double-tap zoom on touch devices */
+        html, body {
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+        }
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; display: flex; height: 100vh; background: #f5f5f5; }
         
         /* Sidebar */
@@ -677,6 +683,8 @@ HTML_TEMPLATE = '''
             opacity: 0;
             visibility: hidden;
             transition: opacity 0.3s, visibility 0.3s, transform 0.3s;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
         }
         .annotation-toolbar.visible {
             opacity: 1;
@@ -699,10 +707,17 @@ HTML_TEMPLATE = '''
             background: #444;
             color: #fff;
             transition: all 0.2s;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
+            user-select: none;
+            -webkit-user-select: none;
         }
         .tool-btn:hover, .color-btn:hover {
             background: #555;
             transform: scale(1.08);
+        }
+        .tool-btn:active, .color-btn:active {
+            transform: scale(0.95);
         }
         .tool-btn.active {
             border-color: #0066cc;
@@ -733,6 +748,8 @@ HTML_TEMPLATE = '''
             border-radius: 8px;
             font-size: 13px;
             cursor: pointer;
+            touch-action: manipulation;
+            -webkit-tap-highlight-color: transparent;
         }
         .annotation-close-btn {
             background: #e53935 !important;
@@ -1483,6 +1500,23 @@ HTML_TEMPLATE = '''
         }
         
         function setupToolButtons() {
+            // Prevent zoom on all toolbar buttons (touchstart preventDefault)
+            document.querySelectorAll('#annotationToolbar button, #annotationToolbar select').forEach(el => {
+                el.addEventListener('touchstart', (e) => {
+                    // Allow the touch but prevent zoom
+                    e.stopPropagation();
+                }, { passive: true });
+                
+                // Prevent double-tap zoom by handling touchend
+                el.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    // Trigger click for buttons
+                    if (el.tagName === 'BUTTON') {
+                        el.click();
+                    }
+                }, { passive: false });
+            });
+            
             // Tool buttons
             document.querySelectorAll('#annotationToolbar .tool-btn[data-tool]').forEach(btn => {
                 btn.addEventListener('click', () => {
