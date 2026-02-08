@@ -1925,7 +1925,7 @@ def view_file(filepath):
         )
     
     elif ext == 'pdf':
-        # Embed PDF in viewer with sidebar preserved
+        # Embed PDF using PDF.js for cross-platform compatibility (especially iOS)
         pdf_content = f'''
         <style>
             .pdf-container {{
@@ -1959,6 +1959,7 @@ def view_file(filepath):
             .pdf-actions {{
                 display: flex;
                 gap: 10px;
+                align-items: center;
             }}
             .pdf-actions button, .pdf-actions a {{
                 background: #4a4d50;
@@ -1974,11 +1975,44 @@ def view_file(filepath):
             .pdf-actions button:hover, .pdf-actions a:hover {{
                 background: #5a5d60;
             }}
-            .pdf-iframe {{
+            .pdf-nav {{
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                background: #4a4d50;
+                padding: 4px 12px;
+                border-radius: 6px;
+            }}
+            .pdf-nav button {{
+                background: transparent;
+                padding: 4px 8px;
+                font-size: 16px;
+            }}
+            .pdf-nav button:hover {{
+                background: #5a5d60;
+            }}
+            .pdf-page-info {{
+                font-size: 13px;
+                min-width: 80px;
+                text-align: center;
+            }}
+            .pdf-viewer {{
                 flex: 1;
-                border: none;
-                width: 100%;
-                height: 100%;
+                overflow: auto;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                padding: 20px;
+                gap: 20px;
+            }}
+            .pdf-page {{
+                background: #fff;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+            }}
+            .pdf-loading {{
+                color: #fff;
+                font-size: 18px;
+                padding: 40px;
             }}
             
             /* Override content styles for PDF view */
@@ -1994,28 +2028,123 @@ def view_file(filepath):
             @media (max-width: 768px) {{
                 .pdf-header {{
                     padding: 8px 15px;
+                    flex-wrap: wrap;
+                    gap: 10px;
                 }}
                 .pdf-title {{
                     font-size: 14px;
                     max-width: 150px;
                 }}
+                .pdf-actions {{
+                    flex-wrap: wrap;
+                }}
                 .pdf-actions button, .pdf-actions a {{
                     padding: 6px 12px;
                     font-size: 12px;
                 }}
+                .pdf-viewer {{
+                    padding: 10px;
+                    gap: 10px;
+                }}
             }}
         </style>
+        
+        <!-- PDF.js library -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
         
         <div class="pdf-container">
             <div class="pdf-header">
                 <span class="pdf-title">📕 {filename}</span>
                 <div class="pdf-actions">
+                    <div class="pdf-nav">
+                        <button onclick="pdfZoomOut()" title="Zoom Out">−</button>
+                        <span id="pdfZoomLevel">100%</span>
+                        <button onclick="pdfZoomIn()" title="Zoom In">+</button>
+                    </div>
                     <a href="/raw/{filepath}" target="_blank" title="Open in new tab">↗ Open</a>
                     <a href="/raw/{filepath}" download="{filename}" title="Download PDF">📥 Download</a>
                 </div>
             </div>
-            <iframe class="pdf-iframe" src="/raw/{filepath}#toolbar=1&navpanes=1&scrollbar=1&view=FitH"></iframe>
+            <div class="pdf-viewer" id="pdfViewer">
+                <div class="pdf-loading">Loading PDF...</div>
+            </div>
         </div>
+        
+        <script>
+            // Configure PDF.js worker
+            pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            
+            let pdfDoc = null;
+            let currentScale = 1.5;
+            const minScale = 0.5;
+            const maxScale = 3.0;
+            
+            async function loadPDF() {{
+                const url = '/raw/{filepath}';
+                const viewer = document.getElementById('pdfViewer');
+                
+                try {{
+                    pdfDoc = await pdfjsLib.getDocument(url).promise;
+                    viewer.innerHTML = '';
+                    
+                    // Render all pages
+                    for (let i = 1; i <= pdfDoc.numPages; i++) {{
+                        await renderPage(i, viewer);
+                    }}
+                }} catch (error) {{
+                    viewer.innerHTML = '<div class="pdf-loading">Error loading PDF: ' + error.message + '</div>';
+                }}
+            }}
+            
+            async function renderPage(pageNum, container) {{
+                const page = await pdfDoc.getPage(pageNum);
+                const viewport = page.getViewport({{ scale: currentScale }});
+                
+                const canvas = document.createElement('canvas');
+                canvas.className = 'pdf-page';
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+                
+                const context = canvas.getContext('2d');
+                await page.render({{
+                    canvasContext: context,
+                    viewport: viewport
+                }}).promise;
+                
+                container.appendChild(canvas);
+            }}
+            
+            async function rerender() {{
+                if (!pdfDoc) return;
+                const viewer = document.getElementById('pdfViewer');
+                const scrollTop = viewer.scrollTop;
+                viewer.innerHTML = '';
+                
+                for (let i = 1; i <= pdfDoc.numPages; i++) {{
+                    await renderPage(i, viewer);
+                }}
+                
+                viewer.scrollTop = scrollTop;
+                document.getElementById('pdfZoomLevel').textContent = Math.round(currentScale * 100 / 1.5) + '%';
+            }}
+            
+            function pdfZoomIn() {{
+                if (currentScale < maxScale) {{
+                    currentScale += 0.25;
+                    rerender();
+                }}
+            }}
+            
+            function pdfZoomOut() {{
+                if (currentScale > minScale) {{
+                    currentScale -= 0.25;
+                    rerender();
+                }}
+            }}
+            
+            // Load PDF on page load
+            loadPDF();
+        </script>
         '''
         return render_template_string(
             HTML_TEMPLATE,
