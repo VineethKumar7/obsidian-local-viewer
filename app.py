@@ -6,6 +6,7 @@ Obsidian Local Viewer - View your Obsidian vault from any device on your network
 from flask import Flask, render_template_string, send_file, abort, redirect, url_for, Response
 import os
 import sys
+import re
 import argparse
 import socket
 import markdown
@@ -16,6 +17,93 @@ app = Flask(__name__)
 
 # Will be set via command line or environment variable
 VAULT_PATH = None
+
+# Cache for file lookups (populated on first request)
+_file_cache = {}
+
+def build_file_cache():
+    """Build a cache of all files in the vault for quick lookups"""
+    global _file_cache
+    _file_cache = {}
+    
+    for root, dirs, files in os.walk(VAULT_PATH):
+        # Skip hidden directories
+        dirs[:] = [d for d in dirs if not d.startswith('.')]
+        
+        for file in files:
+            if file.startswith('.'):
+                continue
+            
+            full_path = os.path.join(root, file)
+            rel_path = os.path.relpath(full_path, VAULT_PATH)
+            
+            # Store by filename (without extension for .md files)
+            name_without_ext = file.rsplit('.', 1)[0] if '.' in file else file
+            
+            # Store multiple mappings for flexible lookup
+            _file_cache[file.lower()] = rel_path
+            _file_cache[name_without_ext.lower()] = rel_path
+            
+            # Also store with path for disambiguation
+            _file_cache[rel_path.lower()] = rel_path
+
+def find_file_in_vault(link_text):
+    """Find a file in the vault matching the Obsidian link text"""
+    if not _file_cache:
+        build_file_cache()
+    
+    # Clean up the link text
+    link_text = link_text.strip()
+    
+    # Try exact match first (case-insensitive)
+    lookup = link_text.lower()
+    if lookup in _file_cache:
+        return _file_cache[lookup]
+    
+    # Try with .md extension
+    if lookup + '.md' in _file_cache:
+        return _file_cache[lookup + '.md']
+    
+    # Try with .pdf extension
+    if lookup + '.pdf' in _file_cache:
+        return _file_cache[lookup + '.pdf']
+    
+    return None
+
+def convert_obsidian_links(html_content, current_file_dir=""):
+    """Convert Obsidian [[wiki-links]] to HTML links"""
+    
+    def replace_link(match):
+        full_match = match.group(0)
+        inner = match.group(1)
+        
+        # Handle [[link|display text]] format
+        if '|' in inner:
+            link_part, display_text = inner.split('|', 1)
+        else:
+            link_part = inner
+            display_text = inner
+        
+        # Handle heading links like [[file#heading]]
+        heading = ""
+        if '#' in link_part:
+            link_part, heading = link_part.split('#', 1)
+            heading = '#' + heading.lower().replace(' ', '-')
+        
+        # Find the file
+        file_path = find_file_in_vault(link_part)
+        
+        if file_path:
+            return f'<a href="/view/{file_path}{heading}" class="internal-link">{display_text}</a>'
+        else:
+            # Return as broken link (styled differently)
+            return f'<span class="broken-link" title="File not found: {link_part}">{display_text}</span>'
+    
+    # Match [[...]] patterns (but not inside code blocks)
+    # This regex handles [[link]] and [[link|text]]
+    pattern = r'\[\[([^\]]+)\]\]'
+    
+    return re.sub(pattern, replace_link, html_content)
 
 HTML_TEMPLATE = '''
 <!DOCTYPE html>
@@ -328,6 +416,23 @@ HTML_TEMPLATE = '''
         }
         .content a { color: #0066cc; text-decoration: none; }
         .content a:hover { text-decoration: underline; }
+        .content a.internal-link { 
+            color: #7c3aed; 
+            background: rgba(124, 58, 237, 0.1);
+            padding: 1px 4px;
+            border-radius: 3px;
+        }
+        .content a.internal-link:hover { 
+            background: rgba(124, 58, 237, 0.2);
+            text-decoration: none;
+        }
+        .content .broken-link {
+            color: #dc2626;
+            background: rgba(220, 38, 38, 0.1);
+            padding: 1px 4px;
+            border-radius: 3px;
+            cursor: help;
+        }
         .content strong { color: #1a1a1a; }
         .content hr { border: none; border-top: 2px solid #eee; margin: 30px 0; }
         
@@ -713,6 +818,10 @@ def view_file(filepath):
             md_content, 
             extensions=['tables', 'fenced_code', 'toc', 'nl2br', 'sane_lists']
         )
+        
+        # Convert Obsidian [[wiki-links]] to HTML links
+        current_dir = os.path.dirname(filepath)
+        html_content = convert_obsidian_links(html_content, current_dir)
         
         # Add title
         title_html = f'<h1>{filename.replace(".md", "")}</h1>'
