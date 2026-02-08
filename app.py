@@ -1365,13 +1365,11 @@ HTML_TEMPLATE = '''
             isDrawing = true;
             e.preventDefault();
             
-            // Get coordinates relative to canvas (accounting for scroll)
+            // Get coordinates relative to canvas
+            // Canvas scrolls with content, so getBoundingClientRect already accounts for scroll
             const rect = annotationCanvas.getBoundingClientRect();
-            const scrollLeft = contentWrapper.scrollLeft || 0;
-            const scrollTop = contentWrapper.scrollTop || 0;
-            
-            const x = e.clientX - rect.left + scrollLeft;
-            const y = e.clientY - rect.top + scrollTop;
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
             
             currentStroke = {
                 tool: currentTool,
@@ -1393,12 +1391,10 @@ HTML_TEMPLATE = '''
             
             e.preventDefault();
             
+            // Canvas scrolls with content, so getBoundingClientRect already accounts for scroll
             const rect = annotationCanvas.getBoundingClientRect();
-            const scrollLeft = contentWrapper.scrollLeft || 0;
-            const scrollTop = contentWrapper.scrollTop || 0;
-            
-            const x = e.clientX - rect.left + scrollLeft;
-            const y = e.clientY - rect.top + scrollTop;
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
             
             currentStroke.points.push({
                 x: x,
