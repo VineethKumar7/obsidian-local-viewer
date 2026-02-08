@@ -1214,7 +1214,9 @@ HTML_TEMPLATE = '''
             }
             
             // Check for existing annotations and show indicator
-            checkForAnnotations();
+            if (typeof updateAnnotationIndicator === 'function') {
+                updateAnnotationIndicator();
+            }
         });
         
         // ============================================
@@ -2257,16 +2259,25 @@ def view_file(filepath):
                 const totalWidth = viewer.scrollWidth;
                 const totalHeight = viewer.scrollHeight;
                 
-                // Get device pixel ratio
-                const dpr = Math.max(2, window.devicePixelRatio || 1);
+                // Get device pixel ratio - use 1 to avoid huge canvas
+                const dpr = 1;
                 
-                // Size canvas to cover full scroll area
-                canvas.width = totalWidth * dpr;
-                canvas.height = totalHeight * dpr;
-                canvas.style.width = totalWidth + 'px';
-                canvas.style.height = totalHeight + 'px';
+                // Cap canvas size to browser limits (16384 is common max)
+                const maxCanvasSize = 16384;
+                const canvasWidth = Math.min(totalWidth, maxCanvasSize);
+                const canvasHeight = Math.min(totalHeight, maxCanvasSize);
+                
+                // Size canvas (capped)
+                canvas.width = canvasWidth * dpr;
+                canvas.height = canvasHeight * dpr;
+                canvas.style.width = canvasWidth + 'px';
+                canvas.style.height = canvasHeight + 'px';
                 
                 const ctx = canvas.getContext('2d');
+                if (!ctx) {{
+                    console.error('Failed to get canvas context');
+                    return;
+                }}
                 ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
                 ctx.imageSmoothingEnabled = true;
                 ctx.imageSmoothingQuality = 'high';
@@ -2279,8 +2290,8 @@ def view_file(filepath):
                 annotationOverlay = overlay;
                 contentWrapper = viewer;
                 annotationCtx = ctx;
-                lastCanvasWidth = totalWidth;
-                lastCanvasHeight = totalHeight;
+                lastCanvasWidth = canvasWidth;
+                lastCanvasHeight = canvasHeight;
                 
                 // Re-attach event listeners to PDF canvas
                 setupAnnotationEvents();
@@ -2290,15 +2301,11 @@ def view_file(filepath):
                 loadAnnotations();
                 
                 console.log('PDF annotation initialized:', {{
-                    canvasWidth: canvas.width,
-                    canvasHeight: canvas.height,
-                    styleWidth: canvas.style.width,
-                    styleHeight: canvas.style.height,
-                    overlayClass: overlay.className,
-                    totalWidth: totalWidth,
-                    totalHeight: totalHeight,
-                    annotationCanvas: annotationCanvas,
-                    annotationCtx: annotationCtx
+                    canvasWidth: canvasWidth,
+                    canvasHeight: canvasHeight,
+                    totalScrollWidth: totalWidth,
+                    totalScrollHeight: totalHeight,
+                    capped: totalHeight > maxCanvasSize
                 }});
                 
                 // Test draw a small circle to verify canvas works
@@ -2306,7 +2313,7 @@ def view_file(filepath):
                 ctx.beginPath();
                 ctx.arc(100, 100, 20, 0, Math.PI * 2);
                 ctx.fill();
-                console.log('Test circle drawn at (100,100)');
+                console.log('Test circle drawn at (100,100) - should be visible!');
             }}
             
             // Resize PDF annotation after re-render
