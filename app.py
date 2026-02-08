@@ -1542,6 +1542,7 @@ HTML_TEMPLATE = '''
         }
         
         function handlePointerDown(e) {
+            console.log('pointerDown:', e.pointerType, 'annotationModeActive:', annotationModeActive, 'canvas:', annotationCanvas);
             if (!annotationModeActive) return;
             
             // Check pointer type - only draw with Apple Pencil or mouse
@@ -2295,8 +2296,17 @@ def view_file(filepath):
                     styleHeight: canvas.style.height,
                     overlayClass: overlay.className,
                     totalWidth: totalWidth,
-                    totalHeight: totalHeight
+                    totalHeight: totalHeight,
+                    annotationCanvas: annotationCanvas,
+                    annotationCtx: annotationCtx
                 }});
+                
+                // Test draw a small circle to verify canvas works
+                ctx.fillStyle = 'red';
+                ctx.beginPath();
+                ctx.arc(100, 100, 20, 0, Math.PI * 2);
+                ctx.fill();
+                console.log('Test circle drawn at (100,100)');
             }}
             
             // Resize PDF annotation after re-render
@@ -2320,19 +2330,27 @@ def view_file(filepath):
             
             // Load PDF on page load
             loadPDF().then(() => {{
+                console.log('PDF loaded, setting up annotation...');
                 // Re-add overlay after initial load
                 const viewer = document.getElementById('pdfViewer');
+                
+                // Always create fresh overlay
                 let overlay = document.getElementById('pdfAnnotationOverlay');
-                if (!overlay) {{
-                    overlay = document.createElement('div');
-                    overlay.id = 'pdfAnnotationOverlay';
-                    overlay.className = 'pdf-annotation-overlay';
-                    const canvas = document.createElement('canvas');
-                    canvas.id = 'pdfAnnotationCanvas';
-                    overlay.appendChild(canvas);
-                    viewer.appendChild(overlay);
-                }}
-                setTimeout(initPdfAnnotation, 100);
+                if (overlay) overlay.remove();
+                
+                overlay = document.createElement('div');
+                overlay.id = 'pdfAnnotationOverlay';
+                overlay.className = 'pdf-annotation-overlay';
+                overlay.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10;';
+                
+                const canvas = document.createElement('canvas');
+                canvas.id = 'pdfAnnotationCanvas';
+                canvas.style.cssText = 'position:absolute;top:0;left:0;';
+                overlay.appendChild(canvas);
+                viewer.appendChild(overlay);
+                
+                console.log('Overlay created:', overlay, 'Canvas:', canvas);
+                setTimeout(initPdfAnnotation, 200);
             }});
         </script>
         '''
