@@ -2054,7 +2054,7 @@ def download_pdf(filepath):
     # Restore math expressions
     html_content = restore_math_expressions(html_content, math_placeholders)
     
-    # Full HTML document for PDF
+    # Full HTML document for PDF (with MathJax for equation rendering)
     title = os.path.basename(filepath).replace('.md', '')
     full_html = f'''
     <!DOCTYPE html>
@@ -2062,6 +2062,24 @@ def download_pdf(filepath):
     <head>
         <meta charset="utf-8">
         <title>{title}</title>
+        <script>
+            MathJax = {{
+                tex: {{
+                    inlineMath: [['$', '$'], ['\\\\(', '\\\\)']],
+                    displayMath: [['$$', '$$'], ['\\\\[', '\\\\]']],
+                    processEscapes: true
+                }},
+                svg: {{ fontCache: 'global' }},
+                startup: {{
+                    pageReady: () => {{
+                        return MathJax.startup.defaultPageReady().then(() => {{
+                            window.mathJaxReady = true;
+                        }});
+                    }}
+                }}
+            }};
+        </script>
+        <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js"></script>
         <style>
             body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; line-height: 1.6; padding: 40px; max-width: 800px; margin: 0 auto; }}
             h1 {{ color: #1a1a1a; border-bottom: 2px solid #0066cc; padding-bottom: 10px; }}
@@ -2077,6 +2095,7 @@ def download_pdf(filepath):
             blockquote {{ border-left: 4px solid #0066cc; padding: 10px 20px; margin: 20px 0; background: #f9f9f9; }}
             ul, ol {{ margin: 15px 0 15px 25px; }}
             li {{ margin: 8px 0; }}
+            mjx-container {{ overflow-x: auto; }}
         </style>
     </head>
     <body>
@@ -2086,7 +2105,44 @@ def download_pdf(filepath):
     </html>
     '''
     
-    # Try to convert using wkhtmltopdf or weasyprint
+    # Try Playwright first (best quality, renders MathJax properly)
+    try:
+        with tempfile.NamedTemporaryFile(suffix='.html', delete=False, mode='w', encoding='utf-8') as html_file:
+            html_file.write(full_html)
+            html_path = html_file.name
+        
+        with tempfile.NamedTemporaryFile(suffix='.pdf', delete=False) as pdf_file:
+            pdf_path = pdf_file.name
+        
+        # Use Playwright to render with full JS support
+        result = subprocess.run(
+            ['npx', 'playwright', 'pdf', f'file://{html_path}', pdf_path,
+             '--wait-for-selector', 'mjx-container, body',
+             '--wait-for-timeout', '3000'],
+            capture_output=True,
+            timeout=60
+        )
+        
+        if result.returncode == 0 and os.path.exists(pdf_path) and os.path.getsize(pdf_path) > 0:
+            response = send_file(
+                pdf_path,
+                mimetype='application/pdf',
+                as_attachment=True,
+                download_name=filename
+            )
+            os.unlink(html_path)
+            return response
+        
+        # Cleanup failed attempt
+        if os.path.exists(html_path):
+            os.unlink(html_path)
+        if os.path.exists(pdf_path):
+            os.unlink(pdf_path)
+            
+    except Exception as e:
+        print(f"Playwright PDF error: {e}")
+    
+    # Try to convert using wkhtmltopdf or weasyprint (fallback, no MathJax)
     try:
         # Try wkhtmltopdf first
         with tempfile.NamedTemporaryFile(suffix='.html', delete=False) as html_file:
