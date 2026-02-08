@@ -2070,6 +2070,10 @@ def view_file(filepath):
             .pdf-annotation-overlay.active {{
                 pointer-events: auto;
             }}
+            .pdf-annotation-overlay.active canvas {{
+                touch-action: none;
+                cursor: crosshair;
+            }}
             .pdf-annotation-overlay canvas {{
                 position: absolute;
                 top: 0;
@@ -2227,7 +2231,6 @@ def view_file(filepath):
                 if (pages.length === 0) return;
                 
                 // Get the full scrollable area
-                const viewerRect = viewer.getBoundingClientRect();
                 const totalWidth = viewer.scrollWidth;
                 const totalHeight = viewer.scrollHeight;
                 
@@ -2245,30 +2248,24 @@ def view_file(filepath):
                 ctx.imageSmoothingEnabled = true;
                 ctx.imageSmoothingQuality = 'high';
                 
-                // Override the global annotation variables for PDF mode
-                window.pdfAnnotationMode = true;
-                window.pdfAnnotationCanvas = canvas;
-                window.pdfAnnotationCtx = ctx;
-                window.pdfAnnotationOverlay = overlay;
-                window.pdfViewer = viewer;
-                window.pdfCanvasWidth = totalWidth;
-                window.pdfCanvasHeight = totalHeight;
+                // Set global PDF annotation mode flag
+                window.isPdfAnnotationMode = true;
+                
+                // Reinitialize the annotation system with PDF elements
+                annotationCanvas = canvas;
+                annotationOverlay = overlay;
+                contentWrapper = viewer;
+                annotationCtx = ctx;
+                lastCanvasWidth = totalWidth;
+                lastCanvasHeight = totalHeight;
+                
+                // Re-attach event listeners to PDF canvas
+                setupAnnotationEvents();
+                setupToolButtons();
+                
+                // Load any saved annotations for this file
+                loadAnnotations();
             }}
-            
-            // Override annotation functions for PDF
-            const originalEnterAnnotation = window.enterAnnotationMode;
-            window.enterAnnotationMode = function() {{
-                if (window.pdfAnnotationMode) {{
-                    // Use PDF annotation canvas
-                    annotationCanvas = window.pdfAnnotationCanvas;
-                    annotationCtx = window.pdfAnnotationCtx;
-                    annotationOverlay = window.pdfAnnotationOverlay;
-                    contentWrapper = window.pdfViewer;
-                    lastCanvasWidth = window.pdfCanvasWidth;
-                    lastCanvasHeight = window.pdfCanvasHeight;
-                }}
-                if (originalEnterAnnotation) originalEnterAnnotation();
-            }};
             
             // Resize PDF annotation after re-render
             const originalRerender = rerender;
