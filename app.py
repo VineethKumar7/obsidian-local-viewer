@@ -1154,6 +1154,10 @@ HTML_TEMPLATE = '''
         let lastCanvasWidth = 0;
         let lastCanvasHeight = 0;
         
+        // Palm rejection state
+        let penIsActive = false;
+        let palmRejectionTimeout = null;
+        
         // Perfect-freehand inspired stroke smoothing
         function getStrokeOutline(points, size, thinning = 0.5) {
             if (points.length < 2) return [];
@@ -1344,9 +1348,24 @@ HTML_TEMPLATE = '''
             annotationCanvas.addEventListener('pointerleave', handlePointerUp);
             annotationCanvas.addEventListener('pointercancel', handlePointerUp);
             
-            // Note: We don't prevent touch events here anymore
-            // Finger touches should scroll, only Apple Pencil (pen) should draw
-            // The pointer event handlers check pointerType and only draw for 'pen'
+            // Palm rejection: block touch events while pen is active
+            // This prevents palm touches from causing scroll while writing
+            annotationCanvas.addEventListener('touchstart', handleTouchForPalmRejection, { passive: false });
+            annotationCanvas.addEventListener('touchmove', handleTouchForPalmRejection, { passive: false });
+        }
+        
+        function handleTouchForPalmRejection(e) {
+            if (!annotationModeActive) return;
+            
+            // If pen is currently active (drawing), block ALL touch events (palm rejection)
+            if (penIsActive) {
+                e.preventDefault();
+                e.stopPropagation();
+                return;
+            }
+            
+            // If pen was recently used (within 300ms), also block touch to prevent palm jitter
+            // Otherwise, allow touch for scrolling
         }
         
         function handlePointerDown(e) {
@@ -1357,10 +1376,25 @@ HTML_TEMPLATE = '''
             const isMouse = e.pointerType === 'mouse';
             const isTouch = e.pointerType === 'touch';
             
-            // If it's a finger touch, let it scroll instead of drawing
+            // If it's a finger touch, check palm rejection
             if (isTouch) {
-                // Don't prevent default - allow native scrolling
+                // If pen is active, this is likely a palm - block it
+                if (penIsActive) {
+                    e.preventDefault();
+                    return;
+                }
+                // Otherwise allow scrolling
                 return;
+            }
+            
+            // Pen or mouse detected - activate palm rejection
+            if (isPencil) {
+                penIsActive = true;
+                // Clear any pending timeout
+                if (palmRejectionTimeout) {
+                    clearTimeout(palmRejectionTimeout);
+                    palmRejectionTimeout = null;
+                }
             }
             
             // Only draw with Apple Pencil or mouse
@@ -1413,6 +1447,15 @@ HTML_TEMPLATE = '''
         }
         
         function handlePointerUp(e) {
+            // Deactivate palm rejection when pen lifts
+            // Use a small delay so palm doesn't immediately trigger scroll
+            if (e.pointerType === 'pen' && penIsActive) {
+                if (palmRejectionTimeout) clearTimeout(palmRejectionTimeout);
+                palmRejectionTimeout = setTimeout(() => {
+                    penIsActive = false;
+                }, 300); // 300ms grace period after pen lifts
+            }
+            
             if (!isDrawing || !currentStroke) return;
             
             isDrawing = false;
