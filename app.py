@@ -31,21 +31,63 @@ HTML_TEMPLATE = '''
         /* Sidebar */
         .sidebar { 
             width: 280px; 
+            min-width: 280px;
             background: #252526; 
             color: #cccccc; 
             overflow-y: auto; 
             flex-shrink: 0;
             box-shadow: 1px 0 3px rgba(0,0,0,0.3);
-            transition: transform 0.3s ease, width 0.3s ease;
+            transition: width 0.25s ease, min-width 0.25s ease, transform 0.25s ease;
             position: relative;
             z-index: 100;
             font-size: 13px;
         }
-        .sidebar.hidden { 
-            transform: translateX(-100%);
+        .sidebar.collapsed { 
             width: 0;
-            padding: 0;
+            min-width: 0;
             overflow: hidden;
+        }
+        .sidebar.collapsed .sidebar-content,
+        .sidebar.collapsed .sidebar-header {
+            opacity: 0;
+            pointer-events: none;
+        }
+        
+        /* Dock toggle button - always visible */
+        .dock-toggle {
+            position: fixed;
+            top: 50%;
+            left: 280px;
+            transform: translateY(-50%);
+            z-index: 150;
+            background: #1e1e1e;
+            color: #ccc;
+            border: none;
+            padding: 12px 6px;
+            border-radius: 0 6px 6px 0;
+            cursor: pointer;
+            font-size: 14px;
+            box-shadow: 2px 0 8px rgba(0,0,0,0.3);
+            transition: left 0.25s ease, background 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 60px;
+        }
+        .dock-toggle:hover {
+            background: #333;
+            color: #fff;
+        }
+        .dock-toggle.collapsed {
+            left: 0;
+            border-radius: 0 6px 6px 0;
+        }
+        .dock-toggle .arrow {
+            transition: transform 0.25s ease;
+        }
+        .dock-toggle.collapsed .arrow {
+            transform: rotate(180deg);
         }
         .sidebar-header {
             padding: 12px 16px;
@@ -142,8 +184,9 @@ HTML_TEMPLATE = '''
         .sidebar a.active { background: #094771; color: #fff; }
         .sidebar a::before { margin-right: 6px; font-size: 14px; }
         
-        /* Toggle button */
+        /* Toggle button - hidden on desktop, shown on mobile */
         .toggle-btn {
+            display: none;
             position: fixed;
             top: 15px;
             left: 15px;
@@ -305,6 +348,12 @@ HTML_TEMPLATE = '''
         @media (max-width: 768px) {
             body { flex-direction: column; }
             
+            /* Hide dock toggle on mobile */
+            .dock-toggle { display: none !important; }
+            
+            /* Show hamburger menu on mobile */
+            .toggle-btn { display: block !important; }
+            
             /* Sidebar as overlay on mobile */
             .sidebar { 
                 position: fixed;
@@ -312,7 +361,8 @@ HTML_TEMPLATE = '''
                 left: 0;
                 right: 0;
                 bottom: 0;
-                width: 100%;
+                width: 100% !important;
+                min-width: 100% !important;
                 max-height: 100vh;
                 z-index: 300;
                 padding: 60px 20px 20px;
@@ -322,6 +372,11 @@ HTML_TEMPLATE = '''
             .sidebar.hidden { 
                 transform: translateY(-100%);
                 pointer-events: none;
+            }
+            .sidebar.collapsed {
+                transform: none;
+                width: 100% !important;
+                min-width: 100% !important;
             }
             
             /* Close button inside sidebar on mobile */
@@ -389,6 +444,10 @@ HTML_TEMPLATE = '''
 <body>
     <button class="toggle-btn" onclick="toggleSidebar()" title="Toggle Sidebar">☰ <span class="btn-text">Menu</span></button>
     
+    <button class="dock-toggle" id="dockToggle" onclick="toggleDock()" title="Toggle Sidebar (Ctrl+B)">
+        <span class="arrow">◀</span>
+    </button>
+    
     <div class="toolbar">
         {% if is_markdown %}
         <button onclick="downloadPDF()" title="Download as PDF">📥 <span class="btn-text">PDF</span></button>
@@ -418,37 +477,66 @@ HTML_TEMPLATE = '''
     <script>
         // Check if mobile
         const isMobile = window.innerWidth <= 768;
-        let sidebarOpen = !isMobile; // Start closed on mobile, open on desktop
+        
+        // Persist sidebar state in localStorage
+        let sidebarCollapsed = localStorage.getItem('sidebarCollapsed') === 'true';
         
         // Initialize sidebar state
         document.addEventListener('DOMContentLoaded', function() {
             const sidebar = document.getElementById('sidebar');
+            const dockToggle = document.getElementById('dockToggle');
             const toggleBtn = document.querySelector('.toggle-btn');
             
             if (isMobile) {
+                // Mobile: use overlay mode
                 sidebar.classList.add('hidden');
-                toggleBtn.classList.remove('sidebar-open');
+                toggleBtn.style.display = 'block';
+                dockToggle.style.display = 'none';
             } else {
-                sidebar.classList.remove('hidden');
-                toggleBtn.classList.add('sidebar-open');
+                // Desktop: use dock mode with persisted state
+                toggleBtn.style.display = 'none';
+                dockToggle.style.display = 'flex';
+                
+                if (sidebarCollapsed) {
+                    sidebar.classList.add('collapsed');
+                    dockToggle.classList.add('collapsed');
+                } else {
+                    sidebar.classList.remove('collapsed');
+                    dockToggle.classList.remove('collapsed');
+                }
             }
         });
         
+        // Desktop dock toggle
+        function toggleDock() {
+            const sidebar = document.getElementById('sidebar');
+            const dockToggle = document.getElementById('dockToggle');
+            
+            sidebarCollapsed = !sidebarCollapsed;
+            localStorage.setItem('sidebarCollapsed', sidebarCollapsed);
+            
+            if (sidebarCollapsed) {
+                sidebar.classList.add('collapsed');
+                dockToggle.classList.add('collapsed');
+            } else {
+                sidebar.classList.remove('collapsed');
+                dockToggle.classList.remove('collapsed');
+            }
+        }
+        
+        // Mobile overlay toggle
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
             const toggleBtn = document.querySelector('.toggle-btn');
-            const content = document.querySelector('.content');
             
-            sidebarOpen = !sidebarOpen;
+            const isHidden = sidebar.classList.contains('hidden');
             
-            if (sidebarOpen) {
+            if (isHidden) {
                 sidebar.classList.remove('hidden');
                 toggleBtn.classList.add('sidebar-open');
-                if (!isMobile) content.classList.remove('fullscreen');
             } else {
                 sidebar.classList.add('hidden');
                 toggleBtn.classList.remove('sidebar-open');
-                if (!isMobile) content.classList.add('fullscreen');
             }
         }
         
@@ -495,7 +583,11 @@ HTML_TEMPLATE = '''
             // Ctrl+B or Cmd+B to toggle sidebar
             if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
                 e.preventDefault();
-                toggleSidebar();
+                if (isMobile) {
+                    toggleSidebar();
+                } else {
+                    toggleDock();
+                }
             }
             // F11 or Ctrl+Shift+F for fullscreen
             if (e.key === 'F11' || ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key === 'F')) {
@@ -503,16 +595,22 @@ HTML_TEMPLATE = '''
                 toggleFullscreen();
             }
             // Escape to close sidebar on mobile
-            if (e.key === 'Escape' && sidebarOpen && isMobile) {
-                toggleSidebar();
+            if (e.key === 'Escape' && isMobile) {
+                const sidebar = document.getElementById('sidebar');
+                if (!sidebar.classList.contains('hidden')) {
+                    toggleSidebar();
+                }
             }
         });
         
         // Close sidebar when clicking a link on mobile
         document.querySelectorAll('.sidebar a').forEach(link => {
             link.addEventListener('click', function() {
-                if (isMobile && sidebarOpen) {
-                    toggleSidebar();
+                if (isMobile) {
+                    const sidebar = document.getElementById('sidebar');
+                    if (!sidebar.classList.contains('hidden')) {
+                        toggleSidebar();
+                    }
                 }
             });
         });
@@ -629,7 +727,106 @@ def view_file(filepath):
         )
     
     elif ext == 'pdf':
-        return send_file(full_path, mimetype='application/pdf')
+        # Embed PDF in viewer with sidebar preserved
+        pdf_content = f'''
+        <style>
+            .pdf-container {{
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                display: flex;
+                flex-direction: column;
+                background: #525659;
+            }}
+            .pdf-header {{
+                background: #323639;
+                color: #fff;
+                padding: 10px 20px;
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 15px;
+                flex-shrink: 0;
+                z-index: 50;
+            }}
+            .pdf-title {{
+                font-size: 16px;
+                font-weight: 500;
+                white-space: nowrap;
+                overflow: hidden;
+                text-overflow: ellipsis;
+            }}
+            .pdf-actions {{
+                display: flex;
+                gap: 10px;
+            }}
+            .pdf-actions button, .pdf-actions a {{
+                background: #4a4d50;
+                color: #fff;
+                border: none;
+                padding: 8px 16px;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 14px;
+                text-decoration: none;
+                transition: background 0.2s;
+            }}
+            .pdf-actions button:hover, .pdf-actions a:hover {{
+                background: #5a5d60;
+            }}
+            .pdf-iframe {{
+                flex: 1;
+                border: none;
+                width: 100%;
+                height: 100%;
+            }}
+            
+            /* Override content styles for PDF view */
+            .content {{
+                padding: 0 !important;
+                max-width: 100% !important;
+                overflow: hidden;
+            }}
+            .content-wrapper {{
+                background: #525659;
+            }}
+            
+            @media (max-width: 768px) {{
+                .pdf-header {{
+                    padding: 8px 15px;
+                }}
+                .pdf-title {{
+                    font-size: 14px;
+                    max-width: 150px;
+                }}
+                .pdf-actions button, .pdf-actions a {{
+                    padding: 6px 12px;
+                    font-size: 12px;
+                }}
+            }}
+        </style>
+        
+        <div class="pdf-container">
+            <div class="pdf-header">
+                <span class="pdf-title">📕 {filename}</span>
+                <div class="pdf-actions">
+                    <a href="/raw/{filepath}" target="_blank" title="Open in new tab">↗ Open</a>
+                    <a href="/raw/{filepath}" download="{filename}" title="Download PDF">📥 Download</a>
+                </div>
+            </div>
+            <iframe class="pdf-iframe" src="/raw/{filepath}#toolbar=1&navpanes=1&scrollbar=1&view=FitH"></iframe>
+        </div>
+        '''
+        return render_template_string(
+            HTML_TEMPLATE,
+            title=filename,
+            tree=tree,
+            content=pdf_content,
+            vault_name=get_vault_name(),
+            is_markdown=False
+        )
     
     elif ext in ['png', 'jpg', 'jpeg', 'gif', 'webp']:
         return send_file(full_path)
@@ -934,8 +1131,12 @@ def download_pdf(filepath):
             pdf_path = pdf_file.name
         
         # Try venv weasyprint first, then system
+        # Permanent location: ~/clawd/envs/pdfenv (survives reboots)
+        # Fallback to /tmp/pdfenv for backwards compatibility
+        home = os.path.expanduser('~')
         weasyprint_paths = [
-            '/tmp/pdfenv/bin/python3',  # venv with weasyprint
+            os.path.join(home, 'clawd/envs/pdfenv/bin/python3'),  # permanent venv
+            '/tmp/pdfenv/bin/python3',  # legacy temp venv (backwards compat)
             'python3',  # system python
         ]
         
