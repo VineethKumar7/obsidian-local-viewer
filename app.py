@@ -2482,7 +2482,7 @@ def stream_file(filepath):
 
 def get_annotation_path(filepath):
     """Get the annotation file path for a given file"""
-    annotations_dir = os.path.join(VAULT_PATH, '.annotations')
+    annotations_dir = os.path.join(VAULT_PATH, 'annotations')
     os.makedirs(annotations_dir, exist_ok=True)
     
     # Replace path separators with underscores and add .json extension
