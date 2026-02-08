@@ -654,7 +654,8 @@ HTML_TEMPLATE = '''
             position: absolute;
             top: 0;
             left: 0;
-            touch-action: none;
+            /* Allow finger scrolling, only Apple Pencil draws */
+            touch-action: pan-x pan-y;
         }
         
         /* Floating annotation toolbar */
@@ -1343,25 +1344,26 @@ HTML_TEMPLATE = '''
             annotationCanvas.addEventListener('pointerleave', handlePointerUp);
             annotationCanvas.addEventListener('pointercancel', handlePointerUp);
             
-            // Prevent default touch behavior when in annotation mode
-            annotationCanvas.addEventListener('touchstart', (e) => {
-                if (annotationModeActive) e.preventDefault();
-            }, { passive: false });
-            annotationCanvas.addEventListener('touchmove', (e) => {
-                if (annotationModeActive) e.preventDefault();
-            }, { passive: false });
+            // Note: We don't prevent touch events here anymore
+            // Finger touches should scroll, only Apple Pencil (pen) should draw
+            // The pointer event handlers check pointerType and only draw for 'pen'
         }
         
         function handlePointerDown(e) {
             if (!annotationModeActive) return;
             
-            // For Apple Pencil, check pointer type
+            // Check pointer type - only draw with Apple Pencil or mouse
             const isPencil = e.pointerType === 'pen';
+            const isMouse = e.pointerType === 'mouse';
             const isTouch = e.pointerType === 'touch';
             
-            // If it's a touch and not pencil, allow scrolling (don't draw)
-            // But we're in annotation mode, so we draw with touch too
+            // If it's a finger touch, let it scroll instead of drawing
+            if (isTouch) {
+                // Don't prevent default - allow native scrolling
+                return;
+            }
             
+            // Only draw with Apple Pencil or mouse
             isDrawing = true;
             e.preventDefault();
             
@@ -1388,6 +1390,9 @@ HTML_TEMPLATE = '''
         
         function handlePointerMove(e) {
             if (!isDrawing || !currentStroke || !annotationModeActive) return;
+            
+            // Ignore touch (finger) - only pen/mouse should draw
+            if (e.pointerType === 'touch') return;
             
             e.preventDefault();
             
