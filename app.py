@@ -1338,9 +1338,18 @@ HTML_TEMPLATE = '''
         function resizeCanvas() {
             if (!annotationCanvas || !contentWrapper) return;
             
-            const content = document.getElementById('contentArea');
-            const scrollWidth = Math.max(content.scrollWidth, contentWrapper.clientWidth);
-            const scrollHeight = Math.max(content.scrollHeight, contentWrapper.scrollHeight, contentWrapper.clientHeight);
+            let scrollWidth, scrollHeight;
+            
+            if (window.isPdfAnnotationMode) {
+                // PDF mode - size to cover all PDF pages
+                scrollWidth = contentWrapper.scrollWidth;
+                scrollHeight = contentWrapper.scrollHeight;
+            } else {
+                // Normal mode
+                const content = document.getElementById('contentArea');
+                scrollWidth = Math.max(content.scrollWidth, contentWrapper.clientWidth);
+                scrollHeight = Math.max(content.scrollHeight, contentWrapper.scrollHeight, contentWrapper.clientHeight);
+            }
             
             // Get device pixel ratio for crisp rendering on Retina/high-DPI displays
             // Use minimum 2x for better quality on non-retina displays
@@ -1376,9 +1385,24 @@ HTML_TEMPLATE = '''
         }
         
         function initAnnotationOverlay() {
-            annotationCanvas = document.getElementById('annotationCanvas');
-            annotationOverlay = document.getElementById('annotationOverlay');
-            contentWrapper = document.getElementById('contentWrapper');
+            // Check if we're in PDF mode
+            const pdfCanvas = document.getElementById('pdfAnnotationCanvas');
+            const pdfOverlay = document.getElementById('pdfAnnotationOverlay');
+            const pdfViewer = document.getElementById('pdfViewer');
+            
+            if (pdfCanvas && pdfOverlay && pdfViewer) {
+                // PDF mode - use PDF annotation elements
+                annotationCanvas = pdfCanvas;
+                annotationOverlay = pdfOverlay;
+                contentWrapper = pdfViewer;
+                window.isPdfAnnotationMode = true;
+            } else {
+                // Normal mode
+                annotationCanvas = document.getElementById('annotationCanvas');
+                annotationOverlay = document.getElementById('annotationOverlay');
+                contentWrapper = document.getElementById('contentWrapper');
+                window.isPdfAnnotationMode = false;
+            }
             
             if (!annotationCanvas || !annotationOverlay || !contentWrapper) return;
             
@@ -1423,6 +1447,10 @@ HTML_TEMPLATE = '''
             // Activate overlay (enable pointer events)
             annotationOverlay.classList.add('active');
             
+            // Also activate PDF annotation overlay if in PDF mode
+            const pdfOverlay = document.getElementById('pdfAnnotationOverlay');
+            if (pdfOverlay) pdfOverlay.classList.add('active');
+            
             // Hide the annotation indicator if visible
             const indicator = document.querySelector('.has-annotations-indicator');
             if (indicator) indicator.style.display = 'none';
@@ -1443,6 +1471,10 @@ HTML_TEMPLATE = '''
             
             // Deactivate overlay (disable pointer events, allow normal scrolling)
             annotationOverlay.classList.remove('active');
+            
+            // Also deactivate PDF annotation overlay
+            const pdfOverlay = document.getElementById('pdfAnnotationOverlay');
+            if (pdfOverlay) pdfOverlay.classList.remove('active');
             
             // Save annotations
             saveAnnotations();
