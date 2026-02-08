@@ -2362,7 +2362,8 @@ def view_file(filepath):
                 overlay = document.createElement('div');
                 overlay.id = 'pdfAnnotationOverlay';
                 overlay.className = 'pdf-annotation-overlay';
-                overlay.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:10;';
+                // Don't set pointer-events here - let CSS class handle it
+                overlay.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;z-index:10;';
                 
                 const canvas = document.createElement('canvas');
                 canvas.id = 'pdfAnnotationCanvas';
