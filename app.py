@@ -544,7 +544,30 @@ HTML_TEMPLATE = '''
             .sidebar, .toggle-btn, .toolbar { display: none !important; }
             .content { max-width: 100% !important; padding: 20px !important; }
         }
+        
+        /* Mermaid diagram styles */
+        .mermaid {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 16px 0;
+            text-align: center;
+        }
+        .mermaid svg {
+            max-width: 100%;
+            height: auto;
+        }
     </style>
+    <!-- Mermaid.js for diagram rendering -->
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <script>
+        mermaid.initialize({
+            startOnLoad: false,
+            theme: 'default',
+            securityLevel: 'loose',
+            flowchart: { useMaxWidth: true, htmlLabels: true }
+        });
+    </script>
 </head>
 <body>
     <button class="toggle-btn" onclick="toggleSidebar()" title="Toggle Sidebar">☰ <span class="btn-text">Menu</span></button>
@@ -718,6 +741,40 @@ HTML_TEMPLATE = '''
                     }
                 }
             });
+        });
+        
+        // Initialize Mermaid diagrams
+        document.addEventListener('DOMContentLoaded', function() {
+            // Find all code blocks that might be mermaid
+            const codeBlocks = document.querySelectorAll('pre code');
+            
+            codeBlocks.forEach(function(codeBlock, index) {
+                const pre = codeBlock.parentElement;
+                const content = codeBlock.textContent.trim();
+                
+                // Check if it's a mermaid block (by class or content pattern)
+                const isMermaidClass = codeBlock.className.includes('mermaid') || 
+                                       codeBlock.className.includes('language-mermaid');
+                const isMermaidContent = content.match(/^(graph|flowchart|sequenceDiagram|classDiagram|stateDiagram|erDiagram|journey|gantt|pie|gitGraph|mindmap|timeline|quadrantChart|xychart|sankey|packet|block)/i);
+                
+                if (isMermaidClass || isMermaidContent) {
+                    // Create a new div for mermaid
+                    const mermaidDiv = document.createElement('div');
+                    mermaidDiv.className = 'mermaid';
+                    mermaidDiv.textContent = content;
+                    mermaidDiv.id = 'mermaid-' + index;
+                    
+                    // Replace the pre element with the mermaid div
+                    pre.parentNode.replaceChild(mermaidDiv, pre);
+                }
+            });
+            
+            // Run mermaid on all .mermaid elements
+            if (document.querySelectorAll('.mermaid').length > 0) {
+                mermaid.run({
+                    nodes: document.querySelectorAll('.mermaid')
+                });
+            }
         });
     </script>
 </body>
