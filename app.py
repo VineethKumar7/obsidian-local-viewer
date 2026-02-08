@@ -2144,6 +2144,22 @@ def view_file(filepath):
             .pdf-nav button:hover {{
                 background: #5a5d60;
             }}
+            .pdf-copy-path {{
+                background: #4a4d50;
+                border: none;
+                padding: 6px 10px;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 14px;
+                color: #fff;
+                transition: background 0.2s;
+            }}
+            .pdf-copy-path:hover {{
+                background: #5a5d60;
+            }}
+            .pdf-copy-path.copied {{
+                background: #2e7d32;
+            }}
             .pdf-page-info {{
                 font-size: 13px;
                 min-width: 80px;
@@ -2242,7 +2258,8 @@ def view_file(filepath):
         
         <div class="pdf-container">
             <div class="pdf-header">
-                <span class="pdf-title">📕 {filename}</span>
+                <span class="pdf-title" title="{filepath}">📕 {filepath}</span>
+                <button class="pdf-copy-path" onclick="copyPdfPath()" title="Copy path">📋</button>
                 <div class="pdf-actions">
                     <div class="pdf-nav">
                         <button onclick="pdfZoomOut()" title="Zoom Out">−</button>
@@ -2334,6 +2351,19 @@ def view_file(filepath):
                     currentScale -= 0.25;
                     rerender();
                 }}
+            }}
+            
+            function copyPdfPath() {{
+                const path = '{filepath}';
+                navigator.clipboard.writeText(path).then(() => {{
+                    const btn = document.querySelector('.pdf-copy-path');
+                    btn.classList.add('copied');
+                    btn.textContent = '✓';
+                    setTimeout(() => {{
+                        btn.classList.remove('copied');
+                        btn.textContent = '📋';
+                    }}, 2000);
+                }});
             }}
             
             // Initialize PDF annotation canvas
