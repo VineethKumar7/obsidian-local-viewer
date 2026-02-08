@@ -1280,6 +1280,7 @@ HTML_TEMPLATE = '''
         function drawStrokeIncremental(ctx, stroke) {
             const points = stroke.points;
             if (points.length < 2) return;
+            console.log('Drawing segment at', points[points.length-1].x, points[points.length-1].y, 'color:', stroke.color);
             
             const p0 = points[points.length - 2];
             const p1 = points[points.length - 1];
@@ -1463,17 +1464,24 @@ HTML_TEMPLATE = '''
             }
             
             annotationModeActive = true;
+            console.log('Entering annotation mode, isPdfMode:', window.isPdfAnnotationMode);
             
             // Show toolbar and badge
             document.getElementById('annotationToolbar').classList.add('visible');
             document.getElementById('annotationModeBadge').classList.add('visible');
             
             // Activate overlay (enable pointer events)
-            annotationOverlay.classList.add('active');
+            if (annotationOverlay) {
+                annotationOverlay.classList.add('active');
+                console.log('Activated overlay:', annotationOverlay.id);
+            }
             
             // Also activate PDF annotation overlay if in PDF mode
             const pdfOverlay = document.getElementById('pdfAnnotationOverlay');
-            if (pdfOverlay) pdfOverlay.classList.add('active');
+            if (pdfOverlay) {
+                pdfOverlay.classList.add('active');
+                console.log('Activated PDF overlay');
+            }
             
             // Hide the annotation indicator if visible
             const indicator = document.querySelector('.has-annotations-indicator');
@@ -1547,8 +1555,11 @@ HTML_TEMPLATE = '''
         }
         
         function handlePointerDown(e) {
-            console.log('pointerDown:', e.pointerType, 'annotationModeActive:', annotationModeActive, 'canvas:', annotationCanvas);
-            if (!annotationModeActive) return;
+            console.log('pointerDown:', e.pointerType, 'annotationModeActive:', annotationModeActive, 'canvas:', annotationCanvas, 'ctx:', annotationCtx);
+            if (!annotationModeActive) {
+                console.log('NOT in annotation mode - click Annotate button first!');
+                return;
+            }
             
             // Check pointer type - only draw with Apple Pencil or mouse
             const isPencil = e.pointerType === 'pen';
