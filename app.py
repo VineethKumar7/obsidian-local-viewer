@@ -1367,10 +1367,13 @@ HTML_TEMPLATE = '''
             
             let scrollWidth, scrollHeight;
             
+            // Cap canvas size to browser limits
+            const maxCanvasSize = 16384;
+            
             if (window.isPdfAnnotationMode) {
-                // PDF mode - size to cover all PDF pages
-                scrollWidth = contentWrapper.scrollWidth;
-                scrollHeight = contentWrapper.scrollHeight;
+                // PDF mode - size to cover PDF pages (capped)
+                scrollWidth = Math.min(contentWrapper.scrollWidth, maxCanvasSize);
+                scrollHeight = Math.min(contentWrapper.scrollHeight, maxCanvasSize);
             } else {
                 // Normal mode
                 const content = document.getElementById('contentArea');
@@ -2352,7 +2355,7 @@ def view_file(filepath):
                 
                 const canvas = document.createElement('canvas');
                 canvas.id = 'pdfAnnotationCanvas';
-                canvas.style.cssText = 'position:absolute;top:0;left:0;';
+                canvas.style.cssText = 'position:absolute;top:0;left:0;background:rgba(255,0,0,0.1);';
                 overlay.appendChild(canvas);
                 viewer.appendChild(overlay);
                 
