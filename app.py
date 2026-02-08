@@ -1274,10 +1274,45 @@ HTML_TEMPLATE = '''
             return outline;
         }
         
+        // Fast incremental drawing - only draws last segment (for real-time)
+        function drawStrokeIncremental(ctx, stroke) {
+            const points = stroke.points;
+            if (points.length < 2) return;
+            
+            const p0 = points[points.length - 2];
+            const p1 = points[points.length - 1];
+            
+            ctx.save();
+            ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            
+            if (stroke.tool === 'eraser') {
+                ctx.globalCompositeOperation = 'destination-out';
+                ctx.strokeStyle = 'rgba(0,0,0,1)';
+            } else if (stroke.tool === 'highlighter') {
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.strokeStyle = stroke.color;
+                ctx.globalAlpha = 0.35;
+            } else {
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.strokeStyle = stroke.color;
+                ctx.globalAlpha = 1;
+            }
+            
+            // Simple line for speed
+            const pressure = (p0.pressure + p1.pressure) / 2 || 0.5;
+            ctx.lineWidth = stroke.size * (0.5 + 0.5 * pressure);
+            
+            ctx.beginPath();
+            ctx.moveTo(p0.x, p0.y);
+            ctx.lineTo(p1.x, p1.y);
+            ctx.stroke();
+            ctx.restore();
+        }
+        
+        // Full stroke drawing (for redraw/replay)
         function drawStroke(ctx, stroke, isEraser = false) {
             if (!stroke.points || stroke.points.length < 2) return;
-            
-            const outline = getStrokeOutline(stroke.points, stroke.size);
             
             ctx.save();
             ctx.lineCap = 'round';
@@ -1296,26 +1331,16 @@ HTML_TEMPLATE = '''
                 ctx.globalAlpha = 1;
             }
             
-            // Use quadratic curves for smoother strokes (Apple Notes-style)
+            const points = stroke.points;
             ctx.beginPath();
-            ctx.moveTo(outline[0].x, outline[0].y);
+            ctx.moveTo(points[0].x, points[0].y);
             
-            for (let i = 1; i < outline.length; i++) {
-                const p0 = outline[i - 1];
-                const p1 = outline[i];
-                
-                ctx.lineWidth = (p0.width + p1.width) / 2;
-                
-                if (i < outline.length - 1) {
-                    // Use midpoint as control point for smooth bezier curves
-                    const p2 = outline[i + 1];
-                    const midX = (p1.x + p2.x) / 2;
-                    const midY = (p1.y + p2.y) / 2;
-                    ctx.quadraticCurveTo(p1.x, p1.y, midX, midY);
-                } else {
-                    ctx.lineTo(p1.x, p1.y);
-                }
-                
+            for (let i = 1; i < points.length; i++) {
+                const p0 = points[i - 1];
+                const p1 = points[i];
+                const pressure = (p0.pressure + p1.pressure) / 2 || 0.5;
+                ctx.lineWidth = stroke.size * (0.5 + 0.5 * pressure);
+                ctx.lineTo(p1.x, p1.y);
                 ctx.stroke();
                 ctx.beginPath();
                 ctx.moveTo(p1.x, p1.y);
@@ -1352,8 +1377,7 @@ HTML_TEMPLATE = '''
             }
             
             // Get device pixel ratio for crisp rendering on Retina/high-DPI displays
-            // Use minimum 2x for better quality on non-retina displays
-            canvasDPR = Math.max(2, window.devicePixelRatio || 1);
+            canvasDPR = window.devicePixelRatio || 1;
             
             // Only resize if dimensions changed significantly
             if (Math.abs(scrollWidth - lastCanvasWidth) > 10 || Math.abs(scrollHeight - lastCanvasHeight) > 10) {
@@ -1595,9 +1619,8 @@ HTML_TEMPLATE = '''
                 pressure: e.pressure || 0.5
             });
             
-            // Draw current stroke
-            redrawAllStrokes();
-            drawStroke(annotationCtx, currentStroke);
+            // Draw only the new segment (fast incremental drawing)
+            drawStrokeIncremental(annotationCtx, currentStroke);
         }
         
         function handlePointerUp(e) {
