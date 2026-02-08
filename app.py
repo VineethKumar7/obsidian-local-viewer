@@ -2022,6 +2022,29 @@ def view_file(filepath):
                 padding: 40px;
             }}
             
+            /* PDF annotation overlay - positioned to cover all pages */
+            .pdf-viewer {{
+                position: relative;
+            }}
+            .pdf-annotation-overlay {{
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                pointer-events: none;
+                z-index: 10;
+            }}
+            .pdf-annotation-overlay.active {{
+                pointer-events: auto;
+            }}
+            .pdf-annotation-overlay canvas {{
+                position: absolute;
+                top: 0;
+                left: 0;
+                touch-action: pan-x pan-y;
+            }}
+            
             /* Override content styles for PDF view */
             .content {{
                 padding: 0 !important;
@@ -2080,6 +2103,10 @@ def view_file(filepath):
             </div>
             <div class="pdf-viewer" id="pdfViewer">
                 <div class="pdf-loading">Loading PDF...</div>
+                <!-- PDF annotation overlay - inside viewer so it scrolls with pages -->
+                <div id="pdfAnnotationOverlay" class="pdf-annotation-overlay">
+                    <canvas id="pdfAnnotationCanvas"></canvas>
+                </div>
             </div>
         </div>
         
@@ -2155,8 +2182,97 @@ def view_file(filepath):
                 }}
             }}
             
+            // Initialize PDF annotation canvas
+            function initPdfAnnotation() {{
+                const viewer = document.getElementById('pdfViewer');
+                const overlay = document.getElementById('pdfAnnotationOverlay');
+                const canvas = document.getElementById('pdfAnnotationCanvas');
+                
+                if (!viewer || !overlay || !canvas) return;
+                
+                // Calculate total size of all pages
+                const pages = viewer.querySelectorAll('.pdf-page');
+                if (pages.length === 0) return;
+                
+                // Get the full scrollable area
+                const viewerRect = viewer.getBoundingClientRect();
+                const totalWidth = viewer.scrollWidth;
+                const totalHeight = viewer.scrollHeight;
+                
+                // Get device pixel ratio
+                const dpr = Math.max(2, window.devicePixelRatio || 1);
+                
+                // Size canvas to cover full scroll area
+                canvas.width = totalWidth * dpr;
+                canvas.height = totalHeight * dpr;
+                canvas.style.width = totalWidth + 'px';
+                canvas.style.height = totalHeight + 'px';
+                
+                const ctx = canvas.getContext('2d');
+                ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                ctx.imageSmoothingEnabled = true;
+                ctx.imageSmoothingQuality = 'high';
+                
+                // Override the global annotation variables for PDF mode
+                window.pdfAnnotationMode = true;
+                window.pdfAnnotationCanvas = canvas;
+                window.pdfAnnotationCtx = ctx;
+                window.pdfAnnotationOverlay = overlay;
+                window.pdfViewer = viewer;
+                window.pdfCanvasWidth = totalWidth;
+                window.pdfCanvasHeight = totalHeight;
+            }}
+            
+            // Override annotation functions for PDF
+            const originalEnterAnnotation = window.enterAnnotationMode;
+            window.enterAnnotationMode = function() {{
+                if (window.pdfAnnotationMode) {{
+                    // Use PDF annotation canvas
+                    annotationCanvas = window.pdfAnnotationCanvas;
+                    annotationCtx = window.pdfAnnotationCtx;
+                    annotationOverlay = window.pdfAnnotationOverlay;
+                    contentWrapper = window.pdfViewer;
+                    lastCanvasWidth = window.pdfCanvasWidth;
+                    lastCanvasHeight = window.pdfCanvasHeight;
+                }}
+                if (originalEnterAnnotation) originalEnterAnnotation();
+            }};
+            
+            // Resize PDF annotation after re-render
+            const originalRerender = rerender;
+            rerender = async function() {{
+                await originalRerender();
+                // Re-add overlay since innerHTML was cleared
+                const viewer = document.getElementById('pdfViewer');
+                let overlay = document.getElementById('pdfAnnotationOverlay');
+                if (!overlay) {{
+                    overlay = document.createElement('div');
+                    overlay.id = 'pdfAnnotationOverlay';
+                    overlay.className = 'pdf-annotation-overlay';
+                    const canvas = document.createElement('canvas');
+                    canvas.id = 'pdfAnnotationCanvas';
+                    overlay.appendChild(canvas);
+                    viewer.appendChild(overlay);
+                }}
+                setTimeout(initPdfAnnotation, 100);
+            }};
+            
             // Load PDF on page load
-            loadPDF();
+            loadPDF().then(() => {{
+                // Re-add overlay after initial load
+                const viewer = document.getElementById('pdfViewer');
+                let overlay = document.getElementById('pdfAnnotationOverlay');
+                if (!overlay) {{
+                    overlay = document.createElement('div');
+                    overlay.id = 'pdfAnnotationOverlay';
+                    overlay.className = 'pdf-annotation-overlay';
+                    const canvas = document.createElement('canvas');
+                    canvas.id = 'pdfAnnotationCanvas';
+                    overlay.appendChild(canvas);
+                    viewer.appendChild(overlay);
+                }}
+                setTimeout(initPdfAnnotation, 100);
+            }});
         </script>
         '''
         return render_template_string(
