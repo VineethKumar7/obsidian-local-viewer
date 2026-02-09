@@ -1185,6 +1185,7 @@ HTML_TEMPLATE = '''
                 dockToggle.style.display = 'none';
             } else {
                 // Desktop: use dock mode with persisted state
+                sidebar.classList.remove('hidden');  // Remove hidden class from HTML default
                 toggleBtn.style.display = 'none';
                 dockToggle.style.display = 'flex';
                 
