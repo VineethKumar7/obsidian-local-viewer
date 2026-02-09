@@ -1193,7 +1193,7 @@ HTML_TEMPLATE = '''
         {% if is_markdown or is_pdf|default(false) %}
         <button onclick="openAnnotation()" title="Annotate with Apple Pencil (draw on content)">✏️ <span class="btn-text">Annotate</span></button>
         {% endif %}
-        <button onclick="openMetadataModal()" title="File Metadata">📋 <span class="btn-text">Info</span></button>
+        <button onclick="openMetadataModal()" title="File Metadata">ℹ️ <span class="btn-text">Info</span></button>
         <button class="secondary" onclick="toggleFullscreen()" title="Toggle Fullscreen">⛶</button>
     </div>
     
@@ -1201,7 +1201,7 @@ HTML_TEMPLATE = '''
     <div id="metadataModal" class="metadata-modal">
         <div class="metadata-modal-content">
             <div class="metadata-header">
-                <h3>📋 File Metadata</h3>
+                <h3>ℹ️ File Metadata</h3>
                 <button class="metadata-close" onclick="closeMetadataModal()">✕</button>
             </div>
             <div class="metadata-body">
@@ -2774,7 +2774,7 @@ def view_file(filepath):
                     <a href="/raw/{filepath}" target="_blank" title="Open in new tab">↗</a>
                     <a href="/raw/{filepath}" download="{filename}" title="Download PDF">📥</a>
                     <button onclick="openAnnotation()" title="Annotate">✏️</button>
-                    <button onclick="openMetadataModal()" title="File Info">📋</button>
+                    <button onclick="openMetadataModal()" title="File Info">ℹ️</button>
                     <button onclick="toggleFullscreen()" title="Fullscreen">⛶</button>
                 </div>
             </div>
@@ -2791,7 +2791,7 @@ def view_file(filepath):
         <div id="metadataModal" class="metadata-modal">
             <div class="metadata-modal-content">
                 <div class="metadata-header">
-                    <h3>📋 File Metadata</h3>
+                    <h3>ℹ️ File Metadata</h3>
                     <button class="metadata-close" onclick="closeMetadataModal()">✕</button>
                 </div>
                 <div class="metadata-body">
@@ -3275,7 +3275,7 @@ def view_file(filepath):
             <button onclick="player.currentTime += 5">+5s ▶</button>
             <button onclick="player.currentTime += 10">+10s ⏩</button>
             <span style="margin-left: auto;"></span>
-            <button onclick="openMetadataModal()">📋 Info</button>
+            <button onclick="openMetadataModal()">ℹ️ Info</button>
         </div>
         
         <style>
@@ -3432,7 +3432,7 @@ def view_file(filepath):
         <div id="metadataModal" class="metadata-modal">
             <div class="metadata-modal-content">
                 <div class="metadata-header">
-                    <h3>📋 File Metadata</h3>
+                    <h3>ℹ️ File Metadata</h3>
                     <button class="metadata-close" onclick="closeMetadataModal()">✕</button>
                 </div>
                 <div class="metadata-body">
