@@ -1406,8 +1406,8 @@ HTML_TEMPLATE = '''
         // Draws directly on top of content
         // ============================================
         
-        // Get current file path from URL
-        const currentFilePath = window.location.pathname.startsWith('/view/') 
+        // Get current file path from URL for annotations
+        const annotationFilePath = window.location.pathname.startsWith('/view/') 
             ? window.location.pathname.replace('/view/', '') 
             : null;
         
@@ -1639,7 +1639,7 @@ HTML_TEMPLATE = '''
         }
         
         function enterAnnotationMode() {
-            if (!currentFilePath) {
+            if (!annotationFilePath) {
                 alert('Please open a file first');
                 return;
             }
@@ -1940,8 +1940,8 @@ HTML_TEMPLATE = '''
                 redrawAllStrokes();
                 
                 // Delete from server
-                if (currentFilePath) {
-                    fetch('/api/annotations/' + currentFilePath, {
+                if (annotationFilePath) {
+                    fetch('/api/annotations/' + annotationFilePath, {
                         method: 'DELETE'
                     });
                 }
@@ -1958,9 +1958,9 @@ HTML_TEMPLATE = '''
         }
         
         function saveAnnotations() {
-            if (!currentFilePath || !annotationCanvas) return;
+            if (!annotationFilePath || !annotationCanvas) return;
             
-            fetch('/api/annotations/' + currentFilePath, {
+            fetch('/api/annotations/' + annotationFilePath, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -1976,9 +1976,9 @@ HTML_TEMPLATE = '''
         }
         
         function loadAnnotations() {
-            if (!currentFilePath) return;
+            if (!annotationFilePath) return;
             
-            fetch('/api/annotations/' + currentFilePath)
+            fetch('/api/annotations/' + annotationFilePath)
                 .then(res => res.json())
                 .then(data => {
                     if (data.strokes && data.strokes.length > 0) {
@@ -2001,7 +2001,7 @@ HTML_TEMPLATE = '''
             if (existing) existing.remove();
             
             // Don't show if in annotation mode or no annotations
-            if (annotationModeActive || !currentFilePath || annotationStrokes.length === 0) return;
+            if (annotationModeActive || !annotationFilePath || annotationStrokes.length === 0) return;
             
             const indicator = document.createElement('div');
             indicator.className = 'has-annotations-indicator';
