@@ -2835,8 +2835,8 @@ def view_file(filepath):
             
             let pdfDoc = null;
             let currentScale = 1.5;
-            const minScale = 0.3;
-            const maxScale = 3.0;
+            const minScale = 0.1;  // Allow very small zoom for full-page view
+            const maxScale = 4.0;
             const isMobilePdf = window.innerWidth <= 768 || 'ontouchstart' in window;
             
             async function loadPDF() {{
@@ -2855,7 +2855,7 @@ def view_file(filepath):
                         const availableWidth = window.innerWidth - 40; // 20px padding each side
                         currentScale = availableWidth / defaultViewport.width;
                         // Clamp to reasonable bounds (allow smaller for wide PDFs)
-                        currentScale = Math.max(0.3, Math.min(currentScale, 1.5));
+                        currentScale = Math.max(minScale, Math.min(currentScale, 1.5));
                         console.log('Mobile PDF scale:', currentScale, 'Page width:', defaultViewport.width, 'Available:', availableWidth);
                     }}
                     
