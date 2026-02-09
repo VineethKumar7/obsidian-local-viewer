@@ -1446,7 +1446,7 @@ HTML_TEMPLATE = '''
         // ============================================
         // METADATA FUNCTIONS
         // ============================================
-        const currentFilePath = '{{ filepath|default("") }}';
+        const metadataFilePath = '{{ filepath|default("") }}';
         
         function openMetadataModal() {
             const modal = document.getElementById('metadataModal');
@@ -1460,10 +1460,10 @@ HTML_TEMPLATE = '''
         }
         
         async function loadMetadata() {
-            if (!currentFilePath) return;
+            if (!metadataFilePath) return;
             
             try {
-                const response = await fetch('/api/metadata/' + encodeURIComponent(currentFilePath));
+                const response = await fetch('/api/metadata/' + encodeURIComponent(metadataFilePath));
                 const data = await response.json();
                 
                 if (data.success && data.metadata) {
@@ -1481,7 +1481,7 @@ HTML_TEMPLATE = '''
         }
         
         async function saveMetadata() {
-            if (!currentFilePath) return;
+            if (!metadataFilePath) return;
             
             const metadata = {
                 completed: document.getElementById('metaCompleted').checked,
@@ -1493,7 +1493,7 @@ HTML_TEMPLATE = '''
             };
             
             try {
-                const response = await fetch('/api/metadata/' + encodeURIComponent(currentFilePath), {
+                const response = await fetch('/api/metadata/' + encodeURIComponent(metadataFilePath), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(metadata)
