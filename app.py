@@ -132,6 +132,52 @@ def restore_math_expressions(content, placeholders):
         content = content.replace(placeholder, original)
     return content
 
+
+# ============================================
+# FILE METADATA SYSTEM
+# ============================================
+
+def get_metadata_path():
+    """Get the path to the metadata JSON file"""
+    return os.path.join(VAULT_PATH, '.obsidian-viewer-meta.json')
+
+def load_all_metadata():
+    """Load all file metadata from JSON file"""
+    meta_path = get_metadata_path()
+    if os.path.exists(meta_path):
+        try:
+            with open(meta_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError):
+            return {}
+    return {}
+
+def save_all_metadata(metadata):
+    """Save all metadata to JSON file"""
+    meta_path = get_metadata_path()
+    with open(meta_path, 'w', encoding='utf-8') as f:
+        json.dump(metadata, f, indent=2, ensure_ascii=False)
+
+def get_file_metadata(filepath):
+    """Get metadata for a specific file"""
+    all_meta = load_all_metadata()
+    default_meta = {
+        'completed': False,
+        'created_date': '',
+        'source': '',
+        'revision_count': 0,
+        'summary': '',
+        'one_para_summary': ''
+    }
+    return all_meta.get(filepath, default_meta)
+
+def set_file_metadata(filepath, metadata):
+    """Set metadata for a specific file"""
+    all_meta = load_all_metadata()
+    all_meta[filepath] = metadata
+    save_all_metadata(all_meta)
+
+
 HTML_TEMPLATE = '''
 <!DOCTYPE html>
 <html>
@@ -737,6 +783,126 @@ HTML_TEMPLATE = '''
             transform: translateZ(0);
         }
         
+        /* Metadata Modal */
+        .metadata-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.7);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .metadata-modal.visible {
+            display: flex;
+        }
+        .metadata-modal-content {
+            background: #2d2d2d;
+            border-radius: 12px;
+            max-width: 500px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+        .metadata-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px 20px;
+            border-bottom: 1px solid #444;
+        }
+        .metadata-header h3 {
+            margin: 0;
+            color: #fff;
+            font-size: 18px;
+        }
+        .metadata-close {
+            background: none;
+            border: none;
+            color: #888;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 5px;
+        }
+        .metadata-close:hover {
+            color: #fff;
+        }
+        .metadata-body {
+            padding: 20px;
+        }
+        .metadata-field {
+            margin-bottom: 15px;
+        }
+        .metadata-field label {
+            display: block;
+            color: #aaa;
+            font-size: 13px;
+            margin-bottom: 5px;
+        }
+        .metadata-field input[type="text"],
+        .metadata-field input[type="date"],
+        .metadata-field input[type="number"],
+        .metadata-field textarea {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #444;
+            border-radius: 6px;
+            background: #1e1e1e;
+            color: #fff;
+            font-size: 14px;
+        }
+        .metadata-field input:focus,
+        .metadata-field textarea:focus {
+            outline: none;
+            border-color: #0078d4;
+        }
+        .metadata-field input[type="checkbox"] {
+            width: 18px;
+            height: 18px;
+            margin-right: 8px;
+            vertical-align: middle;
+        }
+        .metadata-field .checkbox-label {
+            color: #fff;
+            font-size: 15px;
+            vertical-align: middle;
+        }
+        .metadata-footer {
+            padding: 15px 20px;
+            border-top: 1px solid #444;
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+        .metadata-save {
+            background: #0078d4;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .metadata-save:hover {
+            background: #006abc;
+        }
+        .metadata-cancel {
+            background: #444;
+            color: #fff;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .metadata-cancel:hover {
+            background: #555;
+        }
+
         /* Floating annotation toolbar */
         .annotation-toolbar {
             position: fixed;
@@ -1027,7 +1193,50 @@ HTML_TEMPLATE = '''
         {% if is_markdown or is_pdf|default(false) %}
         <button onclick="openAnnotation()" title="Annotate with Apple Pencil (draw on content)">✏️ <span class="btn-text">Annotate</span></button>
         {% endif %}
+        <button onclick="openMetadataModal()" title="File Metadata">📋 <span class="btn-text">Info</span></button>
         <button class="secondary" onclick="toggleFullscreen()" title="Toggle Fullscreen">⛶</button>
+    </div>
+    
+    <!-- Metadata Modal -->
+    <div id="metadataModal" class="metadata-modal">
+        <div class="metadata-modal-content">
+            <div class="metadata-header">
+                <h3>📋 File Metadata</h3>
+                <button class="metadata-close" onclick="closeMetadataModal()">✕</button>
+            </div>
+            <div class="metadata-body">
+                <div class="metadata-field">
+                    <label>
+                        <input type="checkbox" id="metaCompleted"> 
+                        <span class="checkbox-label">✅ Completed</span>
+                    </label>
+                </div>
+                <div class="metadata-field">
+                    <label>📅 Created Date</label>
+                    <input type="date" id="metaCreatedDate">
+                </div>
+                <div class="metadata-field">
+                    <label>🔗 Source</label>
+                    <input type="text" id="metaSource" placeholder="URL or reference...">
+                </div>
+                <div class="metadata-field">
+                    <label>🔄 Revision Count</label>
+                    <input type="number" id="metaRevisionCount" min="0" value="0">
+                </div>
+                <div class="metadata-field">
+                    <label>📝 Summary (short)</label>
+                    <input type="text" id="metaSummary" placeholder="Brief summary...">
+                </div>
+                <div class="metadata-field">
+                    <label>📄 One Paragraph Summary</label>
+                    <textarea id="metaOneParaSummary" rows="4" placeholder="Detailed summary..."></textarea>
+                </div>
+            </div>
+            <div class="metadata-footer">
+                <button class="metadata-save" onclick="saveMetadata()">💾 Save</button>
+                <button class="metadata-cancel" onclick="closeMetadataModal()">Cancel</button>
+            </div>
+        </div>
     </div>
     
     <!-- Annotation Mode Badge -->
@@ -1233,6 +1442,83 @@ HTML_TEMPLATE = '''
                 toggleBtn.classList.remove('sidebar-open');
             }
         }
+        
+        // ============================================
+        // METADATA FUNCTIONS
+        // ============================================
+        const currentFilePath = '{{ filepath|default("") }}';
+        
+        function openMetadataModal() {
+            const modal = document.getElementById('metadataModal');
+            modal.classList.add('visible');
+            loadMetadata();
+        }
+        
+        function closeMetadataModal() {
+            const modal = document.getElementById('metadataModal');
+            modal.classList.remove('visible');
+        }
+        
+        async function loadMetadata() {
+            if (!currentFilePath) return;
+            
+            try {
+                const response = await fetch('/api/metadata/' + encodeURIComponent(currentFilePath));
+                const data = await response.json();
+                
+                if (data.success && data.metadata) {
+                    const meta = data.metadata;
+                    document.getElementById('metaCompleted').checked = meta.completed || false;
+                    document.getElementById('metaCreatedDate').value = meta.created_date || '';
+                    document.getElementById('metaSource').value = meta.source || '';
+                    document.getElementById('metaRevisionCount').value = meta.revision_count || 0;
+                    document.getElementById('metaSummary').value = meta.summary || '';
+                    document.getElementById('metaOneParaSummary').value = meta.one_para_summary || '';
+                }
+            } catch (err) {
+                console.error('Failed to load metadata:', err);
+            }
+        }
+        
+        async function saveMetadata() {
+            if (!currentFilePath) return;
+            
+            const metadata = {
+                completed: document.getElementById('metaCompleted').checked,
+                created_date: document.getElementById('metaCreatedDate').value,
+                source: document.getElementById('metaSource').value,
+                revision_count: parseInt(document.getElementById('metaRevisionCount').value) || 0,
+                summary: document.getElementById('metaSummary').value,
+                one_para_summary: document.getElementById('metaOneParaSummary').value
+            };
+            
+            try {
+                const response = await fetch('/api/metadata/' + encodeURIComponent(currentFilePath), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(metadata)
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    closeMetadataModal();
+                    // Show brief success indicator
+                    const btn = document.querySelector('.metadata-save');
+                    btn.textContent = '✅ Saved!';
+                    setTimeout(() => { btn.textContent = '💾 Save'; }, 1500);
+                } else {
+                    alert('Failed to save: ' + (data.error || 'Unknown error'));
+                }
+            } catch (err) {
+                console.error('Failed to save metadata:', err);
+                alert('Failed to save metadata');
+            }
+        }
+        
+        // Close modal on backdrop click
+        document.getElementById('metadataModal')?.addEventListener('click', function(e) {
+            if (e.target === this) closeMetadataModal();
+        });
         
         function toggleFullscreen() {
             if (!document.fullscreenElement) {
@@ -2328,6 +2614,126 @@ def view_file(filepath):
                 display: none !important;
             }}
             
+            /* Metadata Modal */
+            .metadata-modal {{
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0,0,0,0.7);
+                z-index: 1000;
+                align-items: center;
+                justify-content: center;
+            }}
+            .metadata-modal.visible {{
+                display: flex;
+            }}
+            .metadata-modal-content {{
+                background: #2d2d2d;
+                border-radius: 12px;
+                max-width: 500px;
+                width: 90%;
+                max-height: 90vh;
+                overflow-y: auto;
+                box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            }}
+            .metadata-header {{
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 15px 20px;
+                border-bottom: 1px solid #444;
+            }}
+            .metadata-header h3 {{
+                margin: 0;
+                color: #fff;
+                font-size: 18px;
+            }}
+            .metadata-close {{
+                background: none;
+                border: none;
+                color: #888;
+                font-size: 20px;
+                cursor: pointer;
+                padding: 5px;
+            }}
+            .metadata-close:hover {{
+                color: #fff;
+            }}
+            .metadata-body {{
+                padding: 20px;
+            }}
+            .metadata-field {{
+                margin-bottom: 15px;
+            }}
+            .metadata-field label {{
+                display: block;
+                color: #aaa;
+                font-size: 13px;
+                margin-bottom: 5px;
+            }}
+            .metadata-field input[type="text"],
+            .metadata-field input[type="date"],
+            .metadata-field input[type="number"],
+            .metadata-field textarea {{
+                width: 100%;
+                padding: 10px;
+                border: 1px solid #444;
+                border-radius: 6px;
+                background: #1e1e1e;
+                color: #fff;
+                font-size: 14px;
+            }}
+            .metadata-field input:focus,
+            .metadata-field textarea:focus {{
+                outline: none;
+                border-color: #0078d4;
+            }}
+            .metadata-field input[type="checkbox"] {{
+                width: 18px;
+                height: 18px;
+                margin-right: 8px;
+                vertical-align: middle;
+            }}
+            .metadata-field .checkbox-label {{
+                color: #fff;
+                font-size: 15px;
+                vertical-align: middle;
+            }}
+            .metadata-footer {{
+                padding: 15px 20px;
+                border-top: 1px solid #444;
+                display: flex;
+                gap: 10px;
+                justify-content: flex-end;
+            }}
+            .metadata-save {{
+                background: #0078d4;
+                color: #fff;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 14px;
+            }}
+            .metadata-save:hover {{
+                background: #006abc;
+            }}
+            .metadata-cancel {{
+                background: #444;
+                color: #fff;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 6px;
+                cursor: pointer;
+                font-size: 14px;
+            }}
+            .metadata-cancel:hover {{
+                background: #555;
+            }}
+            
             @media (max-width: 768px) {{
                 .pdf-header {{
                     padding: 8px 15px;
@@ -2368,6 +2774,7 @@ def view_file(filepath):
                     <a href="/raw/{filepath}" target="_blank" title="Open in new tab">↗</a>
                     <a href="/raw/{filepath}" download="{filename}" title="Download PDF">📥</a>
                     <button onclick="openAnnotation()" title="Annotate">✏️</button>
+                    <button onclick="openMetadataModal()" title="File Info">📋</button>
                     <button onclick="toggleFullscreen()" title="Fullscreen">⛶</button>
                 </div>
             </div>
@@ -2376,6 +2783,48 @@ def view_file(filepath):
                 <!-- PDF annotation overlay - inside viewer so it scrolls with pages -->
                 <div id="pdfAnnotationOverlay" class="pdf-annotation-overlay">
                     <canvas id="pdfAnnotationCanvas"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Metadata Modal for PDF -->
+        <div id="metadataModal" class="metadata-modal">
+            <div class="metadata-modal-content">
+                <div class="metadata-header">
+                    <h3>📋 File Metadata</h3>
+                    <button class="metadata-close" onclick="closeMetadataModal()">✕</button>
+                </div>
+                <div class="metadata-body">
+                    <div class="metadata-field">
+                        <label>
+                            <input type="checkbox" id="metaCompleted"> 
+                            <span class="checkbox-label">✅ Completed</span>
+                        </label>
+                    </div>
+                    <div class="metadata-field">
+                        <label>📅 Created Date</label>
+                        <input type="date" id="metaCreatedDate">
+                    </div>
+                    <div class="metadata-field">
+                        <label>🔗 Source</label>
+                        <input type="text" id="metaSource" placeholder="URL or reference...">
+                    </div>
+                    <div class="metadata-field">
+                        <label>🔄 Revision Count</label>
+                        <input type="number" id="metaRevisionCount" min="0" value="0">
+                    </div>
+                    <div class="metadata-field">
+                        <label>📝 Summary (short)</label>
+                        <input type="text" id="metaSummary" placeholder="Brief summary...">
+                    </div>
+                    <div class="metadata-field">
+                        <label>📄 One Paragraph Summary</label>
+                        <textarea id="metaOneParaSummary" rows="4" placeholder="Detailed summary..."></textarea>
+                    </div>
+                </div>
+                <div class="metadata-footer">
+                    <button class="metadata-save" onclick="saveMetadata()">💾 Save</button>
+                    <button class="metadata-cancel" onclick="closeMetadataModal()">Cancel</button>
                 </div>
             </div>
         </div>
@@ -2700,6 +3149,79 @@ def view_file(filepath):
                     localStorage.setItem('scroll_' + window.location.pathname, viewer.scrollTop);
                 }});
             }});
+            
+            // ============================================
+            // METADATA FUNCTIONS
+            // ============================================
+            const pdfFilePath = '{filepath}';
+            
+            function openMetadataModal() {{
+                const modal = document.getElementById('metadataModal');
+                modal.classList.add('visible');
+                loadMetadata();
+            }}
+            
+            function closeMetadataModal() {{
+                const modal = document.getElementById('metadataModal');
+                modal.classList.remove('visible');
+            }}
+            
+            async function loadMetadata() {{
+                if (!pdfFilePath) return;
+                
+                try {{
+                    const response = await fetch('/api/metadata/' + encodeURIComponent(pdfFilePath));
+                    const data = await response.json();
+                    
+                    if (data.success && data.metadata) {{
+                        const meta = data.metadata;
+                        document.getElementById('metaCompleted').checked = meta.completed || false;
+                        document.getElementById('metaCreatedDate').value = meta.created_date || '';
+                        document.getElementById('metaSource').value = meta.source || '';
+                        document.getElementById('metaRevisionCount').value = meta.revision_count || 0;
+                        document.getElementById('metaSummary').value = meta.summary || '';
+                        document.getElementById('metaOneParaSummary').value = meta.one_para_summary || '';
+                    }}
+                }} catch (err) {{
+                    console.error('Failed to load metadata:', err);
+                }}
+            }}
+            
+            async function saveMetadata() {{
+                if (!pdfFilePath) return;
+                
+                const metadata = {{
+                    completed: document.getElementById('metaCompleted').checked,
+                    created_date: document.getElementById('metaCreatedDate').value,
+                    source: document.getElementById('metaSource').value,
+                    revision_count: parseInt(document.getElementById('metaRevisionCount').value) || 0,
+                    summary: document.getElementById('metaSummary').value,
+                    one_para_summary: document.getElementById('metaOneParaSummary').value
+                }};
+                
+                try {{
+                    const response = await fetch('/api/metadata/' + encodeURIComponent(pdfFilePath), {{
+                        method: 'POST',
+                        headers: {{ 'Content-Type': 'application/json' }},
+                        body: JSON.stringify(metadata)
+                    }});
+                    
+                    const data = await response.json();
+                    if (data.success) {{
+                        closeMetadataModal();
+                    }} else {{
+                        alert('Failed to save: ' + (data.error || 'Unknown error'));
+                    }}
+                }} catch (err) {{
+                    console.error('Failed to save metadata:', err);
+                    alert('Failed to save metadata');
+                }}
+            }}
+            
+            // Close modal on backdrop click
+            document.getElementById('metadataModal')?.addEventListener('click', function(e) {{
+                if (e.target === this) closeMetadataModal();
+            }});
         </script>
         '''
         return render_template_string(
@@ -2735,6 +3257,8 @@ def view_file(filepath):
             <button onclick="player.currentTime -= 5">◀ -5s</button>
             <button onclick="player.currentTime += 5">+5s ▶</button>
             <button onclick="player.currentTime += 10">+10s ⏩</button>
+            <span style="margin-left: auto;"></span>
+            <button onclick="openMetadataModal()">📋 Info</button>
         </div>
         
         <style>
@@ -2795,7 +3319,139 @@ def view_file(filepath):
                     font-size: 13px;
                 }}
             }}
+            
+            /* Metadata Modal */
+            .metadata-modal {{
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0,0,0,0.7);
+                z-index: 1000;
+                align-items: center;
+                justify-content: center;
+            }}
+            .metadata-modal.visible {{
+                display: flex;
+            }}
+            .metadata-modal-content {{
+                background: #2d2d2d;
+                border-radius: 12px;
+                max-width: 500px;
+                width: 90%;
+                max-height: 90vh;
+                overflow-y: auto;
+            }}
+            .metadata-header {{
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                padding: 15px 20px;
+                border-bottom: 1px solid #444;
+            }}
+            .metadata-header h3 {{ margin: 0; color: #fff; }}
+            .metadata-close {{
+                background: none;
+                border: none;
+                color: #888;
+                font-size: 20px;
+                cursor: pointer;
+            }}
+            .metadata-close:hover {{ color: #fff; }}
+            .metadata-body {{ padding: 20px; }}
+            .metadata-field {{ margin-bottom: 15px; }}
+            .metadata-field label {{
+                display: block;
+                color: #aaa;
+                font-size: 13px;
+                margin-bottom: 5px;
+            }}
+            .metadata-field input[type="text"],
+            .metadata-field input[type="date"],
+            .metadata-field input[type="number"],
+            .metadata-field textarea {{
+                width: 100%;
+                padding: 10px;
+                border: 1px solid #444;
+                border-radius: 6px;
+                background: #1e1e1e;
+                color: #fff;
+                font-size: 14px;
+            }}
+            .metadata-field input[type="checkbox"] {{
+                width: 18px;
+                height: 18px;
+                margin-right: 8px;
+            }}
+            .metadata-field .checkbox-label {{ color: #fff; font-size: 15px; }}
+            .metadata-footer {{
+                padding: 15px 20px;
+                border-top: 1px solid #444;
+                display: flex;
+                gap: 10px;
+                justify-content: flex-end;
+            }}
+            .metadata-save {{
+                background: #0078d4;
+                color: #fff;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 6px;
+                cursor: pointer;
+            }}
+            .metadata-cancel {{
+                background: #444;
+                color: #fff;
+                border: none;
+                padding: 10px 20px;
+                border-radius: 6px;
+                cursor: pointer;
+            }}
         </style>
+        
+        <!-- Metadata Modal -->
+        <div id="metadataModal" class="metadata-modal">
+            <div class="metadata-modal-content">
+                <div class="metadata-header">
+                    <h3>📋 File Metadata</h3>
+                    <button class="metadata-close" onclick="closeMetadataModal()">✕</button>
+                </div>
+                <div class="metadata-body">
+                    <div class="metadata-field">
+                        <label>
+                            <input type="checkbox" id="metaCompleted"> 
+                            <span class="checkbox-label">✅ Completed</span>
+                        </label>
+                    </div>
+                    <div class="metadata-field">
+                        <label>📅 Created Date</label>
+                        <input type="date" id="metaCreatedDate">
+                    </div>
+                    <div class="metadata-field">
+                        <label>🔗 Source</label>
+                        <input type="text" id="metaSource" placeholder="URL or reference...">
+                    </div>
+                    <div class="metadata-field">
+                        <label>🔄 Revision Count</label>
+                        <input type="number" id="metaRevisionCount" min="0" value="0">
+                    </div>
+                    <div class="metadata-field">
+                        <label>📝 Summary (short)</label>
+                        <input type="text" id="metaSummary" placeholder="Brief summary...">
+                    </div>
+                    <div class="metadata-field">
+                        <label>📄 One Paragraph Summary</label>
+                        <textarea id="metaOneParaSummary" rows="4" placeholder="Detailed summary..."></textarea>
+                    </div>
+                </div>
+                <div class="metadata-footer">
+                    <button class="metadata-save" onclick="saveMetadata()">💾 Save</button>
+                    <button class="metadata-cancel" onclick="closeMetadataModal()">Cancel</button>
+                </div>
+            </div>
+        </div>
         
         <script src="https://cdn.plyr.io/3.7.8/plyr.polyfilled.js"></script>
         <script>
@@ -2855,6 +3511,61 @@ def view_file(filepath):
                     case 'j': player.currentTime -= 10; break;
                     case 'l': player.currentTime += 10; break;
                 }}
+            }});
+            
+            // ============================================
+            // METADATA FUNCTIONS
+            // ============================================
+            const videoFilePath = '{filepath}';
+            
+            function openMetadataModal() {{
+                document.getElementById('metadataModal').classList.add('visible');
+                loadMetadata();
+            }}
+            
+            function closeMetadataModal() {{
+                document.getElementById('metadataModal').classList.remove('visible');
+            }}
+            
+            async function loadMetadata() {{
+                try {{
+                    const response = await fetch('/api/metadata/' + encodeURIComponent(videoFilePath));
+                    const data = await response.json();
+                    if (data.success && data.metadata) {{
+                        const meta = data.metadata;
+                        document.getElementById('metaCompleted').checked = meta.completed || false;
+                        document.getElementById('metaCreatedDate').value = meta.created_date || '';
+                        document.getElementById('metaSource').value = meta.source || '';
+                        document.getElementById('metaRevisionCount').value = meta.revision_count || 0;
+                        document.getElementById('metaSummary').value = meta.summary || '';
+                        document.getElementById('metaOneParaSummary').value = meta.one_para_summary || '';
+                    }}
+                }} catch (err) {{ console.error('Failed to load metadata:', err); }}
+            }}
+            
+            async function saveMetadata() {{
+                const metadata = {{
+                    completed: document.getElementById('metaCompleted').checked,
+                    created_date: document.getElementById('metaCreatedDate').value,
+                    source: document.getElementById('metaSource').value,
+                    revision_count: parseInt(document.getElementById('metaRevisionCount').value) || 0,
+                    summary: document.getElementById('metaSummary').value,
+                    one_para_summary: document.getElementById('metaOneParaSummary').value
+                }};
+                try {{
+                    const response = await fetch('/api/metadata/' + encodeURIComponent(videoFilePath), {{
+                        method: 'POST',
+                        headers: {{ 'Content-Type': 'application/json' }},
+                        body: JSON.stringify(metadata)
+                    }});
+                    const data = await response.json();
+                    if (data.success) closeMetadataModal();
+                    else alert('Failed to save');
+                }} catch (err) {{ alert('Failed to save metadata'); }}
+            }}
+            
+            document.getElementById('metadataModal')?.addEventListener('click', function(e) {{
+                if (e.target === this) closeMetadataModal();
             }});
         </script>
         '''
@@ -3306,6 +4017,51 @@ def delete_annotations(filepath):
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============================================
+# METADATA API ENDPOINTS
+# ============================================
+
+@app.route('/api/metadata/<path:filepath>', methods=['GET'])
+def api_get_metadata(filepath):
+    """Get metadata for a file"""
+    try:
+        metadata = get_file_metadata(filepath)
+        return jsonify({'success': True, 'metadata': metadata})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/metadata/<path:filepath>', methods=['POST'])
+def api_set_metadata(filepath):
+    """Set metadata for a file"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'No data provided'}), 400
+        
+        # Get existing metadata and update with new values
+        metadata = get_file_metadata(filepath)
+        
+        # Update fields if provided
+        if 'completed' in data:
+            metadata['completed'] = bool(data['completed'])
+        if 'created_date' in data:
+            metadata['created_date'] = str(data['created_date'])
+        if 'source' in data:
+            metadata['source'] = str(data['source'])
+        if 'revision_count' in data:
+            metadata['revision_count'] = int(data['revision_count'])
+        if 'summary' in data:
+            metadata['summary'] = str(data['summary'])
+        if 'one_para_summary' in data:
+            metadata['one_para_summary'] = str(data['one_para_summary'])
+        
+        set_file_metadata(filepath, metadata)
+        return jsonify({'success': True, 'metadata': metadata})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 
 def get_local_ip():
     """Get the local network IP address"""
