@@ -2346,6 +2346,10 @@ def view_file(filepath):
                     padding: 10px;
                     gap: 10px;
                 }}
+                .pdf-page {{
+                    max-width: 100%;
+                    height: auto !important;
+                }}
             }}
         </style>
         
@@ -2385,6 +2389,7 @@ def view_file(filepath):
             let currentScale = 1.5;
             const minScale = 0.5;
             const maxScale = 3.0;
+            const isMobilePdf = window.innerWidth <= 768;
             
             async function loadPDF() {{
                 const url = '/raw/{filepath}';
@@ -2393,6 +2398,16 @@ def view_file(filepath):
                 try {{
                     pdfDoc = await pdfjsLib.getDocument(url).promise;
                     viewer.innerHTML = '';
+                    
+                    // On mobile, calculate scale to fit width
+                    if (isMobilePdf) {{
+                        const firstPage = await pdfDoc.getPage(1);
+                        const defaultViewport = firstPage.getViewport({{ scale: 1.0 }});
+                        const viewerWidth = viewer.clientWidth - 20; // padding
+                        currentScale = viewerWidth / defaultViewport.width;
+                        // Clamp to reasonable bounds
+                        currentScale = Math.max(minScale, Math.min(currentScale, 1.5));
+                    }}
                     
                     // Render all pages
                     for (let i = 1; i <= pdfDoc.numPages; i++) {{
