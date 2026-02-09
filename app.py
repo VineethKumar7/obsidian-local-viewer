@@ -2270,6 +2270,9 @@ def view_file(filepath):
                 padding: 20px;
                 gap: 20px;
             }}
+            .pdf-viewer.zoomed-in {{
+                align-items: flex-start;
+            }}
             .pdf-page {{
                 background: #fff;
                 box-shadow: 0 2px 10px rgba(0,0,0,0.3);
@@ -2436,13 +2439,23 @@ def view_file(filepath):
                 if (!pdfDoc) return;
                 const viewer = document.getElementById('pdfViewer');
                 const scrollTop = viewer.scrollTop;
+                const scrollLeft = viewer.scrollLeft;
                 viewer.innerHTML = '';
                 
                 for (let i = 1; i <= pdfDoc.numPages; i++) {{
                     await renderPage(i, viewer);
                 }}
                 
+                // Check if content is wider than viewer (needs horizontal scroll)
+                const firstPage = viewer.querySelector('.pdf-page');
+                if (firstPage && firstPage.offsetWidth > viewer.clientWidth) {{
+                    viewer.classList.add('zoomed-in');
+                }} else {{
+                    viewer.classList.remove('zoomed-in');
+                }}
+                
                 viewer.scrollTop = scrollTop;
+                viewer.scrollLeft = scrollLeft;
                 document.getElementById('pdfZoomLevel').textContent = Math.round(currentScale * 100 / 1.5) + '%';
             }}
             
