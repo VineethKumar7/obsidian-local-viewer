@@ -2835,9 +2835,9 @@ def view_file(filepath):
             
             let pdfDoc = null;
             let currentScale = 1.5;
-            const minScale = 0.5;
+            const minScale = 0.3;
             const maxScale = 3.0;
-            const isMobilePdf = window.innerWidth <= 768;
+            const isMobilePdf = window.innerWidth <= 768 || 'ontouchstart' in window;
             
             async function loadPDF() {{
                 const url = '/raw/{filepath}';
@@ -2851,10 +2851,12 @@ def view_file(filepath):
                     if (isMobilePdf) {{
                         const firstPage = await pdfDoc.getPage(1);
                         const defaultViewport = firstPage.getViewport({{ scale: 1.0 }});
-                        const viewerWidth = viewer.clientWidth - 20; // padding
-                        currentScale = viewerWidth / defaultViewport.width;
-                        // Clamp to reasonable bounds
-                        currentScale = Math.max(minScale, Math.min(currentScale, 1.5));
+                        // Use window width minus padding (more reliable than viewer.clientWidth on initial load)
+                        const availableWidth = window.innerWidth - 40; // 20px padding each side
+                        currentScale = availableWidth / defaultViewport.width;
+                        // Clamp to reasonable bounds (allow smaller for wide PDFs)
+                        currentScale = Math.max(0.3, Math.min(currentScale, 1.5));
+                        console.log('Mobile PDF scale:', currentScale, 'Page width:', defaultViewport.width, 'Available:', availableWidth);
                     }}
                     
                     // Render all pages
@@ -2905,7 +2907,9 @@ def view_file(filepath):
                 
                 viewer.scrollTop = scrollTop;
                 viewer.scrollLeft = scrollLeft;
-                document.getElementById('pdfZoomLevel').textContent = Math.round(currentScale * 100 / 1.5) + '%';
+                // Show zoom as percentage (100% = fit to width on mobile)
+                const baseScale = isMobilePdf ? (window.innerWidth - 40) / 595 : 1.5; // 595 is typical A4 width in points
+                document.getElementById('pdfZoomLevel').textContent = Math.round(currentScale / baseScale * 100) + '%';
             }}
             
             function pdfZoomIn() {{
@@ -2962,7 +2966,8 @@ def view_file(filepath):
                     }});
                     
                     // Update zoom display
-                    document.getElementById('pdfZoomLevel').textContent = Math.round(newScale * 100 / 1.5) + '%';
+                    const baseScale = isMobilePdf ? (window.innerWidth - 40) / 595 : 1.5;
+                    document.getElementById('pdfZoomLevel').textContent = Math.round(newScale / baseScale * 100) + '%';
                 }}
             }}
             
