@@ -2463,7 +2463,7 @@ def view_file(filepath):
             // Pinch-to-zoom support for touch devices
             let initialPinchDistance = null;
             let initialScale = null;
-            let pendingScale = null;
+            let pinchScaleFactor = 1;
             
             function getPinchDistance(touches) {{
                 const dx = touches[0].clientX - touches[1].clientX;
@@ -2475,7 +2475,7 @@ def view_file(filepath):
                 if (e.touches.length === 2) {{
                     initialPinchDistance = getPinchDistance(e.touches);
                     initialScale = currentScale;
-                    pendingScale = currentScale;
+                    pinchScaleFactor = 1;
                 }}
             }}
             
@@ -2483,28 +2483,49 @@ def view_file(filepath):
                 if (e.touches.length === 2 && initialPinchDistance) {{
                     e.preventDefault();
                     const currentDistance = getPinchDistance(e.touches);
-                    const scaleFactor = currentDistance / initialPinchDistance;
-                    let newScale = initialScale * scaleFactor;
+                    pinchScaleFactor = currentDistance / initialPinchDistance;
                     
-                    // Clamp to bounds
+                    // Calculate what the new scale would be
+                    let newScale = initialScale * pinchScaleFactor;
                     newScale = Math.max(minScale, Math.min(newScale, maxScale));
-                    pendingScale = newScale;
                     
-                    // Update zoom display only (no rerender yet)
-                    document.getElementById('pdfZoomLevel').textContent = Math.round(pendingScale * 100 / 1.5) + '%';
+                    // Adjust pinchScaleFactor if we hit bounds
+                    pinchScaleFactor = newScale / initialScale;
+                    
+                    // Apply CSS transform for instant visual feedback
+                    const pages = document.querySelectorAll('.pdf-page');
+                    pages.forEach(page => {{
+                        page.style.transform = `scale(${{pinchScaleFactor}})`;
+                        page.style.transformOrigin = 'center top';
+                    }});
+                    
+                    // Update zoom display
+                    document.getElementById('pdfZoomLevel').textContent = Math.round(newScale * 100 / 1.5) + '%';
                 }}
             }}
             
             function handlePinchEnd(e) {{
                 if (e.touches.length < 2 && initialPinchDistance) {{
-                    // Apply the zoom on pinch end to avoid flickering
-                    if (pendingScale && Math.abs(pendingScale - currentScale) > 0.02) {{
-                        currentScale = pendingScale;
+                    // Calculate final scale
+                    let newScale = initialScale * pinchScaleFactor;
+                    newScale = Math.max(minScale, Math.min(newScale, maxScale));
+                    
+                    // Reset CSS transforms
+                    const pages = document.querySelectorAll('.pdf-page');
+                    pages.forEach(page => {{
+                        page.style.transform = '';
+                        page.style.transformOrigin = '';
+                    }});
+                    
+                    // Re-render at new scale for crisp quality
+                    if (Math.abs(newScale - currentScale) > 0.02) {{
+                        currentScale = newScale;
                         rerender();
                     }}
+                    
                     initialPinchDistance = null;
                     initialScale = null;
-                    pendingScale = null;
+                    pinchScaleFactor = 1;
                 }}
             }}
             
