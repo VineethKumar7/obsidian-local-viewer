@@ -2872,12 +2872,24 @@ def view_file(filepath):
                 const page = await pdfDoc.getPage(pageNum);
                 const viewport = page.getViewport({{ scale: currentScale }});
                 
+                // Use device pixel ratio for crisp rendering on high-DPI screens
+                const pixelRatio = window.devicePixelRatio || 1;
+                
                 const canvas = document.createElement('canvas');
                 canvas.className = 'pdf-page';
-                canvas.width = viewport.width;
-                canvas.height = viewport.height;
+                
+                // Set canvas size at higher resolution
+                canvas.width = Math.floor(viewport.width * pixelRatio);
+                canvas.height = Math.floor(viewport.height * pixelRatio);
+                
+                // Scale down with CSS for display
+                canvas.style.width = viewport.width + 'px';
+                canvas.style.height = viewport.height + 'px';
                 
                 const context = canvas.getContext('2d');
+                // Scale context to match pixel ratio
+                context.scale(pixelRatio, pixelRatio);
+                
                 await page.render({{
                     canvasContext: context,
                     viewport: viewport
