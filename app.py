@@ -2464,6 +2464,57 @@ def view_file(filepath):
                 }}
             }}
             
+            // Pinch-to-zoom support for touch devices
+            let initialPinchDistance = null;
+            let initialScale = null;
+            
+            function getPinchDistance(touches) {{
+                const dx = touches[0].clientX - touches[1].clientX;
+                const dy = touches[0].clientY - touches[1].clientY;
+                return Math.sqrt(dx * dx + dy * dy);
+            }}
+            
+            function handlePinchStart(e) {{
+                if (e.touches.length === 2) {{
+                    initialPinchDistance = getPinchDistance(e.touches);
+                    initialScale = currentScale;
+                }}
+            }}
+            
+            function handlePinchMove(e) {{
+                if (e.touches.length === 2 && initialPinchDistance) {{
+                    e.preventDefault();
+                    const currentDistance = getPinchDistance(e.touches);
+                    const scaleFactor = currentDistance / initialPinchDistance;
+                    let newScale = initialScale * scaleFactor;
+                    
+                    // Clamp to bounds
+                    newScale = Math.max(minScale, Math.min(newScale, maxScale));
+                    
+                    if (Math.abs(newScale - currentScale) > 0.05) {{
+                        currentScale = newScale;
+                        rerender();
+                    }}
+                }}
+            }}
+            
+            function handlePinchEnd(e) {{
+                if (e.touches.length < 2) {{
+                    initialPinchDistance = null;
+                    initialScale = null;
+                }}
+            }}
+            
+            // Attach pinch handlers to PDF viewer
+            document.addEventListener('DOMContentLoaded', () => {{
+                const viewer = document.getElementById('pdfViewer');
+                if (viewer) {{
+                    viewer.addEventListener('touchstart', handlePinchStart, {{ passive: true }});
+                    viewer.addEventListener('touchmove', handlePinchMove, {{ passive: false }});
+                    viewer.addEventListener('touchend', handlePinchEnd, {{ passive: true }});
+                }}
+            }});
+            
             function copyPdfPath() {{
                 const path = '{filepath}';
                 const btn = document.querySelector('.pdf-copy-path');
