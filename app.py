@@ -2346,10 +2346,6 @@ def view_file(filepath):
                     padding: 10px;
                     gap: 10px;
                 }}
-                .pdf-page {{
-                    max-width: 100%;
-                    height: auto !important;
-                }}
             }}
         </style>
         
@@ -2467,6 +2463,7 @@ def view_file(filepath):
             // Pinch-to-zoom support for touch devices
             let initialPinchDistance = null;
             let initialScale = null;
+            let pendingScale = null;
             
             function getPinchDistance(touches) {{
                 const dx = touches[0].clientX - touches[1].clientX;
@@ -2478,6 +2475,7 @@ def view_file(filepath):
                 if (e.touches.length === 2) {{
                     initialPinchDistance = getPinchDistance(e.touches);
                     initialScale = currentScale;
+                    pendingScale = currentScale;
                 }}
             }}
             
@@ -2490,18 +2488,23 @@ def view_file(filepath):
                     
                     // Clamp to bounds
                     newScale = Math.max(minScale, Math.min(newScale, maxScale));
+                    pendingScale = newScale;
                     
-                    if (Math.abs(newScale - currentScale) > 0.05) {{
-                        currentScale = newScale;
-                        rerender();
-                    }}
+                    // Update zoom display only (no rerender yet)
+                    document.getElementById('pdfZoomLevel').textContent = Math.round(pendingScale * 100 / 1.5) + '%';
                 }}
             }}
             
             function handlePinchEnd(e) {{
-                if (e.touches.length < 2) {{
+                if (e.touches.length < 2 && initialPinchDistance) {{
+                    // Apply the zoom on pinch end to avoid flickering
+                    if (pendingScale && Math.abs(pendingScale - currentScale) > 0.02) {{
+                        currentScale = pendingScale;
+                        rerender();
+                    }}
                     initialPinchDistance = null;
                     initialScale = null;
+                    pendingScale = null;
                 }}
             }}
             
