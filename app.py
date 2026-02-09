@@ -139,7 +139,7 @@ def restore_math_expressions(content, placeholders):
 
 def get_metadata_path():
     """Get the path to the metadata JSON file"""
-    return os.path.join(VAULT_PATH, '.obsidian-viewer-meta.json')
+    return os.path.join(VAULT_PATH, 'obsidian-viewer-meta.json')
 
 def load_all_metadata():
     """Load all file metadata from JSON file"""
