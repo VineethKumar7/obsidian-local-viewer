@@ -172,9 +172,10 @@ HTML_TEMPLATE = '''
             font-size: 13px;
         }
         .sidebar.collapsed { 
-            width: 0;
-            min-width: 0;
-            overflow: hidden;
+            width: 0 !important;
+            min-width: 0 !important;
+            overflow: hidden !important;
+            padding: 0 !important;
         }
         .sidebar.collapsed .sidebar-content,
         .sidebar.collapsed .sidebar-header {
@@ -1206,6 +1207,7 @@ HTML_TEMPLATE = '''
             
             sidebarCollapsed = !sidebarCollapsed;
             localStorage.setItem('sidebarCollapsed', sidebarCollapsed);
+            console.log('toggleDock called, sidebarCollapsed:', sidebarCollapsed);
             
             if (sidebarCollapsed) {
                 sidebar.classList.add('collapsed');
