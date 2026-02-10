@@ -4614,11 +4614,13 @@ Examples:
   python app.py ~/Documents/MyVault
   python app.py /path/to/vault --port 8080
   python app.py ~/notes --host 127.0.0.1  # localhost only
+  python app.py ~/notes --ssl              # HTTPS for offline PWA on network
         '''
     )
     parser.add_argument('vault_path', nargs='?', help='Path to your Obsidian vault or any markdown folder')
     parser.add_argument('--port', '-p', type=int, default=5000, help='Port to run on (default: 5000)')
     parser.add_argument('--host', '-H', default='0.0.0.0', help='Host to bind to (default: 0.0.0.0 for network access)')
+    parser.add_argument('--ssl', '-s', action='store_true', help='Enable HTTPS (required for offline PWA on network)')
     
     args = parser.parse_args()
     
@@ -4638,14 +4640,39 @@ Examples:
         sys.exit(1)
     
     ip = get_local_ip()
+    protocol = "https" if args.ssl else "http"
+    
+    # SSL certificate paths
+    ssl_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'ssl')
+    ssl_cert = os.path.join(ssl_dir, 'cert.pem')
+    ssl_key = os.path.join(ssl_dir, 'key.pem')
+    
+    if args.ssl and (not os.path.exists(ssl_cert) or not os.path.exists(ssl_key)):
+        print("❌ SSL certificates not found. Generating...")
+        os.makedirs(ssl_dir, exist_ok=True)
+        import subprocess
+        subprocess.run([
+            'openssl', 'req', '-x509', '-newkey', 'rsa:4096',
+            '-keyout', ssl_key, '-out', ssl_cert,
+            '-days', '365', '-nodes',
+            '-subj', '/CN=obsidian-viewer',
+            '-addext', f'subjectAltName=IP:{ip},IP:127.0.0.1,DNS:localhost'
+        ], check=True)
+        print("✅ SSL certificates generated")
+    
+    ssl_note = ""
+    if args.ssl:
+        ssl_note = """
+║  ⚠️  First visit: Accept the security warning         ║
+║      (Self-signed cert - safe on local network)      ║"""
     
     print(f"""
 ╔══════════════════════════════════════════════════════╗
 ║           📚 Obsidian Local Viewer                   ║
 ╠══════════════════════════════════════════════════════╣
 ║  Vault: {get_vault_name():<43} ║
-║  Local:   http://localhost:{args.port:<24} ║
-║  Network: http://{ip}:{args.port:<27} ║
+║  Local:   {protocol}://localhost:{args.port:<22} ║
+║  Network: {protocol}://{ip}:{args.port:<25} ║{ssl_note}
 ╠══════════════════════════════════════════════════════╣
 ║  Keyboard Shortcuts:                                 ║
 ║    Ctrl+B  — Toggle sidebar                          ║
@@ -4654,10 +4681,15 @@ Examples:
 ╚══════════════════════════════════════════════════════╝
     
 Open the Network URL on your tablet/phone to view your vault!
+{"📴 Offline PWA: Use --ssl for network devices" if not args.ssl else "✅ Offline PWA enabled! Click 'Download for Offline' in sidebar"}
 Press Ctrl+C to stop the server.
 """)
     
-    app.run(host=args.host, port=args.port, debug=False, threaded=True)
+    if args.ssl:
+        ssl_context = (ssl_cert, ssl_key)
+        app.run(host=args.host, port=args.port, debug=False, threaded=True, ssl_context=ssl_context)
+    else:
+        app.run(host=args.host, port=args.port, debug=False, threaded=True)
 
 if __name__ == '__main__':
     main()
