@@ -2466,89 +2466,113 @@ HTML_TEMPLATE = '''
             }
         });
         
-        // ===== PWA / OFFLINE SUPPORT (IndexedDB) =====
-        const DB_NAME = 'obsidian-viewer-offline';
-        const DB_VERSION = 1;
-        const STORE_NAME = 'files';
-        let db = null;
+        // ===== PWA / OFFLINE SUPPORT =====
+        let swReady = false;
         
-        // Initialize IndexedDB
-        function initDB() {
-            return new Promise((resolve, reject) => {
-                const request = indexedDB.open(DB_NAME, DB_VERSION);
-                
-                request.onerror = () => reject(request.error);
-                request.onsuccess = () => {
-                    db = request.result;
-                    resolve(db);
-                };
-                
-                request.onupgradeneeded = (event) => {
-                    const database = event.target.result;
-                    if (!database.objectStoreNames.contains(STORE_NAME)) {
-                        database.createObjectStore(STORE_NAME, { keyPath: 'url' });
-                    }
-                };
+        // Check if we're in a secure context (localhost or HTTPS)
+        const isSecureContext = window.isSecureContext || 
+            location.hostname === 'localhost' || 
+            location.hostname === '127.0.0.1';
+        
+        // Register Service Worker
+        if ('serviceWorker' in navigator && isSecureContext) {
+            navigator.serviceWorker.register('/service-worker.js')
+                .then(reg => {
+                    console.log('Service Worker registered');
+                    swReady = true;
+                    checkOfflineStatus();
+                })
+                .catch(err => {
+                    console.log('SW registration failed:', err);
+                    showOfflineUnavailable('Service Worker failed');
+                });
+            
+            // Listen for messages from Service Worker
+            navigator.serviceWorker.addEventListener('message', (event) => {
+                if (event.data.action === 'cacheProgress') {
+                    updateProgress(event.data.cached, event.data.total, event.data.file);
+                }
+                if (event.data.action === 'cacheComplete') {
+                    onCacheComplete(event.data.total);
+                }
+                if (event.data.action === 'cacheSize') {
+                    updateCacheCount(event.data.count);
+                }
+            });
+        } else {
+            // Not a secure context
+            document.addEventListener('DOMContentLoaded', () => {
+                const reason = !isSecureContext ? 
+                    'Requires localhost or HTTPS' : 
+                    'Service Worker not supported';
+                showOfflineUnavailable(reason);
             });
         }
         
-        // Initialize on page load
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', async () => {
-                await initDB();
-                checkOfflineStatus();
-            });
-        } else {
-            initDB().then(() => checkOfflineStatus());
+        function showOfflineUnavailable(reason) {
+            const section = document.getElementById('offlineSection');
+            const statusEl = document.getElementById('offlineStatus');
+            const btnEl = document.getElementById('offlineBtn');
+            
+            if (!section) return;
+            
+            statusEl.innerHTML = '⚠️ ' + reason;
+            statusEl.style.color = '#f59e0b';
+            btnEl.disabled = true;
+            btnEl.style.opacity = '0.5';
+            btnEl.title = reason;
         }
         
         async function checkOfflineStatus() {
             const section = document.getElementById('offlineSection');
+            if (!section) return;
+            
+            if (!swReady) {
+                showOfflineUnavailable('Initializing...');
+                return;
+            }
+            
+            // Ask SW for cache size
+            if (navigator.serviceWorker.controller) {
+                navigator.serviceWorker.controller.postMessage({ action: 'getCacheSize' });
+            } else {
+                // SW not controlling yet, check directly
+                if ('caches' in window) {
+                    try {
+                        const cache = await caches.open('obsidian-viewer-v2');
+                        const keys = await cache.keys();
+                        updateCacheCount(keys.length);
+                    } catch (e) {
+                        document.getElementById('offlineStatus').innerHTML = '📡 Ready to cache';
+                    }
+                }
+            }
+        }
+        
+        function updateCacheCount(count) {
             const statusEl = document.getElementById('offlineStatus');
             const btnEl = document.getElementById('offlineBtn');
             const iconEl = document.getElementById('offlineIcon');
             const textEl = document.getElementById('offlineText');
             
-            if (!section) return;
-            
-            if (!db) {
-                statusEl.innerHTML = '⚠️ IndexedDB not available';
-                statusEl.style.color = '#f59e0b';
-                btnEl.disabled = true;
-                btnEl.style.opacity = '0.5';
-                return;
+            if (count > 5) {
+                statusEl.innerHTML = '✅ ' + count + ' pages cached';
+                statusEl.style.color = '#4ade80';
+                iconEl.textContent = '🔄';
+                textEl.textContent = 'Update Cache';
+                btnEl.style.background = 'linear-gradient(135deg, #059669, #047857)';
+            } else {
+                statusEl.innerHTML = '📡 Ready to cache';
+                statusEl.style.color = '#888';
             }
-            
-            try {
-                const count = await countCachedFiles();
-                
-                if (count > 10) {
-                    statusEl.innerHTML = '✅ ' + count + ' files cached for offline';
-                    statusEl.style.color = '#4ade80';
-                    iconEl.textContent = '🔄';
-                    textEl.textContent = 'Update Offline Cache';
-                    btnEl.style.background = 'linear-gradient(135deg, #059669, #047857)';
-                } else {
-                    statusEl.innerHTML = '📡 Online mode';
-                    statusEl.style.color = '#888';
-                }
-            } catch (e) {
-                console.log('Status check failed:', e);
-                statusEl.innerHTML = '📡 Online mode';
-            }
-        }
-        
-        function countCachedFiles() {
-            return new Promise((resolve, reject) => {
-                const tx = db.transaction(STORE_NAME, 'readonly');
-                const store = tx.objectStore(STORE_NAME);
-                const request = store.count();
-                request.onsuccess = () => resolve(request.result);
-                request.onerror = () => reject(request.error);
-            });
         }
         
         async function downloadForOffline() {
+            if (!swReady || !navigator.serviceWorker.controller) {
+                alert('Service Worker not ready. Please refresh the page and try again.');
+                return;
+            }
+            
             const btn = document.getElementById('offlineBtn');
             const icon = document.getElementById('offlineIcon');
             const text = document.getElementById('offlineText');
@@ -2566,42 +2590,21 @@ HTML_TEMPLATE = '''
                 if (!data.success) throw new Error('Failed to get file list');
                 
                 const files = data.files;
-                text.textContent = 'Downloading ' + files.length + ' files...';
+                text.textContent = 'Caching ' + files.length + ' files...';
                 progress.style.display = 'block';
                 
-                let cached = 0;
-                for (const file of files) {
-                    try {
-                        const resp = await fetch(file.url);
-                        if (resp.ok) {
-                            const content = await resp.text();
-                            await saveToIndexedDB(file.url, content, file.type);
-                            cached++;
-                            updateProgress(cached, files.length, file.path);
-                        }
-                    } catch (e) {
-                        console.log('Failed to cache:', file.path);
-                    }
-                }
-                
-                onCacheComplete(cached);
+                // Send to Service Worker
+                navigator.serviceWorker.controller.postMessage({
+                    action: 'cacheFiles',
+                    files: files
+                });
             } catch (error) {
                 console.error('Offline download failed:', error);
                 icon.textContent = '❌';
-                text.textContent = 'Download failed. Retry?';
+                text.textContent = 'Failed. Retry?';
                 btn.disabled = false;
                 btn.style.opacity = '1';
             }
-        }
-        
-        function saveToIndexedDB(url, content, type) {
-            return new Promise((resolve, reject) => {
-                const tx = db.transaction(STORE_NAME, 'readwrite');
-                const store = tx.objectStore(STORE_NAME);
-                const request = store.put({ url, content, type, timestamp: Date.now() });
-                request.onsuccess = () => resolve();
-                request.onerror = () => reject(request.error);
-            });
         }
         
         function updateProgress(cached, total, filename) {
@@ -2627,21 +2630,21 @@ HTML_TEMPLATE = '''
             setTimeout(() => {
                 progress.style.display = 'none';
                 icon.textContent = '🔄';
-                text.textContent = 'Update Offline Cache';
-                status.innerHTML = '✅ ' + total + ' files cached for offline';
+                text.textContent = 'Update Cache';
+                status.innerHTML = '✅ ' + total + ' pages cached';
                 status.style.color = '#4ade80';
             }, 2000);
         }
         
-        // Show offline indicator
+        // Online/offline indicators
         window.addEventListener('online', () => {
-            document.getElementById('offlineStatus').innerHTML = '📡 Back online';
-            document.getElementById('offlineStatus').style.color = '#4ade80';
+            const s = document.getElementById('offlineStatus');
+            if (s) { s.innerHTML = '📡 Back online'; s.style.color = '#4ade80'; }
         });
         
         window.addEventListener('offline', () => {
-            document.getElementById('offlineStatus').innerHTML = '📴 Offline mode';
-            document.getElementById('offlineStatus').style.color = '#fbbf24';
+            const s = document.getElementById('offlineStatus');
+            if (s) { s.innerHTML = '📴 Offline mode'; s.style.color = '#fbbf24'; }
         });
     </script>
 </body>
@@ -4446,30 +4449,21 @@ def pwa_manifest():
 def service_worker():
     """Service worker for offline caching"""
     sw_code = '''
-const CACHE_NAME = 'obsidian-viewer-v1';
-const OFFLINE_URL = '/offline.html';
-
-// Files to cache immediately on install
-const PRECACHE_URLS = [
-    '/',
-    '/manifest.json'
-];
+const CACHE_NAME = 'obsidian-viewer-v2';
 
 self.addEventListener('install', (event) => {
-    event.waitUntil(
-        caches.open(CACHE_NAME).then((cache) => {
-            return cache.addAll(PRECACHE_URLS);
-        })
-    );
+    console.log('[SW] Installing...');
     self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
+    console.log('[SW] Activating...');
     event.waitUntil(
         caches.keys().then((cacheNames) => {
             return Promise.all(
                 cacheNames.map((cacheName) => {
                     if (cacheName !== CACHE_NAME) {
+                        console.log('[SW] Deleting old cache:', cacheName);
                         return caches.delete(cacheName);
                     }
                 })
@@ -4480,34 +4474,41 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-    // Skip non-GET requests
     if (event.request.method !== 'GET') return;
+    
+    // Skip API calls - always go to network
+    if (event.request.url.includes('/api/')) {
+        return;
+    }
     
     event.respondWith(
         caches.match(event.request).then((cachedResponse) => {
+            // Return cached version if available
             if (cachedResponse) {
-                // Return cached version
+                console.log('[SW] Serving from cache:', event.request.url);
                 return cachedResponse;
             }
             
-            // Try network
+            // Otherwise fetch from network
             return fetch(event.request).then((response) => {
-                // Don't cache if not successful
                 if (!response || response.status !== 200) {
                     return response;
                 }
                 
-                // Clone and cache the response
+                // Cache successful responses
                 const responseToCache = response.clone();
                 caches.open(CACHE_NAME).then((cache) => {
                     cache.put(event.request, responseToCache);
                 });
                 
                 return response;
-            }).catch(() => {
-                // Network failed, return offline page for navigation requests
+            }).catch((error) => {
+                console.log('[SW] Fetch failed:', error);
+                // Return a basic offline message for navigation
                 if (event.request.mode === 'navigate') {
-                    return caches.match('/');
+                    return new Response('<html><body style="font-family:sans-serif;padding:40px;text-align:center;"><h1>📴 Offline</h1><p>This page is not cached. Connect to the server and try again.</p></body></html>', {
+                        headers: { 'Content-Type': 'text/html' }
+                    });
                 }
                 return new Response('Offline', { status: 503 });
             });
@@ -4515,51 +4516,53 @@ self.addEventListener('fetch', (event) => {
     );
 });
 
-// Handle messages from the main page
+// Handle cache commands from main page
 self.addEventListener('message', (event) => {
     if (event.data.action === 'cacheFiles') {
         const files = event.data.files;
-        caches.open(CACHE_NAME).then((cache) => {
+        console.log('[SW] Caching', files.length, 'files...');
+        
+        caches.open(CACHE_NAME).then(async (cache) => {
             let cached = 0;
             const total = files.length;
             
-            const cacheNext = (index) => {
-                if (index >= files.length) {
-                    self.clients.matchAll().then(clients => {
-                        clients.forEach(client => {
-                            client.postMessage({ action: 'cacheComplete', total: cached });
-                        });
-                    });
-                    return;
-                }
-                
-                const file = files[index];
-                fetch(file.url).then(response => {
+            for (const file of files) {
+                try {
+                    const response = await fetch(file.url);
                     if (response.ok) {
-                        cache.put(file.url, response).then(() => {
-                            cached++;
-                            // Report progress
+                        await cache.put(file.url, response);
+                        cached++;
+                        
+                        // Report progress every 5 files
+                        if (cached % 5 === 0 || cached === total) {
                             self.clients.matchAll().then(clients => {
                                 clients.forEach(client => {
                                     client.postMessage({ 
                                         action: 'cacheProgress', 
-                                        cached: cached, 
-                                        total: total,
+                                        cached, total,
                                         file: file.path
                                     });
                                 });
                             });
-                            cacheNext(index + 1);
-                        });
-                    } else {
-                        cacheNext(index + 1);
+                        }
                     }
-                }).catch(() => {
-                    cacheNext(index + 1);
-                });
-            };
+                } catch (e) {
+                    console.log('[SW] Failed to cache:', file.path);
+                }
+            }
             
-            cacheNext(0);
+            // Also cache the home page and current page
+            try {
+                const homeResponse = await fetch('/');
+                await cache.put('/', homeResponse);
+            } catch (e) {}
+            
+            console.log('[SW] Caching complete:', cached, '/', total);
+            self.clients.matchAll().then(clients => {
+                clients.forEach(client => {
+                    client.postMessage({ action: 'cacheComplete', total: cached });
+                });
+            });
         });
     }
     
@@ -4568,6 +4571,18 @@ self.addEventListener('message', (event) => {
             self.clients.matchAll().then(clients => {
                 clients.forEach(client => {
                     client.postMessage({ action: 'cacheCleared' });
+                });
+            });
+        });
+    }
+    
+    if (event.data.action === 'getCacheSize') {
+        caches.open(CACHE_NAME).then(cache => {
+            cache.keys().then(keys => {
+                self.clients.matchAll().then(clients => {
+                    clients.forEach(client => {
+                        client.postMessage({ action: 'cacheSize', count: keys.length });
+                    });
                 });
             });
         });
