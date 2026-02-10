@@ -2497,21 +2497,37 @@ HTML_TEMPLATE = '''
         } else {
             // No Service Worker - check cache status directly
             console.log('Service Worker not available (requires HTTPS). Using direct cache mode.');
-            checkOfflineStatus();
+            // Wait for DOM to be ready
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', checkOfflineStatus);
+            } else {
+                checkOfflineStatus();
+            }
         }
         
         async function checkOfflineStatus() {
-            if (!('caches' in window)) {
-                document.getElementById('offlineSection').style.display = 'none';
+            const section = document.getElementById('offlineSection');
+            const statusEl = document.getElementById('offlineStatus');
+            const btnEl = document.getElementById('offlineBtn');
+            const iconEl = document.getElementById('offlineIcon');
+            const textEl = document.getElementById('offlineText');
+            
+            if (!section) {
+                console.log('Offline section not found in DOM');
                 return;
             }
+            
+            if (!('caches' in window)) {
+                statusEl.innerHTML = '⚠️ Cache API not supported';
+                statusEl.style.color = '#f59e0b';
+                btnEl.disabled = true;
+                btnEl.style.opacity = '0.5';
+                return;
+            }
+            
             try {
                 const cache = await caches.open(CACHE_NAME);
                 const keys = await cache.keys();
-                const statusEl = document.getElementById('offlineStatus');
-                const btnEl = document.getElementById('offlineBtn');
-                const iconEl = document.getElementById('offlineIcon');
-                const textEl = document.getElementById('offlineText');
                 
                 if (keys.length > 10) {
                     statusEl.innerHTML = '✅ ' + keys.length + ' files cached for offline';
@@ -2525,6 +2541,7 @@ HTML_TEMPLATE = '''
                 }
             } catch (e) {
                 console.log('Cache check failed:', e);
+                statusEl.innerHTML = '📡 Online mode';
             }
         }
         
