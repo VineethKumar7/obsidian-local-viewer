@@ -2466,43 +2466,40 @@ HTML_TEMPLATE = '''
             }
         });
         
-        // ===== PWA / OFFLINE SUPPORT =====
-        const CACHE_NAME = 'obsidian-viewer-v1';
-        let swRegistration = null;
-        let useServiceWorker = false;
+        // ===== PWA / OFFLINE SUPPORT (IndexedDB) =====
+        const DB_NAME = 'obsidian-viewer-offline';
+        const DB_VERSION = 1;
+        const STORE_NAME = 'files';
+        let db = null;
         
-        // Register Service Worker (only works on HTTPS or localhost)
-        if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
-            navigator.serviceWorker.register('/service-worker.js')
-                .then(reg => {
-                    swRegistration = reg;
-                    useServiceWorker = true;
-                    console.log('Service Worker registered');
-                    checkOfflineStatus();
-                })
-                .catch(err => console.log('SW registration failed:', err));
-            
-            // Listen for messages from Service Worker
-            navigator.serviceWorker.addEventListener('message', (event) => {
-                if (event.data.action === 'cacheProgress') {
-                    updateProgress(event.data.cached, event.data.total, event.data.file);
-                }
-                if (event.data.action === 'cacheComplete') {
-                    onCacheComplete(event.data.total);
-                }
-                if (event.data.action === 'cacheCleared') {
-                    onCacheCleared();
-                }
+        // Initialize IndexedDB
+        function initDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+                
+                request.onerror = () => reject(request.error);
+                request.onsuccess = () => {
+                    db = request.result;
+                    resolve(db);
+                };
+                
+                request.onupgradeneeded = (event) => {
+                    const database = event.target.result;
+                    if (!database.objectStoreNames.contains(STORE_NAME)) {
+                        database.createObjectStore(STORE_NAME, { keyPath: 'url' });
+                    }
+                };
+            });
+        }
+        
+        // Initialize on page load
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', async () => {
+                await initDB();
+                checkOfflineStatus();
             });
         } else {
-            // No Service Worker - check cache status directly
-            console.log('Service Worker not available (requires HTTPS). Using direct cache mode.');
-            // Wait for DOM to be ready
-            if (document.readyState === 'loading') {
-                document.addEventListener('DOMContentLoaded', checkOfflineStatus);
-            } else {
-                checkOfflineStatus();
-            }
+            initDB().then(() => checkOfflineStatus());
         }
         
         async function checkOfflineStatus() {
@@ -2512,13 +2509,10 @@ HTML_TEMPLATE = '''
             const iconEl = document.getElementById('offlineIcon');
             const textEl = document.getElementById('offlineText');
             
-            if (!section) {
-                console.log('Offline section not found in DOM');
-                return;
-            }
+            if (!section) return;
             
-            if (!('caches' in window)) {
-                statusEl.innerHTML = '⚠️ Cache API not supported';
+            if (!db) {
+                statusEl.innerHTML = '⚠️ IndexedDB not available';
                 statusEl.style.color = '#f59e0b';
                 btnEl.disabled = true;
                 btnEl.style.opacity = '0.5';
@@ -2526,11 +2520,10 @@ HTML_TEMPLATE = '''
             }
             
             try {
-                const cache = await caches.open(CACHE_NAME);
-                const keys = await cache.keys();
+                const count = await countCachedFiles();
                 
-                if (keys.length > 10) {
-                    statusEl.innerHTML = '✅ ' + keys.length + ' files cached for offline';
+                if (count > 10) {
+                    statusEl.innerHTML = '✅ ' + count + ' files cached for offline';
                     statusEl.style.color = '#4ade80';
                     iconEl.textContent = '🔄';
                     textEl.textContent = 'Update Offline Cache';
@@ -2540,9 +2533,19 @@ HTML_TEMPLATE = '''
                     statusEl.style.color = '#888';
                 }
             } catch (e) {
-                console.log('Cache check failed:', e);
+                console.log('Status check failed:', e);
                 statusEl.innerHTML = '📡 Online mode';
             }
+        }
+        
+        function countCachedFiles() {
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_NAME, 'readonly');
+                const store = tx.objectStore(STORE_NAME);
+                const request = store.count();
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error);
+            });
         }
         
         async function downloadForOffline() {
@@ -2551,35 +2554,37 @@ HTML_TEMPLATE = '''
             const text = document.getElementById('offlineText');
             const progress = document.getElementById('offlineProgress');
             
-            // Disable button
             btn.disabled = true;
             btn.style.opacity = '0.7';
             icon.textContent = '⏳';
             text.textContent = 'Fetching file list...';
             
             try {
-                // Get all files from API
                 const response = await fetch('/api/all-files');
                 const data = await response.json();
                 
-                if (!data.success) {
-                    throw new Error('Failed to get file list');
-                }
+                if (!data.success) throw new Error('Failed to get file list');
                 
                 const files = data.files;
-                text.textContent = 'Caching ' + files.length + ' files...';
+                text.textContent = 'Downloading ' + files.length + ' files...';
                 progress.style.display = 'block';
                 
-                // Send files to Service Worker for caching (if available) or cache directly
-                if (useServiceWorker && navigator.serviceWorker && navigator.serviceWorker.controller) {
-                    navigator.serviceWorker.controller.postMessage({
-                        action: 'cacheFiles',
-                        files: files
-                    });
-                } else {
-                    // Direct caching (works on HTTP too)
-                    await cacheFilesDirectly(files);
+                let cached = 0;
+                for (const file of files) {
+                    try {
+                        const resp = await fetch(file.url);
+                        if (resp.ok) {
+                            const content = await resp.text();
+                            await saveToIndexedDB(file.url, content, file.type);
+                            cached++;
+                            updateProgress(cached, files.length, file.path);
+                        }
+                    } catch (e) {
+                        console.log('Failed to cache:', file.path);
+                    }
                 }
+                
+                onCacheComplete(cached);
             } catch (error) {
                 console.error('Offline download failed:', error);
                 icon.textContent = '❌';
@@ -2589,24 +2594,14 @@ HTML_TEMPLATE = '''
             }
         }
         
-        async function cacheFilesDirectly(files) {
-            const cache = await caches.open(CACHE_NAME);
-            let cached = 0;
-            
-            for (const file of files) {
-                try {
-                    const response = await fetch(file.url);
-                    if (response.ok) {
-                        await cache.put(file.url, response);
-                        cached++;
-                        updateProgress(cached, files.length, file.path);
-                    }
-                } catch (e) {
-                    console.log('Failed to cache:', file.path);
-                }
-            }
-            
-            onCacheComplete(cached);
+        function saveToIndexedDB(url, content, type) {
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_NAME, 'readwrite');
+                const store = tx.objectStore(STORE_NAME);
+                const request = store.put({ url, content, type, timestamp: Date.now() });
+                request.onsuccess = () => resolve();
+                request.onerror = () => reject(request.error);
+            });
         }
         
         function updateProgress(cached, total, filename) {
@@ -2638,11 +2633,7 @@ HTML_TEMPLATE = '''
             }, 2000);
         }
         
-        function onCacheCleared() {
-            checkOfflineStatus();
-        }
-        
-        // Show offline indicator when offline
+        // Show offline indicator
         window.addEventListener('online', () => {
             document.getElementById('offlineStatus').innerHTML = '📡 Back online';
             document.getElementById('offlineStatus').style.color = '#4ade80';
