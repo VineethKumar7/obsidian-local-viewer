@@ -185,6 +185,7 @@ HTML_TEMPLATE = '''
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
     <title>{{ title }} - Obsidian Viewer</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📚</text></svg>">
+    <link rel="manifest" href="/manifest.json">
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
         
@@ -1178,6 +1179,36 @@ HTML_TEMPLATE = '''
             flowchart: { useMaxWidth: true, htmlLabels: true }
         });
     </script>
+    
+    <!-- Markmap autoloader for elegant mind maps -->
+    <script src="https://cdn.jsdelivr.net/npm/markmap-autoloader@latest"></script>
+    <style>
+        /* Markmap Mind Map Styles */
+        .markmap {
+            position: relative;
+            width: 100%;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border-radius: 12px;
+            margin: 20px 0;
+            border: 1px solid #333;
+            overflow: hidden;
+        }
+        .markmap > svg {
+            width: 100%;
+            height: 450px;
+        }
+        /* White text for dark background */
+        .markmap text,
+        .markmap .markmap-node-text,
+        .markmap tspan,
+        .markmap foreignObject,
+        .markmap foreignObject * {
+            fill: #ffffff !important;
+            color: #ffffff !important;
+            font-weight: 500;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+        }
+    </style>
 </head>
 <body>
     <button class="toggle-btn" onclick="toggleSidebar()" title="Toggle Sidebar">☰ <span class="btn-text">Menu</span></button>
@@ -1279,6 +1310,20 @@ HTML_TEMPLATE = '''
             <div style="display: flex; gap: 8px; margin-top: 10px;">
                 <button onclick="expandAllFolders()" style="flex:1; padding: 4px 8px; font-size: 11px; background: #3c3c3c; color: #ccc; border: none; border-radius: 3px; cursor: pointer;" title="Expand All">+ All</button>
                 <button onclick="collapseAllFolders()" style="flex:1; padding: 4px 8px; font-size: 11px; background: #3c3c3c; color: #ccc; border: none; border-radius: 3px; cursor: pointer;" title="Collapse All">− All</button>
+            </div>
+            <!-- Offline Download Button -->
+            <div id="offlineSection" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #3c3c3c;">
+                <button id="offlineBtn" onclick="downloadForOffline()" style="width: 100%; padding: 8px 12px; font-size: 12px; background: linear-gradient(135deg, #7c3aed, #5b21b6); color: white; border: none; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s;">
+                    <span id="offlineIcon">📥</span>
+                    <span id="offlineText">Download for Offline</span>
+                </button>
+                <div id="offlineProgress" style="display: none; margin-top: 8px;">
+                    <div style="background: #3c3c3c; border-radius: 4px; height: 6px; overflow: hidden;">
+                        <div id="progressBar" style="background: linear-gradient(90deg, #7c3aed, #a78bfa); height: 100%; width: 0%; transition: width 0.3s;"></div>
+                    </div>
+                    <div id="progressText" style="font-size: 10px; color: #888; margin-top: 4px; text-align: center;"></div>
+                </div>
+                <div id="offlineStatus" style="font-size: 10px; color: #888; margin-top: 6px; text-align: center;"></div>
             </div>
         </div>
         <div class="sidebar-content">
@@ -1641,19 +1686,89 @@ HTML_TEMPLATE = '''
             });
         });
         
-        // Initialize Mermaid diagrams
+        // Convert Mermaid mindmap to Markmap markdown format
+        function convertMermaidMindmapToMarkdown(content) {
+            var lines = content.split('\\n');
+            var result = [];
+            var started = false;
+            
+            for (var i = 0; i < lines.length; i++) {
+                var line = lines[i];
+                var trimmed = line.trim();
+                
+                // Skip mindmap declaration
+                if (trimmed.toLowerCase() === 'mindmap') {
+                    started = true;
+                    continue;
+                }
+                if (!started) continue;
+                if (!trimmed) continue;
+                
+                // Count leading spaces for depth
+                var spaces = 0;
+                for (var j = 0; j < line.length; j++) {
+                    if (line[j] === ' ') spaces++;
+                    else break;
+                }
+                var depth = Math.floor(spaces / 2);
+                
+                // Clean up Mermaid node syntax
+                var text = trimmed;
+                text = text.replace(/^root\\(/, '').replace(/\\)$/, '');
+                text = text.replace(/^\\)\\)/, '').replace(/\\(\\($/, '');
+                text = text.replace(/^\\(/, '').replace(/\\)$/, '');
+                text = text.replace(/^\\[/, '').replace(/\\]$/, '');
+                text = text.replace(/^\\{\\{/, '').replace(/\\}\\}$/, '');
+                
+                if (!text) continue;
+                
+                // Build markdown: root = h1, children = nested lists
+                if (depth === 0) {
+                    result.push('# ' + text);
+                } else {
+                    var indent = '';
+                    for (var k = 0; k < depth - 1; k++) indent += '  ';
+                    result.push(indent + '- ' + text);
+                }
+            }
+            return result.join('\\n');
+        }
+        
+        // Initialize Diagrams (Mermaid + Markmap for mindmaps)
         document.addEventListener('DOMContentLoaded', function() {
-            // Find all code blocks that might be mermaid
+            // Find all code blocks that might be diagrams
             const codeBlocks = document.querySelectorAll('pre code');
             
             codeBlocks.forEach(function(codeBlock, index) {
                 const pre = codeBlock.parentElement;
                 const content = codeBlock.textContent.trim();
                 
-                // Check if it's a mermaid block (by class or content pattern)
+                // Check if it's a mindmap - use Markmap for elegant rendering
+                const isMindmap = content.toLowerCase().startsWith('mindmap');
+                
+                if (isMindmap) {
+                    // Convert to Markmap format
+                    const markmapContent = convertMermaidMindmapToMarkdown(content);
+                    
+                    // Create markmap container
+                    const container = document.createElement('div');
+                    container.className = 'markmap';
+                    
+                    // Use script template to hold content
+                    const script = document.createElement('script');
+                    script.type = 'text/template';
+                    script.textContent = markmapContent;
+                    container.appendChild(script);
+                    
+                    // Replace the pre element
+                    pre.parentNode.replaceChild(container, pre);
+                    return;
+                }
+                
+                // Check if it's a mermaid block (other diagram types)
                 const isMermaidClass = codeBlock.className.includes('mermaid') || 
                                        codeBlock.className.includes('language-mermaid');
-                const isMermaidContent = content.match(/^(graph|flowchart|sequenceDiagram|classDiagram|stateDiagram|erDiagram|journey|gantt|pie|gitGraph|mindmap|timeline|quadrantChart|xychart|sankey|packet|block)/i);
+                const isMermaidContent = content.match(/^(graph|flowchart|sequenceDiagram|classDiagram|stateDiagram|erDiagram|journey|gantt|pie|gitGraph|timeline|quadrantChart|xychart|sankey|packet|block)/i);
                 
                 if (isMermaidClass || isMermaidContent) {
                     // Create a new div for mermaid
@@ -1667,12 +1782,26 @@ HTML_TEMPLATE = '''
                 }
             });
             
-            // Run mermaid on all .mermaid elements
+            // Run mermaid on all .mermaid elements (non-mindmap)
             if (document.querySelectorAll('.mermaid').length > 0) {
                 mermaid.run({
                     nodes: document.querySelectorAll('.mermaid')
                 });
             }
+            
+            // Markmap autoloader will automatically render .markmap elements
+            // Fix text color for dark backgrounds after markmap renders
+            setTimeout(function() {
+                var isDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+                var bodyDark = document.body.classList.contains('dark') || 
+                               document.body.style.background.includes('#1') ||
+                               document.body.style.background.includes('#2');
+                if (isDark || bodyDark) {
+                    document.querySelectorAll('.markmap text').forEach(function(el) {
+                        el.style.fill = '#ffffff';
+                    });
+                }
+            }, 1000);
             
             // Re-typeset MathJax after content is loaded
             if (typeof MathJax !== 'undefined' && MathJax.typesetPromise) {
@@ -2335,6 +2464,165 @@ HTML_TEMPLATE = '''
             if (e.key === 'e' || e.key === 'E') {
                 document.querySelector('#annotationToolbar .tool-btn[data-tool="eraser"]').click();
             }
+        });
+        
+        // ===== PWA / OFFLINE SUPPORT =====
+        let swRegistration = null;
+        
+        // Register Service Worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/service-worker.js')
+                .then(reg => {
+                    swRegistration = reg;
+                    console.log('Service Worker registered');
+                    checkOfflineStatus();
+                })
+                .catch(err => console.log('SW registration failed:', err));
+            
+            // Listen for messages from Service Worker
+            navigator.serviceWorker.addEventListener('message', (event) => {
+                if (event.data.action === 'cacheProgress') {
+                    updateProgress(event.data.cached, event.data.total, event.data.file);
+                }
+                if (event.data.action === 'cacheComplete') {
+                    onCacheComplete(event.data.total);
+                }
+                if (event.data.action === 'cacheCleared') {
+                    onCacheCleared();
+                }
+            });
+        }
+        
+        async function checkOfflineStatus() {
+            try {
+                const cache = await caches.open('obsidian-viewer-v1');
+                const keys = await cache.keys();
+                const statusEl = document.getElementById('offlineStatus');
+                const btnEl = document.getElementById('offlineBtn');
+                const iconEl = document.getElementById('offlineIcon');
+                const textEl = document.getElementById('offlineText');
+                
+                if (keys.length > 10) {
+                    statusEl.innerHTML = '✅ ' + keys.length + ' files cached for offline';
+                    statusEl.style.color = '#4ade80';
+                    iconEl.textContent = '🔄';
+                    textEl.textContent = 'Update Offline Cache';
+                    btnEl.style.background = 'linear-gradient(135deg, #059669, #047857)';
+                } else {
+                    statusEl.innerHTML = '📡 Online mode';
+                    statusEl.style.color = '#888';
+                }
+            } catch (e) {
+                console.log('Cache check failed:', e);
+            }
+        }
+        
+        async function downloadForOffline() {
+            const btn = document.getElementById('offlineBtn');
+            const icon = document.getElementById('offlineIcon');
+            const text = document.getElementById('offlineText');
+            const progress = document.getElementById('offlineProgress');
+            
+            // Disable button
+            btn.disabled = true;
+            btn.style.opacity = '0.7';
+            icon.textContent = '⏳';
+            text.textContent = 'Fetching file list...';
+            
+            try {
+                // Get all files from API
+                const response = await fetch('/api/all-files');
+                const data = await response.json();
+                
+                if (!data.success) {
+                    throw new Error('Failed to get file list');
+                }
+                
+                const files = data.files;
+                text.textContent = 'Caching ' + files.length + ' files...';
+                progress.style.display = 'block';
+                
+                // Send files to Service Worker for caching
+                if (navigator.serviceWorker.controller) {
+                    navigator.serviceWorker.controller.postMessage({
+                        action: 'cacheFiles',
+                        files: files
+                    });
+                } else {
+                    // Fallback: cache directly
+                    await cacheFilesDirectly(files);
+                }
+            } catch (error) {
+                console.error('Offline download failed:', error);
+                icon.textContent = '❌';
+                text.textContent = 'Download failed. Retry?';
+                btn.disabled = false;
+                btn.style.opacity = '1';
+            }
+        }
+        
+        async function cacheFilesDirectly(files) {
+            const cache = await caches.open('obsidian-viewer-v1');
+            let cached = 0;
+            
+            for (const file of files) {
+                try {
+                    const response = await fetch(file.url);
+                    if (response.ok) {
+                        await cache.put(file.url, response);
+                        cached++;
+                        updateProgress(cached, files.length, file.path);
+                    }
+                } catch (e) {
+                    console.log('Failed to cache:', file.path);
+                }
+            }
+            
+            onCacheComplete(cached);
+        }
+        
+        function updateProgress(cached, total, filename) {
+            const percent = Math.round((cached / total) * 100);
+            document.getElementById('progressBar').style.width = percent + '%';
+            document.getElementById('progressText').textContent = 
+                cached + '/' + total + ' (' + percent + '%) - ' + (filename || '').split('/').pop();
+        }
+        
+        function onCacheComplete(total) {
+            const btn = document.getElementById('offlineBtn');
+            const icon = document.getElementById('offlineIcon');
+            const text = document.getElementById('offlineText');
+            const progress = document.getElementById('offlineProgress');
+            const status = document.getElementById('offlineStatus');
+            
+            icon.textContent = '✅';
+            text.textContent = 'Offline Ready!';
+            btn.style.background = 'linear-gradient(135deg, #059669, #047857)';
+            btn.disabled = false;
+            btn.style.opacity = '1';
+            
+            setTimeout(() => {
+                progress.style.display = 'none';
+                icon.textContent = '🔄';
+                text.textContent = 'Update Offline Cache';
+                status.innerHTML = '✅ ' + total + ' files cached for offline';
+                status.style.color = '#4ade80';
+            }, 2000);
+        }
+        
+        function onCacheCleared() {
+            checkOfflineStatus();
+        }
+        
+        // Show offline indicator when offline
+        window.addEventListener('online', () => {
+            document.getElementById('offlineStatus').innerHTML = '📡 Back online';
+            document.getElementById('offlineStatus').style.color = '#4ade80';
+        });
+        
+        window.addEventListener('offline', () => {
+            document.getElementById('offlineStatus').innerHTML = '📴 Offline mode';
+            document.getElementById('offlineStatus').style.color = '#fbbf24';
         });
     </script>
 </body>
@@ -4078,6 +4366,196 @@ def api_set_metadata(filepath):
         return jsonify({'success': True, 'metadata': metadata})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============================================
+# PWA / OFFLINE SUPPORT
+# ============================================
+
+@app.route('/api/all-files')
+def api_all_files():
+    """List all files in the vault for offline caching"""
+    files = []
+    for root, dirs, filenames in os.walk(VAULT_PATH):
+        # Skip hidden directories
+        dirs[:] = [d for d in dirs if not d.startswith('.')]
+        
+        for filename in filenames:
+            if filename.startswith('.'):
+                continue
+            
+            full_path = os.path.join(root, filename)
+            rel_path = os.path.relpath(full_path, VAULT_PATH)
+            ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+            
+            # Include viewable files
+            if ext in ['md', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg']:
+                files.append({
+                    'path': rel_path,
+                    'type': ext,
+                    'url': f'/view/{rel_path}' if ext == 'md' else f'/raw/{rel_path}'
+                })
+    
+    return jsonify({
+        'success': True,
+        'files': files,
+        'total': len(files)
+    })
+
+@app.route('/manifest.json')
+def pwa_manifest():
+    """PWA manifest for installable web app"""
+    manifest = {
+        "name": f"Obsidian Viewer - {get_vault_name()}",
+        "short_name": "Obsidian",
+        "description": "View your Obsidian vault offline",
+        "start_url": "/",
+        "display": "standalone",
+        "background_color": "#1e1e1e",
+        "theme_color": "#7c3aed",
+        "icons": [
+            {
+                "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📚</text></svg>",
+                "sizes": "any",
+                "type": "image/svg+xml"
+            }
+        ]
+    }
+    return jsonify(manifest)
+
+@app.route('/service-worker.js')
+def service_worker():
+    """Service worker for offline caching"""
+    sw_code = '''
+const CACHE_NAME = 'obsidian-viewer-v1';
+const OFFLINE_URL = '/offline.html';
+
+// Files to cache immediately on install
+const PRECACHE_URLS = [
+    '/',
+    '/manifest.json'
+];
+
+self.addEventListener('install', (event) => {
+    event.waitUntil(
+        caches.open(CACHE_NAME).then((cache) => {
+            return cache.addAll(PRECACHE_URLS);
+        })
+    );
+    self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+    event.waitUntil(
+        caches.keys().then((cacheNames) => {
+            return Promise.all(
+                cacheNames.map((cacheName) => {
+                    if (cacheName !== CACHE_NAME) {
+                        return caches.delete(cacheName);
+                    }
+                })
+            );
+        })
+    );
+    self.clients.claim();
+});
+
+self.addEventListener('fetch', (event) => {
+    // Skip non-GET requests
+    if (event.request.method !== 'GET') return;
+    
+    event.respondWith(
+        caches.match(event.request).then((cachedResponse) => {
+            if (cachedResponse) {
+                // Return cached version
+                return cachedResponse;
+            }
+            
+            // Try network
+            return fetch(event.request).then((response) => {
+                // Don't cache if not successful
+                if (!response || response.status !== 200) {
+                    return response;
+                }
+                
+                // Clone and cache the response
+                const responseToCache = response.clone();
+                caches.open(CACHE_NAME).then((cache) => {
+                    cache.put(event.request, responseToCache);
+                });
+                
+                return response;
+            }).catch(() => {
+                // Network failed, return offline page for navigation requests
+                if (event.request.mode === 'navigate') {
+                    return caches.match('/');
+                }
+                return new Response('Offline', { status: 503 });
+            });
+        })
+    );
+});
+
+// Handle messages from the main page
+self.addEventListener('message', (event) => {
+    if (event.data.action === 'cacheFiles') {
+        const files = event.data.files;
+        caches.open(CACHE_NAME).then((cache) => {
+            let cached = 0;
+            const total = files.length;
+            
+            const cacheNext = (index) => {
+                if (index >= files.length) {
+                    self.clients.matchAll().then(clients => {
+                        clients.forEach(client => {
+                            client.postMessage({ action: 'cacheComplete', total: cached });
+                        });
+                    });
+                    return;
+                }
+                
+                const file = files[index];
+                fetch(file.url).then(response => {
+                    if (response.ok) {
+                        cache.put(file.url, response).then(() => {
+                            cached++;
+                            // Report progress
+                            self.clients.matchAll().then(clients => {
+                                clients.forEach(client => {
+                                    client.postMessage({ 
+                                        action: 'cacheProgress', 
+                                        cached: cached, 
+                                        total: total,
+                                        file: file.path
+                                    });
+                                });
+                            });
+                            cacheNext(index + 1);
+                        });
+                    } else {
+                        cacheNext(index + 1);
+                    }
+                }).catch(() => {
+                    cacheNext(index + 1);
+                });
+            };
+            
+            cacheNext(0);
+        });
+    }
+    
+    if (event.data.action === 'clearCache') {
+        caches.delete(CACHE_NAME).then(() => {
+            self.clients.matchAll().then(clients => {
+                clients.forEach(client => {
+                    client.postMessage({ action: 'cacheCleared' });
+                });
+            });
+        });
+    }
+});
+'''
+    return Response(sw_code, mimetype='application/javascript')
 
 
 def get_local_ip():
