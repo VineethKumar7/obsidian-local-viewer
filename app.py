@@ -2467,13 +2467,16 @@ HTML_TEMPLATE = '''
         });
         
         // ===== PWA / OFFLINE SUPPORT =====
+        const CACHE_NAME = 'obsidian-viewer-v1';
         let swRegistration = null;
+        let useServiceWorker = false;
         
-        // Register Service Worker
-        if ('serviceWorker' in navigator) {
+        // Register Service Worker (only works on HTTPS or localhost)
+        if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
             navigator.serviceWorker.register('/service-worker.js')
                 .then(reg => {
                     swRegistration = reg;
+                    useServiceWorker = true;
                     console.log('Service Worker registered');
                     checkOfflineStatus();
                 })
@@ -2491,11 +2494,19 @@ HTML_TEMPLATE = '''
                     onCacheCleared();
                 }
             });
+        } else {
+            // No Service Worker - check cache status directly
+            console.log('Service Worker not available (requires HTTPS). Using direct cache mode.');
+            checkOfflineStatus();
         }
         
         async function checkOfflineStatus() {
+            if (!('caches' in window)) {
+                document.getElementById('offlineSection').style.display = 'none';
+                return;
+            }
             try {
-                const cache = await caches.open('obsidian-viewer-v1');
+                const cache = await caches.open(CACHE_NAME);
                 const keys = await cache.keys();
                 const statusEl = document.getElementById('offlineStatus');
                 const btnEl = document.getElementById('offlineBtn');
@@ -2542,14 +2553,14 @@ HTML_TEMPLATE = '''
                 text.textContent = 'Caching ' + files.length + ' files...';
                 progress.style.display = 'block';
                 
-                // Send files to Service Worker for caching
-                if (navigator.serviceWorker.controller) {
+                // Send files to Service Worker for caching (if available) or cache directly
+                if (useServiceWorker && navigator.serviceWorker && navigator.serviceWorker.controller) {
                     navigator.serviceWorker.controller.postMessage({
                         action: 'cacheFiles',
                         files: files
                     });
                 } else {
-                    // Fallback: cache directly
+                    // Direct caching (works on HTTP too)
                     await cacheFilesDirectly(files);
                 }
             } catch (error) {
@@ -2562,7 +2573,7 @@ HTML_TEMPLATE = '''
         }
         
         async function cacheFilesDirectly(files) {
-            const cache = await caches.open('obsidian-viewer-v1');
+            const cache = await caches.open(CACHE_NAME);
             let cached = 0;
             
             for (const file of files) {
