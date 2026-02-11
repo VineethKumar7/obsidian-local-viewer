@@ -2773,6 +2773,7 @@ def view_file(filepath):
     
     elif ext == 'pdf':
         # Embed PDF using PDF.js for cross-platform compatibility (especially iOS)
+        pdf_full_path = os.path.join(VAULT_PATH, filepath)
         pdf_content = f'''
         <style>
             .pdf-container {{
@@ -3331,7 +3332,7 @@ def view_file(filepath):
             }});
             
             function copyPdfPath() {{
-                const path = '{filepath}';
+                const path = '{pdf_full_path}';
                 const btn = document.querySelector('.pdf-copy-path');
                 
                 // Try modern clipboard API first, fallback to execCommand
