@@ -1626,20 +1626,21 @@ HTML_TEMPLATE = '''
         
         function restoreTreeState() {
             const saved = localStorage.getItem('treeState');
-            if (!saved) return;
+            let expandedFolders = [];
             
             try {
-                const expandedFolders = JSON.parse(saved);
-                if (!Array.isArray(expandedFolders)) return;
-                
-                // First collapse all folders
-                document.querySelectorAll('.folder-item').forEach(item => {
-                    item.classList.remove('open');
-                    const icon = item.querySelector(':scope > .folder-header > .folder-icon');
-                    if (icon) icon.classList.add('collapsed');
-                });
-                
-                // Then expand saved folders
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    if (Array.isArray(parsed)) {
+                        expandedFolders = parsed;
+                    }
+                }
+            } catch (e) {
+                console.warn('Failed to parse tree state:', e);
+            }
+            
+            // Expand saved folders (all start collapsed from server)
+            if (expandedFolders.length > 0) {
                 document.querySelectorAll('.folder-item').forEach(item => {
                     const path = getFolderPath(item);
                     if (expandedFolders.includes(path)) {
@@ -1648,20 +1649,18 @@ HTML_TEMPLATE = '''
                         if (icon) icon.classList.remove('collapsed');
                     }
                 });
-                
-                // Also ensure parents of active file are expanded
-                const activeLink = document.querySelector('.sidebar a.active');
-                if (activeLink) {
-                    let parent = activeLink.closest('.folder-item');
-                    while (parent) {
-                        parent.classList.add('open');
-                        const icon = parent.querySelector(':scope > .folder-header > .folder-icon');
-                        if (icon) icon.classList.remove('collapsed');
-                        parent = parent.parentElement?.closest('.folder-item');
-                    }
+            }
+            
+            // Always ensure parents of active file are expanded
+            const activeLink = document.querySelector('.sidebar a.active');
+            if (activeLink) {
+                let parent = activeLink.closest('.folder-item');
+                while (parent) {
+                    parent.classList.add('open');
+                    const icon = parent.querySelector(':scope > .folder-header > .folder-icon');
+                    if (icon) icon.classList.remove('collapsed');
+                    parent = parent.parentElement?.closest('.folder-item');
                 }
-            } catch (e) {
-                console.warn('Failed to restore tree state:', e);
             }
         }
         
@@ -2765,13 +2764,11 @@ def get_file_tree(path, base_path, current_file="", depth=0):
             if os.path.isdir(full_path):
                 subtree = get_file_tree(full_path, base_path, current_file, depth + 1)
                 if subtree:  # Only show folders that have content
-                    # Check if any child is active (to auto-expand)
-                    is_parent_of_active = current_file and current_file.startswith(rel_path + os.sep)
-                    open_class = 'open' if is_parent_of_active or depth == 0 else ''
-                    collapsed_class = '' if is_parent_of_active or depth == 0 else 'collapsed'
-                    items.append(f'''<li class="folder-item {open_class}">
+                    # Always render collapsed - JS will restore state from localStorage
+                    # This prevents flicker on page load/navigation
+                    items.append(f'''<li class="folder-item" data-path="{rel_path}">
                         <div class="folder-header" onclick="toggleFolder(this)">
-                            <span class="folder-icon {collapsed_class}">▼</span>
+                            <span class="folder-icon collapsed">▼</span>
                             <span class="folder-name">{entry}</span>
                         </div>
                         <ul class="folder-children">{subtree}</ul>
