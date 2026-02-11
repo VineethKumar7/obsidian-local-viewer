@@ -1432,6 +1432,17 @@ HTML_TEMPLATE = '''
             // Restore scroll position
             restoreScrollPosition();
             
+            // Restore tree expansion state
+            restoreTreeState();
+            
+            // Scroll active file into view in sidebar
+            setTimeout(() => {
+                const activeLink = document.querySelector('.sidebar a.active');
+                if (activeLink) {
+                    activeLink.scrollIntoView({ block: 'center', behavior: 'instant' });
+                }
+            }, 100);
+            
             // Add scroll listener to save position
             const contentWrapper = document.getElementById('contentWrapper');
             if (contentWrapper) {
@@ -1578,12 +1589,81 @@ HTML_TEMPLATE = '''
             }
         }
         
+        // ===== TREE STATE PERSISTENCE =====
+        // Get unique path for a folder by traversing up to build the path
+        function getFolderPath(folderItem) {
+            const parts = [];
+            let current = folderItem;
+            while (current && current.classList.contains('folder-item')) {
+                const nameEl = current.querySelector(':scope > .folder-header > .folder-name');
+                if (nameEl) {
+                    parts.unshift(nameEl.textContent.trim());
+                }
+                // Go up: folder-item > folder-children (ul) > folder-item
+                current = current.parentElement?.closest('.folder-item');
+            }
+            return parts.join('/');
+        }
+        
+        function saveTreeState() {
+            const expandedFolders = [];
+            document.querySelectorAll('.folder-item.open').forEach(item => {
+                const path = getFolderPath(item);
+                if (path) expandedFolders.push(path);
+            });
+            localStorage.setItem('treeState', JSON.stringify(expandedFolders));
+        }
+        
+        function restoreTreeState() {
+            const saved = localStorage.getItem('treeState');
+            if (!saved) return;
+            
+            try {
+                const expandedFolders = JSON.parse(saved);
+                if (!Array.isArray(expandedFolders)) return;
+                
+                // First collapse all folders
+                document.querySelectorAll('.folder-item').forEach(item => {
+                    item.classList.remove('open');
+                    const icon = item.querySelector(':scope > .folder-header > .folder-icon');
+                    if (icon) icon.classList.add('collapsed');
+                });
+                
+                // Then expand saved folders
+                document.querySelectorAll('.folder-item').forEach(item => {
+                    const path = getFolderPath(item);
+                    if (expandedFolders.includes(path)) {
+                        item.classList.add('open');
+                        const icon = item.querySelector(':scope > .folder-header > .folder-icon');
+                        if (icon) icon.classList.remove('collapsed');
+                    }
+                });
+                
+                // Also ensure parents of active file are expanded
+                const activeLink = document.querySelector('.sidebar a.active');
+                if (activeLink) {
+                    let parent = activeLink.closest('.folder-item');
+                    while (parent) {
+                        parent.classList.add('open');
+                        const icon = parent.querySelector(':scope > .folder-header > .folder-icon');
+                        if (icon) icon.classList.remove('collapsed');
+                        parent = parent.parentElement?.closest('.folder-item');
+                    }
+                }
+            } catch (e) {
+                console.warn('Failed to restore tree state:', e);
+            }
+        }
+        
         function toggleFolder(header) {
             const folderItem = header.parentElement;
             const icon = header.querySelector('.folder-icon');
             
             folderItem.classList.toggle('open');
             icon.classList.toggle('collapsed');
+            
+            // Save state after toggle
+            saveTreeState();
         }
         
         function collapseAllFolders() {
@@ -1591,6 +1671,7 @@ HTML_TEMPLATE = '''
                 item.classList.remove('open');
                 item.querySelector('.folder-icon').classList.add('collapsed');
             });
+            saveTreeState();
         }
         
         function expandAllFolders() {
@@ -1598,6 +1679,7 @@ HTML_TEMPLATE = '''
                 item.classList.add('open');
                 item.querySelector('.folder-icon').classList.remove('collapsed');
             });
+            saveTreeState();
         }
         
         function downloadPDF() {
