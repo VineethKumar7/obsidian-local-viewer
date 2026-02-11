@@ -285,6 +285,10 @@ HTML_TEMPLATE = '''
         .sidebar-content {
             padding: 8px 0;
         }
+        /* Hide tree until JS restores state (prevents flicker) */
+        .sidebar-content.tree-loading {
+            visibility: hidden;
+        }
         .sidebar ul { list-style: none; margin: 0; padding: 0; }
         .sidebar > .sidebar-content > ul { padding: 0 8px; }
         
@@ -1331,7 +1335,7 @@ HTML_TEMPLATE = '''
                 <div id="offlineStatus" style="font-size: 10px; color: #888; margin-top: 6px; text-align: center;"></div>
             </div>
         </div>
-        <div class="sidebar-content">
+        <div class="sidebar-content tree-loading" id="sidebarContent">
             {{ tree|safe }}
         </div>
     </div>
@@ -1435,13 +1439,19 @@ HTML_TEMPLATE = '''
             // Restore tree expansion state
             restoreTreeState();
             
+            // Show tree now that state is restored (prevents flicker)
+            const sidebarContent = document.getElementById('sidebarContent');
+            if (sidebarContent) {
+                sidebarContent.classList.remove('tree-loading');
+            }
+            
             // Scroll active file into view in sidebar
             setTimeout(() => {
                 const activeLink = document.querySelector('.sidebar a.active');
                 if (activeLink) {
                     activeLink.scrollIntoView({ block: 'center', behavior: 'instant' });
                 }
-            }, 100);
+            }, 50);
             
             // Add scroll listener to save position
             const contentWrapper = document.getElementById('contentWrapper');
