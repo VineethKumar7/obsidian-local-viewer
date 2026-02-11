@@ -580,27 +580,26 @@ HTML_TEMPLATE = '''
             background: #f8f9fa;
             border-bottom: 1px solid #e9ecef;
             padding: 8px 16px;
-            padding-right: 320px; /* Leave space for toolbar buttons on desktop */
             display: flex;
             align-items: center;
-            gap: 10px;
+            gap: 8px;
             font-family: 'SF Mono', Monaco, 'Courier New', monospace;
             font-size: 13px;
             color: #666;
-        }
-        @media (max-width: 768px) {
-            .file-path-bar {
-                padding-right: 16px; /* No extra padding on mobile */
-            }
         }
         .file-path-bar .path-icon {
             color: #888;
         }
         .file-path-bar .path-text {
-            flex: 1;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
+            max-width: calc(100vw - 450px); /* Limit width to leave space for toolbar */
+        }
+        @media (max-width: 768px) {
+            .file-path-bar .path-text {
+                max-width: calc(100vw - 120px); /* More space on mobile */
+            }
         }
         .file-path-bar .path-separator {
             color: #ccc;
