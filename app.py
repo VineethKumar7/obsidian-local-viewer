@@ -580,12 +580,18 @@ HTML_TEMPLATE = '''
             background: #f8f9fa;
             border-bottom: 1px solid #e9ecef;
             padding: 8px 16px;
+            padding-right: 320px; /* Leave space for toolbar buttons on desktop */
             display: flex;
             align-items: center;
             gap: 10px;
             font-family: 'SF Mono', Monaco, 'Courier New', monospace;
             font-size: 13px;
             color: #666;
+        }
+        @media (max-width: 768px) {
+            .file-path-bar {
+                padding-right: 16px; /* No extra padding on mobile */
+            }
         }
         .file-path-bar .path-icon {
             color: #888;
