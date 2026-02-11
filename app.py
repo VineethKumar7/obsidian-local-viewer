@@ -1334,8 +1334,8 @@ HTML_TEMPLATE = '''
         {% if file_path %}
         <div class="file-path-bar" id="filePathBar">
             <span class="path-icon">📄</span>
-            <span class="path-text" id="pathText">{{ file_path }}</span>
-            <button class="copy-btn" onclick="copyFilePath()" title="Copy path">
+            <span class="path-text" id="pathText" data-full-path="{{ full_path }}">{{ file_path }}</span>
+            <button class="copy-btn" onclick="copyFilePath()" title="Copy full path">
                 <span id="copyIcon">📋</span>
                 <span id="copyText">Copy</span>
             </button>
@@ -1607,7 +1607,8 @@ HTML_TEMPLATE = '''
             const pathText = document.getElementById('pathText');
             if (!pathText) return;
             
-            const path = pathText.textContent;
+            // Use full system path from data attribute
+            const path = pathText.dataset.fullPath || pathText.textContent;
             
             function showCopiedFeedback() {
                 const copyBtn = document.querySelector('.copy-btn');
@@ -2766,7 +2767,8 @@ def view_file(filepath):
             content=title_html + html_content,
             vault_name=get_vault_name(),
             is_markdown=True,
-            file_path=filepath
+            file_path=filepath,
+            full_path=os.path.join(VAULT_PATH, filepath)
         )
     
     elif ext == 'pdf':
@@ -3559,7 +3561,8 @@ def view_file(filepath):
             vault_name=get_vault_name(),
             is_markdown=False,
             is_pdf=True,
-            file_path=filepath
+            file_path=filepath,
+            full_path=os.path.join(VAULT_PATH, filepath)
         )
     
     elif ext in ['png', 'jpg', 'jpeg', 'gif', 'webp']:
@@ -3903,7 +3906,8 @@ def view_file(filepath):
             content=video_content,
             vault_name=get_vault_name(),
             is_markdown=False,
-            file_path=filepath
+            file_path=filepath,
+            full_path=os.path.join(VAULT_PATH, filepath)
         )
 
     elif ext in ['mp3', 'wav', 'ogg']:
@@ -3935,7 +3939,8 @@ def view_file(filepath):
             content=audio_content,
             vault_name=get_vault_name(),
             is_markdown=False,
-            file_path=filepath
+            file_path=filepath,
+            full_path=os.path.join(VAULT_PATH, filepath)
         )
     
     else:
@@ -3950,7 +3955,8 @@ def view_file(filepath):
             HTML_TEMPLATE, 
             title=filename, 
             tree=tree,
-            file_path=filepath, 
+            file_path=filepath,
+            full_path=os.path.join(VAULT_PATH, filepath),
             content=content,
             vault_name=get_vault_name(),
             is_markdown=False
