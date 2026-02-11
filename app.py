@@ -1517,7 +1517,7 @@ HTML_TEMPLATE = '''
         // ============================================
         // METADATA FUNCTIONS
         // ============================================
-        const metadataFilePath = '{{ filepath|default("") }}';
+        const metadataFilePath = '{{ file_path|default("") }}';
         
         function openMetadataModal() {
             const modal = document.getElementById('metadataModal');
