@@ -91,8 +91,22 @@ def convert_obsidian_links(html_content, current_file_dir=""):
             link_part, heading = link_part.split('#', 1)
             heading = '#' + heading.lower().replace(' ', '-')
         
-        # Find the file
+        # Find the file - try multiple strategies
+        file_path = None
+        
+        # Strategy 1: Direct lookup (works for absolute paths from vault root or filenames)
         file_path = find_file_in_vault(link_part)
+        
+        # Strategy 2: Try relative path from current file's directory
+        if not file_path and current_file_dir:
+            relative_path = os.path.join(current_file_dir, link_part)
+            # Normalize the path (resolve .. and .)
+            relative_path = os.path.normpath(relative_path)
+            file_path = find_file_in_vault(relative_path)
+            
+            # Also try with .md extension
+            if not file_path:
+                file_path = find_file_in_vault(relative_path + '.md')
         
         if file_path:
             return f'<a href="/view/{file_path}{heading}" class="internal-link">{display_text}</a>'
@@ -1234,6 +1248,7 @@ HTML_TEMPLATE = '''
         <button onclick="openAnnotation()" title="Annotate with Apple Pencil (draw on content)">✏️ <span class="btn-text">Annotate</span></button>
         {% endif %}
         <button onclick="openMetadataModal()" title="File Metadata">ℹ️ <span class="btn-text">Info</span></button>
+        <button onclick="syncMetadata()" title="Sync metadata to index tables">🔄 <span class="btn-text">Sync</span></button>
         <button class="secondary" onclick="toggleFullscreen()" title="Toggle Fullscreen">⛶</button>
     </div>
     
@@ -1322,17 +1337,11 @@ HTML_TEMPLATE = '''
             </div>
             <!-- Offline Download Button -->
             <div id="offlineSection" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #3c3c3c;">
-                <button id="offlineBtn" onclick="downloadForOffline()" style="width: 100%; padding: 8px 12px; font-size: 12px; background: linear-gradient(135deg, #7c3aed, #5b21b6); color: white; border: none; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s;">
+                <button id="offlineBtn" onclick="downloadOfflineZip()" style="width: 100%; padding: 8px 12px; font-size: 12px; background: linear-gradient(135deg, #7c3aed, #5b21b6); color: white; border: none; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s;">
                     <span id="offlineIcon">📥</span>
                     <span id="offlineText">Download for Offline</span>
                 </button>
-                <div id="offlineProgress" style="display: none; margin-top: 8px;">
-                    <div style="background: #3c3c3c; border-radius: 4px; height: 6px; overflow: hidden;">
-                        <div id="progressBar" style="background: linear-gradient(90deg, #7c3aed, #a78bfa); height: 100%; width: 0%; transition: width 0.3s;"></div>
-                    </div>
-                    <div id="progressText" style="font-size: 10px; color: #888; margin-top: 4px; text-align: center;"></div>
-                </div>
-                <div id="offlineStatus" style="font-size: 10px; color: #888; margin-top: 6px; text-align: center;"></div>
+                <div id="offlineStatus" style="font-size: 10px; color: #888; margin-top: 6px; text-align: center;">Creates ZIP with HTML files</div>
             </div>
         </div>
         <div class="sidebar-content tree-loading" id="sidebarContent">
@@ -1583,6 +1592,88 @@ HTML_TEMPLATE = '''
             } catch (err) {
                 console.error('Failed to save metadata:', err);
                 alert('Failed to save metadata');
+            }
+        }
+        
+        async function downloadOfflineZip() {
+            const btn = document.getElementById('offlineBtn');
+            const icon = document.getElementById('offlineIcon');
+            const text = document.getElementById('offlineText');
+            const status = document.getElementById('offlineStatus');
+            
+            btn.disabled = true;
+            btn.style.opacity = '0.7';
+            icon.textContent = '⏳';
+            text.textContent = 'Generating ZIP...';
+            status.textContent = 'This may take a moment...';
+            
+            try {
+                // Trigger download via hidden link
+                const link = document.createElement('a');
+                link.href = '/api/download-offline-zip';
+                link.download = 'EWADIS_Offline.zip';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                // Reset button after a delay
+                setTimeout(() => {
+                    icon.textContent = '📥';
+                    text.textContent = 'Download for Offline';
+                    status.textContent = '✅ ZIP downloaded!';
+                    status.style.color = '#4ade80';
+                    btn.disabled = false;
+                    btn.style.opacity = '1';
+                    
+                    setTimeout(() => {
+                        status.textContent = 'Creates ZIP with HTML files';
+                        status.style.color = '#888';
+                    }, 3000);
+                }, 2000);
+            } catch (error) {
+                console.error('Download failed:', error);
+                icon.textContent = '❌';
+                text.textContent = 'Failed. Retry?';
+                status.textContent = error.message;
+                btn.disabled = false;
+                btn.style.opacity = '1';
+            }
+        }
+        
+        async function syncMetadata() {
+            const btn = event.target.closest('button');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '⏳ <span class="btn-text">Syncing...</span>';
+            btn.disabled = true;
+            
+            try {
+                const response = await fetch('/api/sync-metadata', { method: 'POST' });
+                const data = await response.json();
+                
+                if (data.success) {
+                    btn.innerHTML = '✅ <span class="btn-text">Done!</span>';
+                    setTimeout(() => { 
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
+                        // Reload page to show updated values
+                        location.reload();
+                    }, 1000);
+                } else {
+                    btn.innerHTML = '❌ <span class="btn-text">Failed</span>';
+                    alert('Sync failed: ' + (data.error || 'Unknown error'));
+                    setTimeout(() => { 
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
+                    }, 2000);
+                }
+            } catch (err) {
+                console.error('Sync failed:', err);
+                btn.innerHTML = '❌ <span class="btn-text">Error</span>';
+                alert('Sync failed: ' + err.message);
+                setTimeout(() => { 
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }, 2000);
             }
         }
         
@@ -2563,185 +2654,14 @@ HTML_TEMPLATE = '''
             }
         });
         
-        // ===== PWA / OFFLINE SUPPORT =====
-        let swReady = false;
-        
-        // Check if we're in a secure context (localhost or HTTPS)
-        const isSecureContext = window.isSecureContext || 
-            location.hostname === 'localhost' || 
-            location.hostname === '127.0.0.1';
-        
-        // Register Service Worker
-        if ('serviceWorker' in navigator && isSecureContext) {
-            navigator.serviceWorker.register('/service-worker.js')
-                .then(reg => {
-                    console.log('Service Worker registered');
-                    swReady = true;
-                    checkOfflineStatus();
-                })
-                .catch(err => {
-                    console.log('SW registration failed:', err);
-                    showOfflineUnavailable('Service Worker failed');
-                });
-            
-            // Listen for messages from Service Worker
-            navigator.serviceWorker.addEventListener('message', (event) => {
-                if (event.data.action === 'cacheProgress') {
-                    updateProgress(event.data.cached, event.data.total, event.data.file);
-                }
-                if (event.data.action === 'cacheComplete') {
-                    onCacheComplete(event.data.total);
-                }
-                if (event.data.action === 'cacheSize') {
-                    updateCacheCount(event.data.count);
-                }
-            });
-        } else {
-            // Not a secure context
-            document.addEventListener('DOMContentLoaded', () => {
-                const reason = !isSecureContext ? 
-                    'Requires localhost or HTTPS' : 
-                    'Service Worker not supported';
-                showOfflineUnavailable(reason);
-            });
-        }
-        
-        function showOfflineUnavailable(reason) {
-            const section = document.getElementById('offlineSection');
+        // ===== OFFLINE DOWNLOAD (ZIP) =====
+        // No service worker needed - just downloads a ZIP file
+        document.addEventListener('DOMContentLoaded', () => {
             const statusEl = document.getElementById('offlineStatus');
-            const btnEl = document.getElementById('offlineBtn');
-            
-            if (!section) return;
-            
-            statusEl.innerHTML = '⚠️ ' + reason;
-            statusEl.style.color = '#f59e0b';
-            btnEl.disabled = true;
-            btnEl.style.opacity = '0.5';
-            btnEl.title = reason;
-        }
-        
-        async function checkOfflineStatus() {
-            const section = document.getElementById('offlineSection');
-            if (!section) return;
-            
-            if (!swReady) {
-                showOfflineUnavailable('Initializing...');
-                return;
-            }
-            
-            // Ask SW for cache size
-            if (navigator.serviceWorker.controller) {
-                navigator.serviceWorker.controller.postMessage({ action: 'getCacheSize' });
-            } else {
-                // SW not controlling yet, check directly
-                if ('caches' in window) {
-                    try {
-                        const cache = await caches.open('obsidian-viewer-v2');
-                        const keys = await cache.keys();
-                        updateCacheCount(keys.length);
-                    } catch (e) {
-                        document.getElementById('offlineStatus').innerHTML = '📡 Ready to cache';
-                    }
-                }
-            }
-        }
-        
-        function updateCacheCount(count) {
-            const statusEl = document.getElementById('offlineStatus');
-            const btnEl = document.getElementById('offlineBtn');
-            const iconEl = document.getElementById('offlineIcon');
-            const textEl = document.getElementById('offlineText');
-            
-            if (count > 5) {
-                statusEl.innerHTML = '✅ ' + count + ' pages cached';
-                statusEl.style.color = '#4ade80';
-                iconEl.textContent = '🔄';
-                textEl.textContent = 'Update Cache';
-                btnEl.style.background = 'linear-gradient(135deg, #059669, #047857)';
-            } else {
-                statusEl.innerHTML = '📡 Ready to cache';
+            if (statusEl) {
+                statusEl.innerHTML = 'Creates ZIP with HTML files';
                 statusEl.style.color = '#888';
             }
-        }
-        
-        async function downloadForOffline() {
-            if (!swReady || !navigator.serviceWorker.controller) {
-                alert('Service Worker not ready. Please refresh the page and try again.');
-                return;
-            }
-            
-            const btn = document.getElementById('offlineBtn');
-            const icon = document.getElementById('offlineIcon');
-            const text = document.getElementById('offlineText');
-            const progress = document.getElementById('offlineProgress');
-            
-            btn.disabled = true;
-            btn.style.opacity = '0.7';
-            icon.textContent = '⏳';
-            text.textContent = 'Fetching file list...';
-            
-            try {
-                const response = await fetch('/api/all-files');
-                const data = await response.json();
-                
-                if (!data.success) throw new Error('Failed to get file list');
-                
-                const files = data.files;
-                text.textContent = 'Caching ' + files.length + ' files...';
-                progress.style.display = 'block';
-                
-                // Send to Service Worker
-                navigator.serviceWorker.controller.postMessage({
-                    action: 'cacheFiles',
-                    files: files
-                });
-            } catch (error) {
-                console.error('Offline download failed:', error);
-                icon.textContent = '❌';
-                text.textContent = 'Failed. Retry?';
-                btn.disabled = false;
-                btn.style.opacity = '1';
-            }
-        }
-        
-        function updateProgress(cached, total, filename) {
-            const percent = Math.round((cached / total) * 100);
-            document.getElementById('progressBar').style.width = percent + '%';
-            document.getElementById('progressText').textContent = 
-                cached + '/' + total + ' (' + percent + '%) - ' + (filename || '').split('/').pop();
-        }
-        
-        function onCacheComplete(total) {
-            const btn = document.getElementById('offlineBtn');
-            const icon = document.getElementById('offlineIcon');
-            const text = document.getElementById('offlineText');
-            const progress = document.getElementById('offlineProgress');
-            const status = document.getElementById('offlineStatus');
-            
-            icon.textContent = '✅';
-            text.textContent = 'Offline Ready!';
-            btn.style.background = 'linear-gradient(135deg, #059669, #047857)';
-            btn.disabled = false;
-            btn.style.opacity = '1';
-            
-            setTimeout(() => {
-                progress.style.display = 'none';
-                icon.textContent = '🔄';
-                text.textContent = 'Update Cache';
-                status.innerHTML = '✅ ' + total + ' pages cached';
-                status.style.color = '#4ade80';
-            }, 2000);
-        }
-        
-        // Online/offline indicators
-        window.addEventListener('online', () => {
-            const s = document.getElementById('offlineStatus');
-            if (s) { s.innerHTML = '📡 Back online'; s.style.color = '#4ade80'; }
-        });
-        
-        window.addEventListener('offline', () => {
-            const s = document.getElementById('offlineStatus');
-            if (s) { s.innerHTML = '📴 Offline mode'; s.style.color = '#fbbf24'; }
         });
     </script>
 </body>
@@ -4487,6 +4407,276 @@ def api_set_metadata(filepath):
         
         set_file_metadata(filepath, metadata)
         return jsonify({'success': True, 'metadata': metadata})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/download-offline-zip')
+def api_download_offline_zip():
+    """Generate a ZIP file with HTML versions of all markdown files"""
+    import zipfile
+    import io
+    from datetime import datetime
+    
+    # Get CSS for embedding in HTML
+    css_content = '''
+    <style>
+        * { box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6; 
+            max-width: 900px; 
+            margin: 0 auto; 
+            padding: 20px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+        }
+        h1, h2, h3, h4, h5, h6 { color: #569cd6; margin-top: 1.5em; }
+        h1 { border-bottom: 2px solid #3c3c3c; padding-bottom: 0.3em; }
+        h2 { border-bottom: 1px solid #3c3c3c; padding-bottom: 0.2em; }
+        a { color: #4fc1ff; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        code { 
+            background: #2d2d2d; 
+            padding: 2px 6px; 
+            border-radius: 3px; 
+            font-family: 'Fira Code', monospace;
+            color: #ce9178;
+        }
+        pre { 
+            background: #2d2d2d; 
+            padding: 16px; 
+            border-radius: 6px; 
+            overflow-x: auto;
+            border: 1px solid #3c3c3c;
+        }
+        pre code { background: none; padding: 0; }
+        blockquote { 
+            border-left: 4px solid #569cd6; 
+            margin: 1em 0; 
+            padding: 0.5em 1em;
+            background: #252526;
+            color: #9cdcfe;
+        }
+        table { 
+            border-collapse: collapse; 
+            width: 100%; 
+            margin: 1em 0;
+        }
+        th, td { 
+            border: 1px solid #3c3c3c; 
+            padding: 8px 12px; 
+            text-align: left;
+        }
+        th { background: #2d2d2d; color: #569cd6; }
+        tr:nth-child(even) { background: #252526; }
+        img { max-width: 100%; height: auto; }
+        hr { border: none; border-top: 1px solid #3c3c3c; margin: 2em 0; }
+        ul, ol { padding-left: 1.5em; }
+        li { margin: 0.3em 0; }
+        .nav-link { 
+            display: inline-block; 
+            background: #2d2d2d; 
+            padding: 4px 10px; 
+            border-radius: 4px; 
+            margin: 2px;
+            border: 1px solid #3c3c3c;
+        }
+        .file-header {
+            background: #252526;
+            padding: 10px 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border: 1px solid #3c3c3c;
+            font-size: 12px;
+            color: #888;
+        }
+    </style>
+    '''
+    
+    # Create ZIP in memory
+    zip_buffer = io.BytesIO()
+    
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+        md_files = []
+        md_folders = set()
+        
+        # Find all .md files
+        for root, dirs, files in os.walk(VAULT_PATH):
+            dirs[:] = [d for d in dirs if not d.startswith('.')]
+            
+            for fname in files:
+                if fname.endswith('.md') and not fname.startswith('.'):
+                    full_path = os.path.join(root, fname)
+                    rel_path = os.path.relpath(full_path, VAULT_PATH)
+                    md_files.append((full_path, rel_path))
+                    
+                    # Track folders that have .md files
+                    folder = os.path.dirname(rel_path)
+                    while folder:
+                        md_folders.add(folder)
+                        folder = os.path.dirname(folder)
+        
+        # Convert each .md file to HTML and add to ZIP
+        for full_path, rel_path in md_files:
+            try:
+                with open(full_path, 'r', encoding='utf-8') as f:
+                    md_content = f.read()
+                
+                # Convert markdown to HTML
+                html_body = markdown.markdown(
+                    md_content,
+                    extensions=['tables', 'fenced_code', 'codehilite', 'toc']
+                )
+                
+                # Convert wiki links to relative HTML links
+                current_dir = os.path.dirname(rel_path)
+                
+                def convert_wiki_link(match):
+                    inner = match.group(1)
+                    if '|' in inner:
+                        link_part, display = inner.split('|', 1)
+                    else:
+                        link_part = inner
+                        display = inner.split('/')[-1]
+                    
+                    # Remove heading anchors for file path
+                    if '#' in link_part:
+                        link_part = link_part.split('#')[0]
+                    
+                    # Find the target file
+                    target_path = None
+                    link_normalized = link_part.replace(' ', '_')
+                    
+                    # Search for matching file
+                    for fp, rp in md_files:
+                        rp_normalized = rp.replace(' ', '_').rsplit('.', 1)[0]
+                        # Match by full path or just filename
+                        if rp_normalized == link_normalized or rp_normalized.endswith('/' + link_normalized) or os.path.basename(rp_normalized) == link_normalized:
+                            target_path = rp.rsplit('.', 1)[0] + '.html'
+                            break
+                    
+                    if target_path:
+                        # Calculate relative path from current file to target
+                        target_path = target_path.replace(' ', '_')
+                        if current_dir:
+                            # Go up from current dir and then to target
+                            rel_link = os.path.relpath(target_path, current_dir)
+                        else:
+                            rel_link = target_path
+                        html_link = rel_link.replace('\\', '/')
+                    else:
+                        # File not found, use the link as-is
+                        html_link = link_normalized + '.html'
+                    
+                    return f'<a href="{html_link}" class="nav-link">{display}</a>'
+                
+                html_body = re.sub(r'\[\[([^\]]+)\]\]', convert_wiki_link, html_body)
+                
+                # Build full HTML document
+                title = os.path.splitext(os.path.basename(rel_path))[0]
+                html_content = f'''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{title}</title>
+    {css_content}
+</head>
+<body>
+    <div class="file-header">📄 {rel_path}</div>
+    {html_body}
+</body>
+</html>'''
+                
+                # Add to ZIP with .html extension
+                html_path = rel_path.rsplit('.', 1)[0] + '.html'
+                zf.writestr(html_path, html_content.encode('utf-8'))
+                
+            except Exception as e:
+                print(f"Error processing {rel_path}: {e}")
+                continue
+        
+        # Create index.html with links to all files
+        index_html = f'''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EWADIS Offline Index</title>
+    {css_content}
+</head>
+<body>
+    <h1>📚 EWADIS Offline Index</h1>
+    <p>Generated: {datetime.now().strftime("%Y-%m-%d %H:%M")}</p>
+    <p>Total files: {len(md_files)}</p>
+    <hr>
+    <h2>📁 Files</h2>
+    <ul>
+'''
+        # Group files by folder
+        files_by_folder = {}
+        for full_path, rel_path in sorted(md_files, key=lambda x: x[1].lower()):
+            folder = os.path.dirname(rel_path) or 'Root'
+            if folder not in files_by_folder:
+                files_by_folder[folder] = []
+            files_by_folder[folder].append(rel_path)
+        
+        for folder in sorted(files_by_folder.keys()):
+            index_html += f'<li><strong>📁 {folder}</strong><ul>'
+            for rel_path in files_by_folder[folder]:
+                html_path = rel_path.rsplit('.', 1)[0] + '.html'
+                name = os.path.basename(rel_path).rsplit('.', 1)[0]
+                index_html += f'<li><a href="{html_path}">{name}</a></li>'
+            index_html += '</ul></li>'
+        
+        index_html += '''
+    </ul>
+</body>
+</html>'''
+        
+        zf.writestr('index.html', index_html.encode('utf-8'))
+    
+    zip_buffer.seek(0)
+    
+    return Response(
+        zip_buffer.getvalue(),
+        mimetype='application/zip',
+        headers={'Content-Disposition': 'attachment; filename=EWADIS_Offline.zip'}
+    )
+
+
+@app.route('/api/sync-metadata', methods=['POST'])
+def api_sync_metadata():
+    """Sync metadata from obsidian-viewer-meta.json to file frontmatter and update index tables"""
+    try:
+        import subprocess
+        
+        # Scripts location
+        scripts_dir = os.path.expanduser('~/clawd/scripts')
+        
+        # Run sync-obsidian-meta to sync JSON metadata to file frontmatter
+        result1 = subprocess.run(
+            ['python3', os.path.join(scripts_dir, 'sync-obsidian-meta')],
+            capture_output=True, text=True, timeout=30
+        )
+        
+        # Run update-index-tables to update the MD Files Index
+        result2 = subprocess.run(
+            ['python3', os.path.join(scripts_dir, 'update-index-tables')],
+            capture_output=True, text=True, timeout=30
+        )
+        
+        # Rebuild file cache to pick up any frontmatter changes
+        build_file_cache()
+        
+        return jsonify({
+            'success': True,
+            'sync_output': result1.stdout + result1.stderr,
+            'update_output': result2.stdout + result2.stderr
+        })
+    except subprocess.TimeoutExpired:
+        return jsonify({'success': False, 'error': 'Script timed out'}), 500
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 

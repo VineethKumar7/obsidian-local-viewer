@@ -9,47 +9,51 @@ A lightweight Python server that renders your markdown files beautifully in any 
 
 ## ✨ Features
 
-- 📁 **Folder tree navigation** — Browse your entire vault structure with collapsible folders
-- 📄 **Beautiful markdown rendering** — Headers, code blocks, tables, lists, blockquotes, LaTeX math
-- ✏️ **Apple Pencil annotations** — Draw, highlight, and annotate directly on markdown and PDFs
-- 📕 **PDF support** — Full PDF.js viewer with zoom controls (works great on iPad!)
-- 🎬 **Video playback** — Watch videos with Plyr.js player (YouTube-style controls)
-- 🖼️ **Image support** — PNG, JPG, GIF, WebP displayed inline
-- 📱 **Mobile-friendly** — Responsive design optimized for tablets
-- 🔒 **Local only** — Your notes never leave your network
-- ⚡ **Fast & lightweight** — No heavy dependencies
+### 📁 Navigation & Viewing
+- **Folder tree navigation** — Browse your entire vault structure with collapsible folders
+- **Beautiful markdown rendering** — Headers, code blocks, tables, lists, blockquotes, LaTeX math
+- **Wiki-link support** — `[[links]]` rendered as clickable navigation
+- **Dark theme** — Easy on the eyes for extended study sessions
 
-## ✏️ Annotation Features
-
-Perfect for studying on iPad with Apple Pencil:
-
+### ✏️ Annotations (iPad/Apple Pencil)
 - **Pen tool** — Write notes with pressure-sensitive strokes
 - **Highlighter** — Semi-transparent highlighting
 - **Eraser** — Remove mistakes
 - **Color palette** — Multiple colors to choose from
-- **Stroke size slider** — Adjust pen thickness with live preview
-- **Undo/Redo** — Fix mistakes easily
-- **Auto-save** — Annotations saved automatically to `annotations/` folder
-- **Palm rejection** — Rest your hand while writing
+- **Auto-save** — Annotations saved automatically
 
-### Annotation Keyboard Shortcuts
+### ℹ️ File Metadata
+- **Info button** — Track study progress per file
+- **Completed checkbox** — Mark files as done ✅
+- **Revision count** — Track how many times you've reviewed
+- **Summary fields** — Add quick notes and detailed summaries
+- **Stored in JSON** — Easy to backup, git-trackable
 
-| Key | Action |
-|-----|--------|
-| `P` | Pen tool |
-| `H` | Highlighter |
-| `E` | Eraser |
-| `Ctrl+Z` | Undo |
-| `Ctrl+Y` | Redo |
-| `Esc` | Exit annotation mode |
+### 🔄 Sync to Index
+- **Sync button** — Update index tables with metadata
+- **Frontmatter sync** — Metadata synced to file YAML frontmatter
+- **Index table updates** — Done/🔄 columns updated automatically
+
+### 📥 Download for Offline
+- **One-click ZIP download** — All markdown files as HTML
+- **Same folder structure** — Navigate offline just like online
+- **CSS embedded** — Dark theme rendered offline
+- **Wiki links converted** — Internal links work in offline HTML
+- **Auto-generated index.html** — Master navigation page
+- **No HTTPS required** — Works on any network
+
+### 📕 Media Support
+- **PDF viewer** — Full PDF.js with zoom controls
+- **Video playback** — Plyr.js player (YouTube-style controls)
+- **Images** — PNG, JPG, GIF, WebP displayed inline
 
 ## 🎯 Who Is This For?
 
-- **Students** who want to study and annotate notes on a tablet
-- **Writers** who want to read and markup their drafts on a different device
-- **Anyone with an Obsidian vault** who wants easy access from other devices on their WiFi
-- **People who don't want to pay for Obsidian Sync** but still want multi-device access at home
-- **iPad users** who want to annotate PDFs and notes with Apple Pencil
+- **Students** studying for exams who want to annotate notes on iPad
+- **Learners** tracking study progress with completion checkboxes
+- **Anyone with an Obsidian vault** wanting easy multi-device access
+- **People who need offline access** to their notes (train, plane, etc.)
+- **iPad users** who want to annotate PDFs with Apple Pencil
 
 ## 📦 Installation
 
@@ -67,12 +71,6 @@ cd obsidian-local-viewer
 
 # Install dependencies
 pip install -r requirements.txt
-```
-
-### Manual Install
-
-```bash
-pip install flask markdown
 ```
 
 ## 🚀 Usage
@@ -94,13 +92,9 @@ python app.py ~/Documents/MyVault --port 8080
 
 # Restrict to localhost only (no network access)
 python app.py ~/Documents/MyVault --host 127.0.0.1
-```
 
-### Using Environment Variable
-
-```bash
-export OBSIDIAN_VAULT_PATH=~/Documents/MyVault
-python app.py
+# Enable HTTPS (for PWA features)
+python app.py ~/Documents/MyVault --ssl
 ```
 
 ## 📱 Accessing from Other Devices
@@ -109,7 +103,6 @@ python app.py
 2. Note the **Network URL** shown (e.g., `http://192.168.1.100:5000`)
 3. Open that URL on your tablet/phone (must be on the same WiFi network)
 4. Browse and read your notes!
-5. Click ✏️ **Annotate** to draw with Apple Pencil
 
 ```
 ╔══════════════════════════════════════════════════════╗
@@ -118,100 +111,107 @@ python app.py
 ║  Vault: MyVault                                      ║
 ║  Local:   http://localhost:5000                      ║
 ║  Network: http://192.168.1.100:5000                  ║
+╠══════════════════════════════════════════════════════╣
+║  Keyboard Shortcuts:                                 ║
+║    Ctrl+B  — Toggle sidebar                          ║
+║    F11     — Fullscreen                              ║
+║    Esc     — Show sidebar                            ║
 ╚══════════════════════════════════════════════════════╝
+```
+
+## 🔧 Toolbar Buttons
+
+| Button | Function |
+|--------|----------|
+| 📥 **PDF** | Download current page as PDF |
+| ✏️ **Annotate** | Enter annotation mode (Apple Pencil) |
+| ℹ️ **Info** | View/edit file metadata |
+| 🔄 **Sync** | Sync metadata to index tables |
+| ⛶ | Toggle fullscreen |
+
+## 📥 Offline Download
+
+Click **"Download for Offline"** in the sidebar to get a ZIP file with:
+
+```
+EWADIS_Offline.zip
+├── index.html              ← Master navigation page
+├── Diagrams/
+│   ├── Domain_Model.html
+│   └── Subtopics/
+│       └── Association_vs_Aggregation.html
+├── Lecture_Notes/
+│   ├── Lecture_1.html
+│   └── Lecture_2.html
+└── ...
+```
+
+- All `.md` files converted to `.html`
+- Dark theme CSS embedded
+- Wiki links (`[[]]`) converted to relative HTML links
+- Works completely offline in any browser
+
+## 📁 File Metadata Storage
+
+Metadata is stored in `obsidian-viewer-meta.json` at vault root:
+
+```json
+{
+  "Notes/lecture1.md": {
+    "completed": true,
+    "revision_count": 3,
+    "summary": "Key concepts covered",
+    "created_date": "2024-01-15"
+  }
+}
 ```
 
 ## 🔧 Command Line Options
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `vault_path` | Path to your Obsidian vault or markdown folder | Required |
+| `vault_path` | Path to your Obsidian vault | Required |
 | `--port`, `-p` | Port to run the server on | 5000 |
-| `--host`, `-H` | Host to bind to (`0.0.0.0` for network, `127.0.0.1` for local only) | 0.0.0.0 |
+| `--host`, `-H` | Host to bind to | 0.0.0.0 |
+| `--ssl` | Enable HTTPS with self-signed cert | Off |
 
 ## 📁 Supported File Types
 
 | Type | Extension | How it's displayed |
 |------|-----------|-------------------|
-| Markdown | `.md` | Rendered as formatted HTML with annotation support |
-| PDF | `.pdf` | PDF.js viewer with zoom and annotation support |
-| Video | `.mp4`, `.mkv`, `.avi`, `.mov`, `.webm` | Plyr.js video player |
-| Images | `.png`, `.jpg`, `.jpeg`, `.gif`, `.webp` | Displayed inline |
-| Text | `.txt` | Shown as plain text |
+| Markdown | `.md` | Rendered as formatted HTML |
+| PDF | `.pdf` | PDF.js viewer with zoom |
+| Video | `.mp4`, `.mkv`, `.avi`, `.mov`, `.webm` | Plyr.js player |
+| Images | `.png`, `.jpg`, `.gif`, `.webp` | Displayed inline |
 
-## 📂 Annotation Storage
+## ⌨️ Keyboard Shortcuts
 
-Annotations are saved as JSON files in the `annotations/` folder at the root of your vault:
-
-```
-MyVault/
-├── annotations/
-│   ├── Notes_lecture1.md.json
-│   ├── PDFs_textbook.pdf.json
-│   └── ...
-├── Notes/
-│   └── lecture1.md
-└── PDFs/
-    └── textbook.pdf
-```
-
-This makes annotations:
-- ✅ Easy to backup
-- ✅ Git-trackable
-- ✅ Portable with your vault
+| Key | Action |
+|-----|--------|
+| `Ctrl+B` | Toggle sidebar |
+| `F11` | Toggle fullscreen |
+| `Esc` | Show sidebar |
+| `P` | Pen tool (annotation mode) |
+| `H` | Highlighter (annotation mode) |
+| `E` | Eraser (annotation mode) |
+| `Ctrl+Z` | Undo |
+| `Ctrl+Y` | Redo |
 
 ## 🔒 Security Notes
 
-- The server only serves files from the specified vault directory
+- Server only serves files from the specified vault directory
 - Directory traversal attacks are prevented
-- By default, the server is accessible to anyone on your local network
-- Use `--host 127.0.0.1` if you want localhost-only access
-
-## 🛠️ Running as a Service (Optional)
-
-### Linux (systemd)
-
-Create `/etc/systemd/system/obsidian-viewer.service`:
-
-```ini
-[Unit]
-Description=Obsidian Local Viewer
-After=network.target
-
-[Service]
-Type=simple
-User=your-username
-WorkingDirectory=/path/to/obsidian-local-viewer
-ExecStart=/usr/bin/python3 app.py /path/to/your/vault
-Restart=on-failure
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Then:
-
-```bash
-sudo systemctl enable obsidian-viewer
-sudo systemctl start obsidian-viewer
-```
-
-### macOS (launchd)
-
-Create `~/Library/LaunchAgents/com.obsidian-viewer.plist` with appropriate configuration.
+- By default, accessible to anyone on your local network
+- Use `--host 127.0.0.1` for localhost-only access
 
 ## ⚠️ Known Limitations
 
-- **Long PDFs**: Annotation canvas is capped at ~16,000px height due to browser limits. For very long PDFs, annotations work on the first several pages.
-- **No sync**: Annotations are local to the server machine. Access from multiple devices shows the same annotations (stored on server).
+- **Long PDFs**: Annotation canvas capped at ~16,000px height due to browser limits
+- **No cloud sync**: Annotations are local to the server machine
 
 ## 🤝 Contributing
 
-Contributions are welcome! Feel free to:
-
-- Report bugs
-- Suggest features
-- Submit pull requests
+Contributions welcome! Feel free to report bugs, suggest features, or submit PRs.
 
 ## 📄 License
 
@@ -220,11 +220,11 @@ MIT License — feel free to use this however you want.
 ## 🙏 Acknowledgments
 
 - Built for the [Obsidian](https://obsidian.md/) community
-- Uses [Flask](https://flask.palletsprojects.com/) for the web server
-- Uses [Python-Markdown](https://python-markdown.github.io/) for rendering
-- Uses [PDF.js](https://mozilla.github.io/pdf.js/) for PDF viewing
-- Uses [Plyr](https://plyr.io/) for video playback
-- Uses [MathJax](https://www.mathjax.org/) for LaTeX rendering
+- [Flask](https://flask.palletsprojects.com/) for the web server
+- [Python-Markdown](https://python-markdown.github.io/) for rendering
+- [PDF.js](https://mozilla.github.io/pdf.js/) for PDF viewing
+- [Plyr](https://plyr.io/) for video playback
+- [MathJax](https://www.mathjax.org/) for LaTeX rendering
 
 ---
 
