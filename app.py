@@ -72,7 +72,47 @@ def find_file_in_vault(link_text):
     return None
 
 def convert_obsidian_links(html_content, current_file_dir=""):
-    """Convert Obsidian [[wiki-links]] to HTML links"""
+    """Convert Obsidian [[wiki-links]] and ![[embeds]] to HTML"""
+    
+    # First handle image/file embeds: ![[filename]]
+    def replace_embed(match):
+        inner = match.group(1)
+        
+        # Handle display text: ![[image.png|alt text]]
+        if '|' in inner:
+            link_part, alt_text = inner.split('|', 1)
+        else:
+            link_part = inner
+            alt_text = inner
+        
+        # Find the file
+        file_path = find_file_in_vault(link_part)
+        
+        # Try relative path if not found
+        if not file_path and current_file_dir:
+            relative_path = os.path.join(current_file_dir, link_part)
+            relative_path = os.path.normpath(relative_path)
+            file_path = find_file_in_vault(relative_path)
+        
+        if file_path:
+            ext = link_part.lower().rsplit('.', 1)[-1] if '.' in link_part else ''
+            
+            # Image embeds
+            if ext in ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp']:
+                return f'<img src="/raw/{file_path}" alt="{alt_text}" style="max-width: 100%; cursor: zoom-in;" onclick="openLightbox(this.src)">'
+            
+            # PDF embeds
+            elif ext == 'pdf':
+                return f'<a href="/view/{file_path}" class="internal-link">📄 {alt_text}</a>'
+            
+            # Other files
+            else:
+                return f'<a href="/view/{file_path}" class="internal-link">{alt_text}</a>'
+        else:
+            return f'<span class="broken-link" title="File not found: {link_part}">![[{inner}]]</span>'
+    
+    # Handle ![[...]] embed patterns
+    html_content = re.sub(r'!\[\[([^\]]+)\]\]', replace_embed, html_content)
     
     def replace_link(match):
         full_match = match.group(0)
