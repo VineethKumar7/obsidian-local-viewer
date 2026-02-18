@@ -3763,7 +3763,10 @@ def view_file(filepath):
         with open(full_path, 'r', encoding='utf-8') as f:
             md_content = f.read()
         
-        # Parse YAML frontmatter for metadata display
+        # Get metadata from JSON (info panel saves here) - takes priority
+        json_meta = get_file_metadata(filepath)
+        
+        # Parse YAML frontmatter as fallback
         frontmatter_meta = {'completed': False, 'revision_count': 0}
         if md_content.startswith('---'):
             parts = md_content.split('---', 2)
@@ -3777,6 +3780,12 @@ def view_file(filepath):
                 except:
                     pass
                 md_content = parts[2]
+        
+        # Merge: JSON metadata takes priority over frontmatter
+        display_meta = {
+            'completed': json_meta.get('completed', frontmatter_meta['completed']),
+            'revision_count': json_meta.get('revision_count', frontmatter_meta['revision_count'])
+        }
         
         # Convert Obsidian callouts before markdown processing
         md_content = convert_obsidian_callouts(md_content)
@@ -3797,9 +3806,9 @@ def view_file(filepath):
         current_dir = os.path.dirname(filepath)
         html_content = convert_obsidian_links(html_content, current_dir)
         
-        # Add title with metadata badges
-        completed_badge = '<span class="meta-badge completed" title="Completed">✅ Completed</span>' if frontmatter_meta['completed'] else '<span class="meta-badge incomplete" title="Not completed">📝 In Progress</span>'
-        revision_badge = f'<span class="meta-badge revision" title="Revision count">🔄 Rev {frontmatter_meta["revision_count"]}</span>' if frontmatter_meta['revision_count'] > 0 else ''
+        # Add title with metadata badges (uses merged metadata: JSON > frontmatter)
+        completed_badge = '<span class="meta-badge completed" title="Completed">✅ Completed</span>' if display_meta['completed'] else '<span class="meta-badge incomplete" title="Not completed">📝 In Progress</span>'
+        revision_badge = f'<span class="meta-badge revision" title="Revision count">🔄 Rev {display_meta["revision_count"]}</span>' if display_meta['revision_count'] > 0 else ''
         title_html = f'<div class="title-with-meta"><h1>{filename.replace(".md", "")}</h1><div class="meta-badges">{completed_badge}{revision_badge}</div></div>'
         
         return render_template_string(
