@@ -1,0 +1,435 @@
+{
+  "ips": {
+    "192.168.178.34": {
+      "first_seen": "2026-02-17 16:24:50",
+      "last_seen": "2026-02-17 21:54:13",
+      "count": 68,
+      "paths": [
+        "/api/annotations/Diagrams Rules/Subtopics/Association_vs_Aggregation.md",
+        "/view/Diagrams Rules/Graph_Schema.md",
+        "/api/annotations/Diagrams Rules/Graph_Schema.md",
+        "/view/Diagrams Rules/Domain_Content_Model.md",
+        "/api/annotations/Diagrams Rules/Domain_Content_Model.md",
+        "/view/Assignments/My submission/Professor solution/assignment01Description_Domain Model.jpg",
+        "/api/metadata/Diagrams Rules/Graph_Schema.md",
+        "/view/Diagrams Rules/Navigation_Model.md",
+        "/raw/Diagrams Rules/uwe_stereotype_icons.jpg",
+        "/api/annotations/Diagrams Rules/Navigation_Model.md"
+      ]
+    },
+    "192.168.178.23": {
+      "first_seen": "2026-02-17 16:26:18",
+      "last_seen": "2026-02-17 21:14:03",
+      "count": 12,
+      "paths": [
+        "/manifest.json",
+        "/view/Diagrams/Graph_Schema.md",
+        "/view/Practice Materials/Neo4j Examples/Neo4j_Scripts_Guide.md",
+        "/view/Diagrams Rules/Navigation_Model.md",
+        "/raw/Diagrams Rules/uwe_stereotype_icons.jpg"
+      ]
+    }
+  },
+  "recent": [
+    {
+      "ip": "192.168.178.34",
+      "path": "/api/access-log",
+      "time": "2026-02-17 16:24:50"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/view/Past Exams/Papers/EWADIS _exam-sample-pages/Q2a_CBS_Domain_Model.md",
+      "time": "2026-02-17 16:25:05"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/raw/Past Exams/Papers/EWADIS _exam-sample-pages/cbs_domain_model_solution.png",
+      "time": "2026-02-17 16:25:05"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/api/annotations/Past Exams/Papers/EWADIS _exam-sample-pages/Q2a_CBS_Domain_Model.md",
+      "time": "2026-02-17 16:25:06"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/api/access-log",
+      "time": "2026-02-17 16:25:08"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/api/access-log",
+      "time": "2026-02-17 16:25:45"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/manifest.json",
+      "time": "2026-02-17 16:26:18"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/view/Diagrams/Graph_Schema.md",
+      "time": "2026-02-17 16:26:22"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/view/Diagrams Rules/Subtopics/Association_vs_Aggregation.md",
+      "time": "2026-02-17 16:26:31"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/api/annotations/Diagrams Rules/Subtopics/Association_vs_Aggregation.md",
+      "time": "2026-02-17 16:26:31"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/manifest.json",
+      "time": "2026-02-17 16:26:40"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/view/Practice Materials/Neo4j Examples/Neo4j_Scripts_Guide.md",
+      "time": "2026-02-17 16:26:46"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/manifest.json",
+      "time": "2026-02-17 16:26:47"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/api/access-log",
+      "time": "2026-02-17 16:26:52"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/view/Diagrams Rules/Graph_Schema.md",
+      "time": "2026-02-17 16:33:17"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/api/annotations/Diagrams Rules/Graph_Schema.md",
+      "time": "2026-02-17 16:33:18"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/api/access-log",
+      "time": "2026-02-17 16:36:53"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/view/Diagrams Rules/Graph_Schema.md",
+      "time": "2026-02-17 16:42:40"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/api/annotations/Diagrams Rules/Graph_Schema.md",
+      "time": "2026-02-17 16:42:41"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/view/Diagrams Rules/Graph_Schema.md",
+      "time": "2026-02-17 16:45:42"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/view/Diagrams Rules/Graph_Schema.md",
+      "time": "2026-02-17 17:00:17"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/api/annotations/Diagrams Rules/Graph_Schema.md",
+      "time": "2026-02-17 17:00:18"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/view/Diagrams Rules/Graph_Schema.md",
+      "time": "2026-02-17 17:01:31"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/api/annotations/Diagrams Rules/Graph_Schema.md",
+      "time": "2026-02-17 17:01:31"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/view/Diagrams Rules/Graph_Schema.md",
+      "time": "2026-02-17 17:04:31"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/api/annotations/Diagrams Rules/Graph_Schema.md",
+      "time": "2026-02-17 17:04:31"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/view/Diagrams Rules/Graph_Schema.md",
+      "time": "2026-02-17 17:06:29"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/api/annotations/Diagrams Rules/Graph_Schema.md",
+      "time": "2026-02-17 17:06:30"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/view/Diagrams Rules/Graph_Schema.md",
+      "time": "2026-02-17 17:09:39"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/api/annotations/Diagrams Rules/Graph_Schema.md",
+      "time": "2026-02-17 17:09:39"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/view/Diagrams Rules/Graph_Schema.md",
+      "time": "2026-02-17 17:23:44"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/api/annotations/Diagrams Rules/Graph_Schema.md",
+      "time": "2026-02-17 17:23:44"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/api/access-log",
+      "time": "2026-02-17 17:28:13"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/view/Diagrams Rules/Graph_Schema.md",
+      "time": "2026-02-17 17:28:53"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/api/annotations/Diagrams Rules/Graph_Schema.md",
+      "time": "2026-02-17 17:28:53"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/view/Diagrams Rules/Graph_Schema.md",
+      "time": "2026-02-17 17:31:17"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/api/annotations/Diagrams Rules/Graph_Schema.md",
+      "time": "2026-02-17 17:31:18"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/view/Diagrams Rules/Graph_Schema.md",
+      "time": "2026-02-17 17:33:06"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/api/annotations/Diagrams Rules/Graph_Schema.md",
+      "time": "2026-02-17 17:33:07"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/view/Diagrams Rules/Graph_Schema.md",
+      "time": "2026-02-17 17:34:42"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/api/annotations/Diagrams Rules/Graph_Schema.md",
+      "time": "2026-02-17 17:34:43"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/view/Diagrams Rules/Graph_Schema.md",
+      "time": "2026-02-17 17:36:15"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/api/annotations/Diagrams Rules/Graph_Schema.md",
+      "time": "2026-02-17 17:36:16"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/view/Diagrams Rules/Graph_Schema.md",
+      "time": "2026-02-17 17:39:00"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/api/annotations/Diagrams Rules/Graph_Schema.md",
+      "time": "2026-02-17 17:39:00"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/view/Diagrams Rules/Graph_Schema.md",
+      "time": "2026-02-17 18:02:21"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/api/annotations/Diagrams Rules/Graph_Schema.md",
+      "time": "2026-02-17 18:02:22"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/view/Diagrams Rules/Graph_Schema.md",
+      "time": "2026-02-17 18:10:30"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/api/annotations/Diagrams Rules/Graph_Schema.md",
+      "time": "2026-02-17 18:10:31"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/view/Diagrams Rules/Graph_Schema.md",
+      "time": "2026-02-17 18:18:17"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/api/annotations/Diagrams Rules/Graph_Schema.md",
+      "time": "2026-02-17 18:18:18"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/view/Diagrams Rules/Graph_Schema.md",
+      "time": "2026-02-17 18:27:57"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/api/annotations/Diagrams Rules/Graph_Schema.md",
+      "time": "2026-02-17 18:27:58"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/view/Diagrams Rules/Graph_Schema.md",
+      "time": "2026-02-17 18:36:27"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/api/annotations/Diagrams Rules/Graph_Schema.md",
+      "time": "2026-02-17 18:36:28"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/view/Diagrams Rules/Graph_Schema.md",
+      "time": "2026-02-17 18:46:04"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/api/annotations/Diagrams Rules/Graph_Schema.md",
+      "time": "2026-02-17 18:46:04"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/view/Diagrams Rules/Domain_Content_Model.md",
+      "time": "2026-02-17 19:12:05"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/api/annotations/Diagrams Rules/Domain_Content_Model.md",
+      "time": "2026-02-17 19:12:05"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/view/Assignments/My submission/Professor solution/assignment01Description_Domain Model.jpg",
+      "time": "2026-02-17 19:25:39"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/view/Diagrams Rules/Graph_Schema.md",
+      "time": "2026-02-17 19:38:08"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/api/annotations/Diagrams Rules/Graph_Schema.md",
+      "time": "2026-02-17 19:38:09"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/view/Diagrams Rules/Graph_Schema.md",
+      "time": "2026-02-17 19:44:43"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/api/annotations/Diagrams Rules/Graph_Schema.md",
+      "time": "2026-02-17 19:44:44"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/api/metadata/Diagrams Rules/Graph_Schema.md",
+      "time": "2026-02-17 19:48:55"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/api/metadata/Diagrams Rules/Graph_Schema.md",
+      "time": "2026-02-17 19:49:00"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/view/Practice Materials/Neo4j Examples/Neo4j_Scripts_Guide.md",
+      "time": "2026-02-17 20:14:24"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/manifest.json",
+      "time": "2026-02-17 20:14:26"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/view/Diagrams Rules/Navigation_Model.md",
+      "time": "2026-02-17 20:16:04"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/manifest.json",
+      "time": "2026-02-17 20:16:05"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/view/Diagrams Rules/Navigation_Model.md",
+      "time": "2026-02-17 21:14:03"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/raw/Diagrams Rules/uwe_stereotype_icons.jpg",
+      "time": "2026-02-17 21:14:03"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/manifest.json",
+      "time": "2026-02-17 21:14:03"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/view/Diagrams Rules/Graph_Schema.md",
+      "time": "2026-02-17 21:47:51"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/api/annotations/Diagrams Rules/Graph_Schema.md",
+      "time": "2026-02-17 21:47:51"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/view/Diagrams Rules/Navigation_Model.md",
+      "time": "2026-02-17 21:48:08"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/raw/Diagrams Rules/uwe_stereotype_icons.jpg",
+      "time": "2026-02-17 21:48:08"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/api/annotations/Diagrams Rules/Navigation_Model.md",
+      "time": "2026-02-17 21:48:08"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/view/Diagrams Rules/Navigation_Model.md",
+      "time": "2026-02-17 21:54:13"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/raw/Diagrams Rules/uwe_stereotype_icons.jpg",
+      "time": "2026-02-17 21:54:13"
+    }
+  ]
+}

@@ -4,6 +4,7 @@ Obsidian Local Viewer - View your Obsidian vault from any device on your network
 """
 
 from flask import Flask, render_template_string, send_file, abort, redirect, url_for, Response, request, jsonify
+from datetime import datetime
 import os
 import sys
 import re
@@ -18,6 +19,64 @@ app = Flask(__name__)
 
 # Will be set via command line or environment variable
 VAULT_PATH = None
+
+# ===== IP ACCESS LOGGING =====
+ACCESS_LOG_FILE = os.path.expanduser('~/clawd/obsidian-viewer/access_log.json')
+_access_log = {'ips': {}, 'recent': []}
+
+def load_access_log():
+    """Load access log from file"""
+    global _access_log
+    try:
+        if os.path.exists(ACCESS_LOG_FILE):
+            with open(ACCESS_LOG_FILE, 'r') as f:
+                _access_log = json.load(f)
+    except:
+        _access_log = {'ips': {}, 'recent': []}
+
+def save_access_log():
+    """Save access log to file"""
+    try:
+        with open(ACCESS_LOG_FILE, 'w') as f:
+            json.dump(_access_log, f, indent=2)
+    except:
+        pass
+
+@app.before_request
+def log_request_ip():
+    """Log IP address for each request"""
+    # Skip static files and API calls for cleaner logs
+    if request.path.startswith('/static') or request.path == '/favicon.ico':
+        return
+    
+    ip = request.remote_addr
+    # Handle proxy headers
+    if request.headers.get('X-Forwarded-For'):
+        ip = request.headers.get('X-Forwarded-For').split(',')[0].strip()
+    
+    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    
+    # Update IP stats
+    if ip not in _access_log['ips']:
+        _access_log['ips'][ip] = {'first_seen': timestamp, 'last_seen': timestamp, 'count': 0, 'paths': []}
+    
+    _access_log['ips'][ip]['last_seen'] = timestamp
+    _access_log['ips'][ip]['count'] += 1
+    
+    # Track recent unique paths per IP (last 10)
+    if request.path not in _access_log['ips'][ip]['paths']:
+        _access_log['ips'][ip]['paths'].append(request.path)
+        if len(_access_log['ips'][ip]['paths']) > 10:
+            _access_log['ips'][ip]['paths'] = _access_log['ips'][ip]['paths'][-10:]
+    
+    # Add to recent log (keep last 100)
+    _access_log['recent'].append({'ip': ip, 'path': request.path, 'time': timestamp})
+    if len(_access_log['recent']) > 100:
+        _access_log['recent'] = _access_log['recent'][-100:]
+    
+    # Save periodically (every 10 requests)
+    if sum(d['count'] for d in _access_log['ips'].values()) % 10 == 0:
+        save_access_log()
 
 # Cache for file lookups (populated on first request)
 _file_cache = {}
@@ -159,6 +218,70 @@ def convert_obsidian_links(html_content, current_file_dir=""):
     pattern = r'\[\[([^\]]+)\]\]'
     
     return re.sub(pattern, replace_link, html_content)
+
+def convert_obsidian_callouts(content):
+    """Convert Obsidian callouts to HTML before markdown processing.
+    
+    Supports:
+    - > [!note] Title
+    - > [!warning]+ Expanded by default
+    - > [!tip]- Collapsed by default
+    
+    Note: Callout content is processed through markdown to support tables, 
+    code blocks, and other formatting inside callouts.
+    """
+    lines = content.split('\n')
+    result = []
+    i = 0
+    
+    while i < len(lines):
+        line = lines[i]
+        
+        # Check for callout start: > [!type] or > [!type]+ or > [!type]-
+        callout_match = re.match(r'^>\s*\[!(\w+)\]([+-])?\s*(.*)?$', line)
+        
+        if callout_match:
+            callout_type = callout_match.group(1).lower()
+            collapse_char = callout_match.group(2)  # + or - or None
+            title = callout_match.group(3) or callout_type.capitalize()
+            
+            # Collect callout content (subsequent lines starting with >)
+            content_lines = []
+            i += 1
+            while i < len(lines) and lines[i].startswith('>'):
+                # Remove the > prefix and one optional space
+                content_line = re.sub(r'^>\s?', '', lines[i])
+                content_lines.append(content_line)
+                i += 1
+            
+            # Process callout content through markdown BEFORE wrapping in HTML
+            # This ensures tables, code blocks, etc. inside callouts are rendered
+            callout_md = '\n'.join(content_lines)
+            callout_html = markdown.markdown(
+                callout_md,
+                extensions=['tables', 'fenced_code', 'sane_lists']
+            )
+            
+            if collapse_char:
+                # Collapsible callout
+                open_attr = ' open' if collapse_char == '+' else ''
+                result.append(f'<details class="callout callout-{callout_type}"{open_attr}>')
+                result.append(f'<summary><div class="callout-title">{title}</div></summary>')
+                result.append(f'<div class="callout-content">{callout_html}</div>')
+                result.append('</details>')
+            else:
+                # Non-collapsible callout
+                result.append(f'<div class="callout callout-{callout_type}">')
+                result.append(f'<div class="callout-title">{title}</div>')
+                result.append(f'<div class="callout-content">{callout_html}</div>')
+                result.append('</div>')
+            
+            result.append('')  # Add blank line after callout
+        else:
+            result.append(line)
+            i += 1
+    
+    return '\n'.join(result)
 
 def protect_math_expressions(content):
     """Protect LaTeX math expressions from markdown processing"""
@@ -538,6 +661,178 @@ HTML_TEMPLATE = '''
         .toolbar button.secondary { background: #555; }
         .toolbar button.secondary:hover { background: #444; }
         
+        /* Dark Theme */
+        body.dark-theme {
+            background: #1a1a1a;
+        }
+        body.dark-theme .content-wrapper {
+            background: #1e1e1e;
+        }
+        body.dark-theme .content {
+            background: #252526;
+            color: #d4d4d4;
+        }
+        body.dark-theme .content h1,
+        body.dark-theme .content h2,
+        body.dark-theme .content h3,
+        body.dark-theme .content h4,
+        body.dark-theme .content h5,
+        body.dark-theme .content h6 {
+            color: #e0e0e0;
+        }
+        body.dark-theme .content a {
+            color: #6cb6ff;
+        }
+        body.dark-theme .content a:hover {
+            color: #8fcdff;
+        }
+        body.dark-theme .content code {
+            background: #363636;
+            color: #ce9178;
+        }
+        body.dark-theme .content pre {
+            background: #1e1e1e;
+            border-color: #3c3c3c;
+        }
+        body.dark-theme .content pre code {
+            background: transparent;
+        }
+        body.dark-theme .content blockquote {
+            border-left-color: #555;
+            background: #2d2d2d;
+            color: #b0b0b0;
+        }
+        body.dark-theme .content table {
+            border-color: #3c3c3c;
+        }
+        body.dark-theme .content th {
+            background: #2d2d2d;
+            border-color: #3c3c3c;
+            color: #e0e0e0;
+        }
+        body.dark-theme .content td {
+            border-color: #3c3c3c;
+        }
+        body.dark-theme .content hr {
+            border-color: #3c3c3c;
+        }
+        body.dark-theme .file-path-bar {
+            background: #2d2d2d;
+            border-color: #3c3c3c;
+            color: #b0b0b0;
+        }
+        body.dark-theme .file-path-bar .copy-btn {
+            background: #3c3c3c;
+            color: #d4d4d4;
+        }
+        body.dark-theme .file-path-bar .copy-btn:hover {
+            background: #4a4a4a;
+        }
+        body.dark-theme .metadata-modal-content {
+            background: #252526;
+            color: #d4d4d4;
+        }
+        body.dark-theme .metadata-header {
+            background: #1e1e1e;
+            border-color: #3c3c3c;
+        }
+        body.dark-theme .metadata-footer {
+            background: #1e1e1e;
+            border-color: #3c3c3c;
+        }
+        body.dark-theme .metadata-field input,
+        body.dark-theme .metadata-field textarea {
+            background: #1e1e1e;
+            border-color: #3c3c3c;
+            color: #d4d4d4;
+        }
+        body.dark-theme .metadata-field input:focus,
+        body.dark-theme .metadata-field textarea:focus {
+            border-color: #0066cc;
+        }
+        /* Theme toggle button */
+        .theme-toggle {
+            font-size: 16px !important;
+            padding: 10px 14px !important;
+        }
+        
+        /* Toolbar dropdown menu */
+        .toolbar-menu {
+            position: relative;
+        }
+        .toolbar-menu-btn {
+            background: #0066cc !important;
+            min-width: 44px;
+            justify-content: center;
+        }
+        .toolbar-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            right: 0;
+            margin-top: 8px;
+            background: #2a2a2a;
+            border-radius: 10px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.4);
+            overflow: hidden;
+            min-width: 160px;
+            z-index: 300;
+        }
+        .toolbar-dropdown.show {
+            display: flex;
+            flex-direction: column;
+        }
+        .toolbar-dropdown button {
+            background: transparent;
+            border-radius: 0;
+            box-shadow: none;
+            padding: 12px 16px;
+            justify-content: flex-start;
+            font-size: 14px;
+            border-bottom: 1px solid #3a3a3a;
+        }
+        .toolbar-dropdown button:last-child {
+            border-bottom: none;
+        }
+        .toolbar-dropdown button:hover {
+            background: #3a3a3a;
+            transform: none;
+        }
+        
+        /* Mobile: dropdown appears ABOVE the button */
+        @media screen and (max-width: 768px) {
+            .toolbar-dropdown {
+                top: auto !important;
+                bottom: 100% !important;
+                margin-top: 0 !important;
+                margin-bottom: 8px !important;
+                background: #1e1e1e !important;
+                border: 1px solid #444 !important;
+                border-radius: 10px !important;
+                min-width: 140px !important;
+            }
+            .toolbar-menu .toolbar-dropdown button,
+            .toolbar-dropdown button {
+                background: #1e1e1e !important;
+                color: #fff !important;
+                padding: 10px 14px !important;
+                font-size: 14px !important;
+                border-bottom: 1px solid #333 !important;
+                box-shadow: none !important;
+                display: block !important;
+                text-align: left !important;
+                white-space: nowrap !important;
+                line-height: 1.4 !important;
+            }
+            .toolbar-menu .toolbar-dropdown button:last-child {
+                border-bottom: none !important;
+            }
+            .toolbar-menu .toolbar-dropdown button:hover,
+            .toolbar-menu .toolbar-dropdown button:active {
+                background: #333 !important;
+            }
+        }
+        
         /* Sidebar close button (mobile only) */
         .sidebar-close {
             display: none;
@@ -683,6 +978,44 @@ HTML_TEMPLATE = '''
             border-radius: 0 8px 8px 0;
             color: #555;
         }
+        /* Obsidian Callouts */
+        .callout {
+            border-radius: 8px;
+            margin: 16px 0;
+            padding: 12px 16px;
+            border-left: 4px solid;
+        }
+        .callout-title {
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        .callout-content { margin-top: 8px; }
+        .callout-content p:first-child { margin-top: 0; }
+        .callout-content p:last-child { margin-bottom: 0; }
+        /* Callout types */
+        .callout-note, .callout-info { background: #e7f3ff; border-color: #0066cc; }
+        .callout-note .callout-title, .callout-info .callout-title { color: #0066cc; }
+        .callout-tip, .callout-hint { background: #e6f9ed; border-color: #10b981; }
+        .callout-tip .callout-title, .callout-hint .callout-title { color: #10b981; }
+        .callout-warning, .callout-caution { background: #fff7e6; border-color: #f59e0b; }
+        .callout-warning .callout-title, .callout-caution .callout-title { color: #f59e0b; }
+        .callout-danger, .callout-error { background: #fee2e2; border-color: #dc2626; }
+        .callout-danger .callout-title, .callout-error .callout-title { color: #dc2626; }
+        .callout-question, .callout-help, .callout-faq { background: #faf5ff; border-color: #8b5cf6; }
+        .callout-question .callout-title, .callout-help .callout-title, .callout-faq .callout-title { color: #8b5cf6; }
+        .callout-example { background: #f0f9ff; border-color: #6366f1; }
+        .callout-example .callout-title { color: #6366f1; }
+        .callout-quote { background: #f5f5f5; border-color: #6b7280; }
+        .callout-quote .callout-title { color: #6b7280; }
+        /* Collapsible callouts */
+        details.callout { cursor: pointer; }
+        details.callout summary { list-style: none; }
+        details.callout summary::-webkit-details-marker { display: none; }
+        details.callout summary .callout-title::after { content: '▶'; margin-left: auto; font-size: 12px; transition: transform 0.2s; }
+        details.callout[open] summary .callout-title::after { transform: rotate(90deg); }
         .content a { color: #0066cc; text-decoration: none; }
         .content a:hover { text-decoration: underline; }
         .content a.internal-link { 
@@ -1361,15 +1694,24 @@ HTML_TEMPLATE = '''
     </button>
     
     <div class="toolbar">
-        {% if is_markdown %}
-        <button onclick="downloadPDF()" title="Download as PDF">📥 <span class="btn-text">PDF</span></button>
-        {% endif %}
-        {% if is_markdown or is_pdf|default(false) %}
-        <button onclick="openAnnotation()" title="Annotate with Apple Pencil (draw on content)">✏️ <span class="btn-text">Annotate</span></button>
-        {% endif %}
-        <button onclick="openMetadataModal()" title="File Metadata">ℹ️ <span class="btn-text">Info</span></button>
-        <button onclick="syncMetadata()" title="Sync metadata to index tables">🔄 <span class="btn-text">Sync</span></button>
+        <button class="secondary theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle Dark/Light Theme">🌙</button>
         <button class="secondary" onclick="toggleFullscreen()" title="Toggle Fullscreen">⛶</button>
+        <div class="toolbar-menu">
+            <button class="toolbar-menu-btn" onclick="toggleToolbarMenu(event)" title="More actions">
+                <span style="font-size: 18px; letter-spacing: 2px;">⋮</span>
+            </button>
+            <div class="toolbar-dropdown" id="toolbarDropdown">
+                {% if is_markdown %}
+                <button onclick="downloadPDF(); closeToolbarMenu();" title="Download as PDF">📥 PDF</button>
+                <button onclick="downloadTopicZip(); closeToolbarMenu();" title="Download this page + all linked subpages as ZIP">📦 Topic</button>
+                {% endif %}
+                {% if is_markdown or is_pdf|default(false) %}
+                <button onclick="openAnnotation(); closeToolbarMenu();" title="Annotate with Apple Pencil">✏️ Annotate</button>
+                {% endif %}
+                <button onclick="openMetadataModal(); closeToolbarMenu();" title="File Metadata">ℹ️ Info</button>
+                <button onclick="syncMetadata(); closeToolbarMenu();" title="Sync metadata to index tables">🔄 Sync</button>
+            </div>
+        </div>
     </div>
     
     <!-- Metadata Modal -->
@@ -1810,6 +2152,61 @@ HTML_TEMPLATE = '''
             }
         }
         
+        // ===== THEME TOGGLE =====
+        function toggleTheme() {
+            const body = document.body;
+            const themeToggle = document.getElementById('themeToggle');
+            const isDark = body.classList.toggle('dark-theme');
+            
+            // Update button icon
+            themeToggle.textContent = isDark ? '☀️' : '🌙';
+            themeToggle.title = isDark ? 'Switch to Light Theme' : 'Switch to Dark Theme';
+            
+            // Persist preference
+            localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        }
+        
+        function initTheme() {
+            const savedTheme = localStorage.getItem('theme');
+            const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+            const themeToggle = document.getElementById('themeToggle');
+            
+            // Use saved preference, or fall back to system preference
+            const shouldBeDark = savedTheme === 'dark' || (savedTheme === null && prefersDark);
+            
+            if (shouldBeDark) {
+                document.body.classList.add('dark-theme');
+                if (themeToggle) {
+                    themeToggle.textContent = '☀️';
+                    themeToggle.title = 'Switch to Light Theme';
+                }
+            }
+        }
+        
+        // Initialize theme early to prevent flash
+        initTheme();
+        
+        // ===== TOOLBAR DROPDOWN MENU =====
+        function toggleToolbarMenu(event) {
+            event.stopPropagation();
+            const dropdown = document.getElementById('toolbarDropdown');
+            dropdown.classList.toggle('show');
+        }
+        
+        function closeToolbarMenu() {
+            const dropdown = document.getElementById('toolbarDropdown');
+            if (dropdown) dropdown.classList.remove('show');
+        }
+        
+        // Close dropdown when clicking outside
+        document.addEventListener('click', function(event) {
+            const dropdown = document.getElementById('toolbarDropdown');
+            const menuBtn = event.target.closest('.toolbar-menu-btn');
+            if (!menuBtn && dropdown && dropdown.classList.contains('show')) {
+                dropdown.classList.remove('show');
+            }
+        });
+        
         // ===== TREE STATE PERSISTENCE =====
         // Get unique path for a folder by traversing up to build the path
         function getFolderPath(folderItem) {
@@ -1907,6 +2304,29 @@ HTML_TEMPLATE = '''
             if (currentPath.startsWith('/view/')) {
                 const filepath = currentPath.replace('/view/', '');
                 window.location.href = '/pdf/' + filepath;
+            }
+        }
+        
+        function downloadTopicZip() {
+            const currentPath = window.location.pathname;
+            if (currentPath.startsWith('/view/')) {
+                const filepath = currentPath.replace('/view/', '');
+                // Show loading indicator
+                const btn = event.target.closest('button');
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '⏳ <span class="btn-text">Loading...</span>';
+                btn.disabled = true;
+                
+                // Trigger download
+                const link = document.createElement('a');
+                link.href = '/api/download-topic-zip/' + filepath;
+                link.click();
+                
+                // Reset button after a delay
+                setTimeout(() => {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }, 2000);
             }
         }
         
@@ -2900,6 +3320,146 @@ HTML_TEMPLATE = '''
             lightboxImg.style.cursor = currentZoom > 1 ? 'grab' : 'zoom-out';
         });
         
+        // ===== TOUCH PINCH-TO-ZOOM SUPPORT =====
+        let lastTouchDist = 0;
+        let isTouchPanning = false;
+        let lastTouchPos = { x: 0, y: 0 };
+        let pinchCenter = { x: 0, y: 0 };
+        
+        function getTouchDistance(touches) {
+            if (touches.length < 2) return 0;
+            const dx = touches[0].clientX - touches[1].clientX;
+            const dy = touches[0].clientY - touches[1].clientY;
+            return Math.sqrt(dx * dx + dy * dy);
+        }
+        
+        function getTouchCenter(touches) {
+            if (touches.length < 2) {
+                return { x: touches[0].clientX, y: touches[0].clientY };
+            }
+            return {
+                x: (touches[0].clientX + touches[1].clientX) / 2,
+                y: (touches[0].clientY + touches[1].clientY) / 2
+            };
+        }
+        
+        const lightboxContainer = document.getElementById('imageLightbox');
+        
+        lightboxContainer.addEventListener('touchstart', function(e) {
+            if (!this.classList.contains('active')) return;
+            
+            if (e.touches.length === 2) {
+                // Pinch start
+                e.preventDefault();
+                lastTouchDist = getTouchDistance(e.touches);
+                pinchCenter = getTouchCenter(e.touches);
+                isTouchPanning = false;
+            } else if (e.touches.length === 1) {
+                // Single finger - prepare for pan or double-tap
+                isTouchPanning = true;
+                lastTouchPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            }
+        }, { passive: false });
+        
+        lightboxContainer.addEventListener('touchmove', function(e) {
+            if (!this.classList.contains('active')) return;
+            e.preventDefault();
+            
+            if (e.touches.length === 2) {
+                // Pinch zoom with anchor point
+                const newDist = getTouchDistance(e.touches);
+                const newCenter = getTouchCenter(e.touches);
+                
+                if (lastTouchDist > 0) {
+                    // Dampen the scale to prevent zoom acceleration at high zoom levels
+                    let scale = newDist / lastTouchDist;
+                    // Apply logarithmic dampening - more dampening at higher zoom
+                    const dampening = 0.4 + (0.6 / (1 + currentZoom * 0.3));
+                    scale = 1 + (scale - 1) * dampening;
+                    const newZoom = Math.min(Math.max(currentZoom * scale, 0.5), 5);
+                    
+                    // Zoom toward pinch center
+                    const img = document.getElementById('lightboxImage');
+                    const rect = img.getBoundingClientRect();
+                    const imgCenterX = rect.left + rect.width / 2;
+                    const imgCenterY = rect.top + rect.height / 2;
+                    
+                    // Calculate offset from image center to pinch point
+                    const offsetX = pinchCenter.x - imgCenterX;
+                    const offsetY = pinchCenter.y - imgCenterY;
+                    
+                    // Adjust translation to zoom toward pinch center
+                    const zoomDelta = newZoom / currentZoom;
+                    translateX = translateX * zoomDelta - offsetX * (zoomDelta - 1);
+                    translateY = translateY * zoomDelta - offsetY * (zoomDelta - 1);
+                    
+                    currentZoom = newZoom;
+                    
+                    // Also pan with the pinch movement
+                    translateX += newCenter.x - pinchCenter.x;
+                    translateY += newCenter.y - pinchCenter.y;
+                    
+                    updateImageTransform();
+                }
+                
+                lastTouchDist = newDist;
+                pinchCenter = newCenter;
+                isTouchPanning = false;
+                
+            } else if (e.touches.length === 1 && isTouchPanning) {
+                // Pan with single finger
+                const dx = e.touches[0].clientX - lastTouchPos.x;
+                const dy = e.touches[0].clientY - lastTouchPos.y;
+                translateX += dx;
+                translateY += dy;
+                lastTouchPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+                updateImageTransform();
+            }
+        }, { passive: false });
+        
+        lightboxContainer.addEventListener('touchend', function(e) {
+            if (e.touches.length === 0) {
+                lastTouchDist = 0;
+                
+                // Double-tap to toggle zoom
+                const now = Date.now();
+                const lastTap = this.lastTapTime || 0;
+                if (now - lastTap < 300 && isTouchPanning) {
+                    // Double tap detected - zoom to tap point or reset
+                    if (currentZoom > 1.1) {
+                        currentZoom = 1;
+                        translateX = 0;
+                        translateY = 0;
+                    } else {
+                        // Zoom to the tapped point
+                        const tapX = lastTouchPos.x;
+                        const tapY = lastTouchPos.y;
+                        const img = document.getElementById('lightboxImage');
+                        const rect = img.getBoundingClientRect();
+                        const imgCenterX = rect.left + rect.width / 2;
+                        const imgCenterY = rect.top + rect.height / 2;
+                        
+                        const newZoom = 2.5;
+                        const zoomDelta = newZoom / currentZoom;
+                        const offsetX = tapX - imgCenterX;
+                        const offsetY = tapY - imgCenterY;
+                        
+                        translateX = -offsetX * (zoomDelta - 1);
+                        translateY = -offsetY * (zoomDelta - 1);
+                        currentZoom = newZoom;
+                    }
+                    updateImageTransform();
+                }
+                this.lastTapTime = now;
+                isTouchPanning = false;
+            } else if (e.touches.length === 1) {
+                // Switched from pinch to single finger
+                lastTouchDist = 0;
+                isTouchPanning = true;
+                lastTouchPos = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            }
+        });
+        
         // Keyboard controls
         document.addEventListener('keydown', function(e) {
             const lightbox = document.getElementById('imageLightbox');
@@ -3007,6 +3567,9 @@ def view_file(filepath):
             parts = md_content.split('---', 2)
             if len(parts) >= 3:
                 md_content = parts[2]
+        
+        # Convert Obsidian callouts before markdown processing
+        md_content = convert_obsidian_callouts(md_content)
         
         # Protect math expressions before markdown processing
         md_content, math_placeholders = protect_math_expressions(md_content)
@@ -4269,6 +4832,37 @@ def download_pdf(filepath):
     # Restore math expressions
     html_content = restore_math_expressions(html_content, math_placeholders)
     
+    # Convert Obsidian wikilink images ![[image.png]] to proper <img> tags for PDF
+    current_dir = os.path.dirname(filepath)
+    def replace_embed_pdf(match):
+        inner = match.group(1)
+        # Handle display text: ![[image.png|alt text]]
+        if '|' in inner:
+            link_part, alt_text = inner.split('|', 1)
+        else:
+            link_part = inner
+            alt_text = inner
+        
+        # Find the file - try relative path first
+        relative_path = os.path.join(current_dir, link_part)
+        relative_path = os.path.normpath(relative_path)
+        file_full_path = os.path.join(VAULT_PATH, relative_path)
+        
+        if not os.path.exists(file_full_path):
+            # Try finding in vault
+            found_path = find_file_in_vault(link_part)
+            if found_path:
+                file_full_path = os.path.join(VAULT_PATH, found_path)
+        
+        if os.path.exists(file_full_path):
+            ext = link_part.lower().rsplit('.', 1)[-1] if '.' in link_part else ''
+            if ext in ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp']:
+                # Use file:// protocol for local PDF generation
+                return f'<img src="file://{file_full_path}" alt="{alt_text}" style="max-width: 100%;">'
+        return match.group(0)  # Return original if not found
+    
+    html_content = re.sub(r'!\[\[([^\]]+)\]\]', replace_embed_pdf, html_content)
+    
     # Full HTML document for PDF (with MathJax for equation rendering)
     title = os.path.basename(filepath).replace('.md', '')
     full_html = f'''
@@ -4899,6 +5493,367 @@ def api_download_offline_zip():
     )
 
 
+def find_linked_pages(filepath, visited=None):
+    """Recursively find all wiki-linked pages from a markdown file.
+    
+    Returns a set of (full_path, relative_path) tuples.
+    """
+    if visited is None:
+        visited = set()
+    
+    full_path = os.path.join(VAULT_PATH, filepath)
+    if not os.path.exists(full_path) or filepath in visited:
+        return visited
+    
+    visited.add(filepath)
+    
+    try:
+        with open(full_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+    except:
+        return visited
+    
+    # Find all [[wiki-links]] (excluding embeds ![[...]])
+    # Match [[link]] or [[link|display text]] or [[link#heading]]
+    pattern = r'(?<!!)\[\[([^\]|#]+)(?:#[^\]|]*)?\|?[^\]]*\]\]'
+    matches = re.findall(pattern, content)
+    
+    current_dir = os.path.dirname(filepath)
+    
+    for link in matches:
+        link = link.strip()
+        if not link:
+            continue
+        
+        # Try to resolve the link to an actual file
+        possible_paths = [
+            os.path.join(current_dir, link + '.md'),
+            os.path.join(current_dir, link, link.split('/')[-1] + '.md'),
+            link + '.md',
+            os.path.join(current_dir, link),
+            link
+        ]
+        
+        # Also try with the link as-is if it ends with .md
+        if link.endswith('.md'):
+            possible_paths.insert(0, os.path.join(current_dir, link))
+            possible_paths.insert(1, link)
+        
+        for path in possible_paths:
+            normalized = os.path.normpath(path)
+            full = os.path.join(VAULT_PATH, normalized)
+            if os.path.exists(full) and normalized.endswith('.md'):
+                if normalized not in visited:
+                    find_linked_pages(normalized, visited)
+                break
+    
+    return visited
+
+
+@app.route('/api/download-topic-zip/<path:filepath>')
+def api_download_topic_zip(filepath):
+    """Download current page and all linked subpages as a ZIP file.
+    
+    Unlike the full vault export, this only includes:
+    - The current page
+    - All pages linked from it (recursively)
+    """
+    import zipfile
+    import io
+    from datetime import datetime
+    
+    full_path = os.path.join(VAULT_PATH, filepath)
+    if not os.path.exists(full_path):
+        abort(404, f"File not found: {filepath}")
+    
+    if not filepath.endswith('.md'):
+        abort(400, "Only markdown files can be exported")
+    
+    # Find all linked pages recursively
+    linked_pages = find_linked_pages(filepath)
+    
+    # CSS for embedded HTML (dark theme matching obsidian-viewer)
+    css_content = '''
+    <style>
+        * { box-sizing: border-box; }
+        body { 
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            line-height: 1.6; 
+            max-width: 900px; 
+            margin: 0 auto; 
+            padding: 20px;
+            background: #1e1e1e;
+            color: #d4d4d4;
+        }
+        h1, h2, h3, h4, h5, h6 { color: #569cd6; margin-top: 1.5em; }
+        h1 { border-bottom: 2px solid #3c3c3c; padding-bottom: 0.3em; }
+        h2 { border-bottom: 1px solid #3c3c3c; padding-bottom: 0.2em; }
+        a { color: #4fc1ff; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        code { 
+            background: #2d2d2d; 
+            padding: 2px 6px; 
+            border-radius: 3px; 
+            font-family: 'Fira Code', monospace;
+            color: #ce9178;
+        }
+        pre { 
+            background: #2d2d2d; 
+            padding: 16px; 
+            border-radius: 6px; 
+            overflow-x: auto;
+            border: 1px solid #3c3c3c;
+        }
+        pre code { background: none; padding: 0; }
+        blockquote { 
+            border-left: 4px solid #569cd6; 
+            margin: 1em 0; 
+            padding: 0.5em 1em;
+            background: #252526;
+            color: #9cdcfe;
+        }
+        table { 
+            border-collapse: collapse; 
+            width: 100%; 
+            margin: 1em 0;
+        }
+        th, td { 
+            border: 1px solid #3c3c3c; 
+            padding: 8px 12px; 
+            text-align: left;
+        }
+        th { background: #2d2d2d; color: #569cd6; }
+        tr:nth-child(even) { background: #252526; }
+        img { max-width: 100%; height: auto; }
+        hr { border: none; border-top: 1px solid #3c3c3c; margin: 2em 0; }
+        ul, ol { padding-left: 1.5em; }
+        li { margin: 0.3em 0; }
+        .nav-link { 
+            display: inline-block; 
+            background: #2d2d2d; 
+            padding: 4px 10px; 
+            border-radius: 4px; 
+            margin: 2px;
+            border: 1px solid #3c3c3c;
+        }
+        .file-header {
+            background: #252526;
+            padding: 10px 15px;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            border: 1px solid #3c3c3c;
+            font-size: 12px;
+            color: #888;
+        }
+        .callout {
+            border-left: 4px solid;
+            padding: 12px 16px;
+            margin: 16px 0;
+            border-radius: 0 6px 6px 0;
+        }
+        .callout-title { font-weight: bold; margin-bottom: 8px; }
+        .callout-note, .callout-info { background: #1a3a5c; border-color: #0066cc; }
+        .callout-tip, .callout-hint { background: #1a3c2a; border-color: #10b981; }
+        .callout-warning, .callout-caution { background: #3c2a1a; border-color: #f59e0b; }
+        .callout-danger, .callout-error { background: #3c1a1a; border-color: #dc2626; }
+        .callout-question, .callout-help, .callout-faq { background: #2a1a3c; border-color: #8b5cf6; }
+        .callout-example { background: #1a2a3c; border-color: #6366f1; }
+        .callout-quote { background: #2a2a2a; border-color: #6b7280; }
+        details.callout summary { cursor: pointer; }
+        details.callout summary::-webkit-details-marker { display: none; }
+        details.callout summary::before { content: '▶ '; font-size: 10px; }
+        details.callout[open] summary::before { content: '▼ '; }
+    </style>
+    '''
+    
+    # Create ZIP in memory
+    zip_buffer = io.BytesIO()
+    
+    # Get the topic name from the main file
+    topic_name = os.path.basename(filepath).replace('.md', '')
+    
+    with zipfile.ZipFile(zip_buffer, 'w', zipfile.ZIP_DEFLATED) as zf:
+        converted_files = []
+        
+        for rel_path in sorted(linked_pages):
+            file_full_path = os.path.join(VAULT_PATH, rel_path)
+            
+            try:
+                with open(file_full_path, 'r', encoding='utf-8') as f:
+                    md_content = f.read()
+            except:
+                continue
+            
+            # Strip YAML frontmatter
+            if md_content.startswith('---'):
+                parts = md_content.split('---', 2)
+                if len(parts) >= 3:
+                    md_content = parts[2]
+            
+            # Process through callouts first
+            md_content = convert_obsidian_callouts(md_content)
+            
+            # Protect math expressions
+            md_content, math_placeholders = protect_math_expressions(md_content)
+            
+            # Convert to HTML
+            html_body = markdown.markdown(
+                md_content,
+                extensions=['tables', 'fenced_code', 'toc', 'nl2br', 'sane_lists']
+            )
+            
+            # Restore math
+            html_body = restore_math_expressions(html_body, math_placeholders)
+            
+            # Convert wiki links to relative HTML links within the ZIP
+            def convert_wiki_link(match):
+                inner = match.group(1)
+                # Handle [[link|display]] format
+                if '|' in inner:
+                    link_part, display = inner.split('|', 1)
+                else:
+                    link_part = inner
+                    display = inner.split('/')[-1]  # Use last part as display
+                
+                # Remove heading references for file resolution
+                link_file = link_part.split('#')[0]
+                heading = '#' + link_part.split('#')[1] if '#' in link_part else ''
+                
+                # Find if this file is in our linked pages
+                current_dir = os.path.dirname(rel_path)
+                possible = [
+                    os.path.normpath(os.path.join(current_dir, link_file + '.md')),
+                    os.path.normpath(link_file + '.md'),
+                    os.path.normpath(os.path.join(current_dir, link_file)),
+                    os.path.normpath(link_file)
+                ]
+                
+                for p in possible:
+                    if p in linked_pages:
+                        # Calculate relative path from current file to linked file
+                        current_dir = os.path.dirname(rel_path)
+                        relative_link = os.path.relpath(p, current_dir) if current_dir else p
+                        html_path = relative_link.replace('.md', '.html')
+                        return f'<a href="{html_path}{heading}">{display}</a>'
+                
+                return f'<span class="broken-link">{display}</span>'
+            
+            html_body = re.sub(r'\[\[([^\]]+)\]\]', convert_wiki_link, html_body)
+            
+            # Build full HTML
+            file_name = os.path.basename(rel_path).replace('.md', '')
+            html_content = f'''<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{file_name}</title>
+    {css_content}
+</head>
+<body>
+    <div class="file-header">
+        📄 {rel_path} | Exported: {datetime.now().strftime("%Y-%m-%d %H:%M")}
+    </div>
+    <h1>{file_name.replace('_', ' ')}</h1>
+    {html_body}
+</body>
+</html>'''
+            
+            # Add to ZIP with folder structure preserved
+            html_path = rel_path.replace('.md', '.html')
+            zf.writestr(html_path, html_content.encode('utf-8'))
+            converted_files.append((rel_path, html_path))
+    
+    zip_buffer.seek(0)
+    
+    # Sanitize filename
+    safe_topic = re.sub(r'[^\w\-]', '_', topic_name)
+    zip_filename = f'{safe_topic}_Topic.zip'
+    
+    return Response(
+        zip_buffer.getvalue(),
+        mimetype='application/zip',
+        headers={'Content-Disposition': f'attachment; filename={zip_filename}'}
+    )
+
+
+@app.route('/api/access-log')
+def api_access_log():
+    """View IP access statistics"""
+    # Sort IPs by access count
+    sorted_ips = sorted(
+        _access_log['ips'].items(),
+        key=lambda x: x[1]['count'],
+        reverse=True
+    )
+    
+    html = '''
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <title>Access Log - Obsidian Viewer</title>
+        <style>
+            body { font-family: -apple-system, sans-serif; background: #1e1e1e; color: #d4d4d4; padding: 20px; max-width: 1000px; margin: 0 auto; }
+            h1 { color: #569cd6; }
+            h2 { color: #4ec9b0; margin-top: 30px; }
+            table { width: 100%; border-collapse: collapse; margin: 10px 0; }
+            th, td { padding: 10px; text-align: left; border-bottom: 1px solid #333; }
+            th { background: #2d2d2d; color: #569cd6; }
+            tr:hover { background: #2a2a2a; }
+            .count { color: #f59e0b; font-weight: bold; }
+            .time { color: #888; font-size: 12px; }
+            .path { color: #ce9178; font-size: 12px; }
+            .back { display: inline-block; margin-bottom: 20px; color: #4fc1ff; text-decoration: none; }
+            .back:hover { text-decoration: underline; }
+        </style>
+    </head>
+    <body>
+        <a class="back" href="/">← Back to Viewer</a>
+        <h1>📊 Access Log</h1>
+        
+        <h2>IP Statistics (''' + str(len(_access_log['ips'])) + ''' unique IPs)</h2>
+        <table>
+            <tr><th>IP Address</th><th>Requests</th><th>First Seen</th><th>Last Seen</th><th>Recent Paths</th></tr>
+    '''
+    
+    for ip, data in sorted_ips:
+        paths = ', '.join(data['paths'][-3:]) if data['paths'] else '-'
+        html += f'''
+            <tr>
+                <td>{ip}</td>
+                <td class="count">{data['count']}</td>
+                <td class="time">{data['first_seen']}</td>
+                <td class="time">{data['last_seen']}</td>
+                <td class="path">{paths}</td>
+            </tr>
+        '''
+    
+    html += '''
+        </table>
+        
+        <h2>Recent Requests (last 20)</h2>
+        <table>
+            <tr><th>Time</th><th>IP</th><th>Path</th></tr>
+    '''
+    
+    for entry in reversed(_access_log['recent'][-20:]):
+        html += f'''
+            <tr>
+                <td class="time">{entry['time']}</td>
+                <td>{entry['ip']}</td>
+                <td class="path">{entry['path']}</td>
+            </tr>
+        '''
+    
+    html += '''
+        </table>
+    </body>
+    </html>
+    '''
+    
+    return html
+
+
 @app.route('/api/sync-metadata', methods=['POST'])
 def api_sync_metadata():
     """Sync metadata from obsidian-viewer-meta.json to file frontmatter and update index tables"""
@@ -5182,6 +6137,9 @@ Examples:
     if not os.path.isdir(VAULT_PATH):
         print(f"❌ Error: '{VAULT_PATH}' is not a valid directory")
         sys.exit(1)
+    
+    # Load access log
+    load_access_log()
     
     ip = get_local_ip()
     protocol = "https" if args.ssl else "http"
