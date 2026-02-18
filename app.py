@@ -713,6 +713,12 @@ HTML_TEMPLATE = '''
         body.dark-theme .content td {
             border-color: #3c3c3c;
         }
+        body.dark-theme .content tr:hover {
+            background: #3a3a3a;
+        }
+        body.dark-theme .content tr:hover td {
+            color: #e0e0e0;
+        }
         body.dark-theme .content hr {
             border-color: #3c3c3c;
         }
@@ -1001,6 +1007,59 @@ HTML_TEMPLATE = '''
             padding-bottom: 15px; 
         }
         .content h2 { color: #333; margin: 25px 0 15px; font-size: 1.5em; }
+        
+        /* Title with metadata badges */
+        .title-with-meta {
+            margin-bottom: 20px;
+        }
+        .title-with-meta h1 {
+            margin-bottom: 10px;
+        }
+        .meta-badges {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+        }
+        .meta-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 500;
+        }
+        .meta-badge.completed {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .meta-badge.incomplete {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+        .meta-badge.revision {
+            background: #e7f1ff;
+            color: #004085;
+            border: 1px solid #b8daff;
+        }
+        body.dark-theme .meta-badge.completed {
+            background: #1e3a2f;
+            color: #75d9a0;
+            border-color: #2d5a45;
+        }
+        body.dark-theme .meta-badge.incomplete {
+            background: #3d3520;
+            color: #ffc107;
+            border-color: #5a4f2a;
+        }
+        body.dark-theme .meta-badge.revision {
+            background: #1a2d4a;
+            color: #6cb6ff;
+            border-color: #2a4a6a;
+        }
         .content h3 { color: #444; margin: 20px 0 10px; font-size: 1.25em; }
         .content p { line-height: 1.8; margin: 15px 0; color: #444; font-size: 16px; }
         .content ul, .content ol { margin: 15px 0 15px 30px; }
@@ -3704,10 +3763,19 @@ def view_file(filepath):
         with open(full_path, 'r', encoding='utf-8') as f:
             md_content = f.read()
         
-        # Remove YAML frontmatter if present
+        # Parse YAML frontmatter for metadata display
+        frontmatter_meta = {'completed': False, 'revision_count': 0}
         if md_content.startswith('---'):
             parts = md_content.split('---', 2)
             if len(parts) >= 3:
+                try:
+                    import yaml
+                    fm_data = yaml.safe_load(parts[1])
+                    if fm_data:
+                        frontmatter_meta['completed'] = fm_data.get('completed', False)
+                        frontmatter_meta['revision_count'] = fm_data.get('revision_count', 0)
+                except:
+                    pass
                 md_content = parts[2]
         
         # Convert Obsidian callouts before markdown processing
@@ -3729,8 +3797,10 @@ def view_file(filepath):
         current_dir = os.path.dirname(filepath)
         html_content = convert_obsidian_links(html_content, current_dir)
         
-        # Add title
-        title_html = f'<h1>{filename.replace(".md", "")}</h1>'
+        # Add title with metadata badges
+        completed_badge = '<span class="meta-badge completed" title="Completed">✅ Completed</span>' if frontmatter_meta['completed'] else '<span class="meta-badge incomplete" title="Not completed">📝 In Progress</span>'
+        revision_badge = f'<span class="meta-badge revision" title="Revision count">🔄 Rev {frontmatter_meta["revision_count"]}</span>' if frontmatter_meta['revision_count'] > 0 else ''
+        title_html = f'<div class="title-with-meta"><h1>{filename.replace(".md", "")}</h1><div class="meta-badges">{completed_badge}{revision_badge}</div></div>'
         
         return render_template_string(
             HTML_TEMPLATE, 
