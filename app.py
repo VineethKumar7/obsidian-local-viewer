@@ -750,6 +750,75 @@ HTML_TEMPLATE = '''
         body.dark-theme .metadata-field textarea:focus {
             border-color: #0066cc;
         }
+        /* Dark theme - ensure all text is visible */
+        body.dark-theme .content,
+        body.dark-theme .content p,
+        body.dark-theme .content li,
+        body.dark-theme .content span,
+        body.dark-theme .content div,
+        body.dark-theme .content em,
+        body.dark-theme .content strong,
+        body.dark-theme .content small {
+            color: #d4d4d4;
+        }
+        body.dark-theme .content strong {
+            color: #e8e8e8;
+        }
+        body.dark-theme .content em {
+            color: #c5c5c5;
+        }
+        /* Muted/secondary text */
+        body.dark-theme .content .muted,
+        body.dark-theme .content .text-muted,
+        body.dark-theme .content .secondary,
+        body.dark-theme .content small,
+        body.dark-theme .content .caption {
+            color: #a0a0a0 !important;
+        }
+        /* SVG and inline styles override */
+        body.dark-theme .content svg text,
+        body.dark-theme .content [style*="color: #"] {
+            fill: #d4d4d4;
+        }
+        /* Lists */
+        body.dark-theme .content ul,
+        body.dark-theme .content ol {
+            color: #d4d4d4;
+        }
+        /* Images with dark backgrounds */
+        body.dark-theme .content img {
+            background: #2d2d2d;
+        }
+        /* Definition lists and terms */
+        body.dark-theme .content dt,
+        body.dark-theme .content dd {
+            color: #d4d4d4;
+        }
+        /* Ensure inherited colors are overridden */
+        body.dark-theme .content * {
+            border-color: #3c3c3c;
+        }
+        body.dark-theme .content mark {
+            background: #5a4a00;
+            color: #ffeb3b;
+        }
+        /* Force all text in content to be readable - catch inline styles */
+        body.dark-theme .content [style*="color:"] {
+            color: #d4d4d4 !important;
+        }
+        body.dark-theme .content [style*="color: rgb(1"],
+        body.dark-theme .content [style*="color: rgb(2"],
+        body.dark-theme .content [style*="color: rgb(3"],
+        body.dark-theme .content [style*="color: rgb(4"],
+        body.dark-theme .content [style*="color: rgb(5"],
+        body.dark-theme .content [style*="color: rgb(6"],
+        body.dark-theme .content [style*="color: rgb(7"],
+        body.dark-theme .content [style*="color: rgb(8"],
+        body.dark-theme .content [style*="color: rgb(9"],
+        body.dark-theme .content [style*="color:#"],
+        body.dark-theme .content [style*="color: #"] {
+            color: #d4d4d4 !important;
+        }
         /* Theme toggle button */
         .theme-toggle {
             font-size: 16px !important;
