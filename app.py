@@ -802,6 +802,79 @@ HTML_TEMPLATE = '''
             background: #5a4a00;
             color: #ffeb3b;
         }
+        /* Dark theme - Callouts */
+        body.dark-theme .callout {
+            background: #2d2d2d;
+            border-color: #555;
+            color: #d4d4d4;
+        }
+        body.dark-theme .callout-title {
+            color: #e0e0e0;
+        }
+        body.dark-theme .callout-content {
+            color: #d4d4d4;
+        }
+        body.dark-theme .callout-note, 
+        body.dark-theme .callout-info { 
+            background: #1a2d3d; 
+            border-color: #2d6da8; 
+        }
+        body.dark-theme .callout-note .callout-title, 
+        body.dark-theme .callout-info .callout-title { 
+            color: #6cb6ff; 
+        }
+        body.dark-theme .callout-tip, 
+        body.dark-theme .callout-hint { 
+            background: #1a2d24; 
+            border-color: #2d8a5e; 
+        }
+        body.dark-theme .callout-tip .callout-title, 
+        body.dark-theme .callout-hint .callout-title { 
+            color: #4ade80; 
+        }
+        body.dark-theme .callout-warning, 
+        body.dark-theme .callout-caution { 
+            background: #2d2618; 
+            border-color: #b8860b; 
+        }
+        body.dark-theme .callout-warning .callout-title, 
+        body.dark-theme .callout-caution .callout-title { 
+            color: #fbbf24; 
+        }
+        body.dark-theme .callout-danger, 
+        body.dark-theme .callout-error { 
+            background: #2d1a1a; 
+            border-color: #a53030; 
+        }
+        body.dark-theme .callout-danger .callout-title, 
+        body.dark-theme .callout-error .callout-title { 
+            color: #f87171; 
+        }
+        body.dark-theme .callout-question, 
+        body.dark-theme .callout-help, 
+        body.dark-theme .callout-faq { 
+            background: #251a2d; 
+            border-color: #7c3aed; 
+        }
+        body.dark-theme .callout-question .callout-title, 
+        body.dark-theme .callout-help .callout-title, 
+        body.dark-theme .callout-faq .callout-title { 
+            color: #a78bfa; 
+        }
+        body.dark-theme .callout-example { 
+            background: #1a1a2d; 
+            border-color: #4f46e5; 
+        }
+        body.dark-theme .callout-example .callout-title { 
+            color: #818cf8; 
+        }
+        body.dark-theme .callout-quote { 
+            background: #262626; 
+            border-color: #525252; 
+        }
+        body.dark-theme .callout-quote .callout-title { 
+            color: #a3a3a3; 
+        }
         /* Force all text in content to be readable - catch inline styles */
         body.dark-theme .content [style*="color:"] {
             color: #d4d4d4 !important;
