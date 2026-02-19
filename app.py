@@ -5911,6 +5911,84 @@ def api_download_topic_zip(filepath):
                 if len(parts) >= 3:
                     md_content = parts[2]
             
+            # Helper function to convert image to base64 data URI
+            def image_to_base64(image_path):
+                """Convert an image file to base64 data URI"""
+                import base64
+                import mimetypes
+                
+                # Determine full path
+                if os.path.isabs(image_path):
+                    full_img_path = image_path
+                else:
+                    # Try relative to current markdown file
+                    current_dir = os.path.dirname(file_full_path)
+                    full_img_path = os.path.join(current_dir, image_path)
+                    full_img_path = os.path.normpath(full_img_path)
+                    
+                    # If not found, try relative to vault
+                    if not os.path.exists(full_img_path):
+                        full_img_path = os.path.join(VAULT_PATH, image_path)
+                    
+                    # Try finding in vault using find_file_in_vault
+                    if not os.path.exists(full_img_path):
+                        found = find_file_in_vault(image_path)
+                        if found:
+                            full_img_path = os.path.join(VAULT_PATH, found)
+                
+                if not os.path.exists(full_img_path):
+                    return None
+                
+                try:
+                    mime_type, _ = mimetypes.guess_type(full_img_path)
+                    if not mime_type:
+                        ext = image_path.lower().rsplit('.', 1)[-1]
+                        mime_map = {'png': 'image/png', 'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 
+                                   'gif': 'image/gif', 'webp': 'image/webp', 'svg': 'image/svg+xml'}
+                        mime_type = mime_map.get(ext, 'application/octet-stream')
+                    
+                    with open(full_img_path, 'rb') as img_file:
+                        img_data = base64.b64encode(img_file.read()).decode('utf-8')
+                    return f'data:{mime_type};base64,{img_data}'
+                except Exception as e:
+                    return None
+            
+            # Convert Obsidian image embeds ![[image.png]] to base64
+            def replace_obsidian_image(match):
+                inner = match.group(1)
+                if '|' in inner:
+                    link_part, alt_text = inner.split('|', 1)
+                else:
+                    link_part = inner
+                    alt_text = inner
+                
+                ext = link_part.lower().rsplit('.', 1)[-1] if '.' in link_part else ''
+                if ext in ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp']:
+                    data_uri = image_to_base64(link_part)
+                    if data_uri:
+                        return f'![{alt_text}]({data_uri})'
+                    else:
+                        return f'![{alt_text} (image not found)]({link_part})'
+                return match.group(0)  # Return unchanged for non-images
+            
+            md_content = re.sub(r'!\[\[([^\]]+)\]\]', replace_obsidian_image, md_content)
+            
+            # Also convert standard markdown images ![alt](path) to base64
+            def replace_md_image(match):
+                alt_text = match.group(1)
+                img_path = match.group(2)
+                
+                # Skip if already a data URI or external URL
+                if img_path.startswith('data:') or img_path.startswith('http'):
+                    return match.group(0)
+                
+                data_uri = image_to_base64(img_path)
+                if data_uri:
+                    return f'![{alt_text}]({data_uri})'
+                return match.group(0)  # Return unchanged if image not found
+            
+            md_content = re.sub(r'!\[([^\]]*)\]\(([^)]+)\)', replace_md_image, md_content)
+            
             # Process through callouts first
             md_content = convert_obsidian_callouts(md_content)
             
@@ -5970,6 +6048,13 @@ def api_download_topic_zip(filepath):
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{file_name}</title>
     {css_content}
+    <script>
+        MathJax = {{
+            tex: {{ inlineMath: [['$', '$'], ['\\\\(', '\\\\)']], displayMath: [['$$', '$$'], ['\\\\[', '\\\\]']] }},
+            svg: {{ fontCache: 'global' }}
+        }};
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
 </head>
 <body>
     <div class="file-header">
