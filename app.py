@@ -1528,6 +1528,17 @@ HTML_TEMPLATE = '''
             font-size: 22px;
             line-height: 1.5;
             font-weight: 500;
+            max-height: 55vh;
+            overflow-y: auto;
+            padding: 10px;
+            width: 100%;
+            text-align: left;
+        }
+        .flashcard-content strong {
+            font-weight: 700;
+        }
+        .flashcard-content em {
+            font-style: italic;
         }
         .flashcard-content code {
             background: rgba(0,0,0,0.2);
@@ -2649,12 +2660,12 @@ A: LITA - Link, Internet, Transport, Application</pre>
                 <div class="flashcard" id="currentFlashcard" onclick="flipFlashcard()">
                     <div class="flashcard-face flashcard-front">
                         <div class="flashcard-label">Question</div>
-                        <div class="flashcard-content">${escapeHtml(card.question)}</div>
+                        <div class="flashcard-content">${parseMarkdown(card.question)}</div>
                         <div class="flashcard-hint">Click or tap to reveal answer</div>
                     </div>
                     <div class="flashcard-face flashcard-back">
                         <div class="flashcard-label">Answer</div>
-                        <div class="flashcard-content">${escapeHtml(card.answer)}</div>
+                        <div class="flashcard-content">${parseMarkdown(card.answer)}</div>
                         <div class="flashcard-hint">Rate your response below</div>
                     </div>
                 </div>
@@ -2676,6 +2687,17 @@ A: LITA - Link, Internet, Transport, Application</pre>
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
+        }
+        
+        function parseMarkdown(text) {
+            // First escape HTML for safety
+            let html = escapeHtml(text);
+            // Parse markdown formatting
+            html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');  // **bold**
+            html = html.replace(/\*([^*]+?)\*/g, '<em>$1</em>');  // *italic*
+            html = html.replace(/`([^`]+?)`/g, '<code>$1</code>');  // `code`
+            html = html.replace(/\n/g, '<br>');  // line breaks
+            return html;
         }
         
         function flipFlashcard() {
