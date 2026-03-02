@@ -3123,9 +3123,10 @@ A: LITA - Link, Internet, Transport, Application</pre>
         let mcqPreviousScore = null;
         
         async function openMcq() {
-            const filepath = '{{ current_file }}';
+            const filepath = '{{ file_path|default("") }}';
             if (!filepath) {
-                alert('No file selected');
+                showMcqError('No file selected', 'Open a markdown file first to access MCQs.');
+                document.getElementById('mcqModal').classList.add('visible');
                 return;
             }
             
@@ -3134,7 +3135,8 @@ A: LITA - Link, Internet, Transport, Application</pre>
                 const data = await response.json();
                 
                 if (!data.success) {
-                    alert('Error loading MCQs: ' + data.error);
+                    showMcqError('Error loading MCQs', data.error);
+                    document.getElementById('mcqModal').classList.add('visible');
                     return;
                 }
                 
@@ -3165,6 +3167,17 @@ A: LITA - Link, Internet, Transport, Application</pre>
             } catch (err) {
                 alert('Error: ' + err.message);
             }
+        }
+        
+        function showMcqError(title, message) {
+            document.getElementById('mcqContent').innerHTML = `
+                <div class="mcq-empty">
+                    <h3>⚠️ ${escapeHtml(title)}</h3>
+                    <p>${escapeHtml(message)}</p>
+                </div>
+            `;
+            document.getElementById('mcqPrevScore').style.display = 'none';
+            document.querySelector('.mcq-progress').style.display = 'none';
         }
         
         function showMcqEmpty() {
@@ -3273,7 +3286,7 @@ Q: Which port does HTTP use?
             const percentage = Math.round((mcqScore.correct / total) * 100);
             
             // Save score
-            const filepath = '{{ current_file }}';
+            const filepath = '{{ file_path|default("") }}';
             try {
                 await fetch('/api/mcq-score/' + encodeURIComponent(filepath), {
                     method: 'POST',
