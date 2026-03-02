@@ -1461,6 +1461,220 @@ HTML_TEMPLATE = '''
             transform: translateZ(0);
         }
         
+        /* ===== FLASHCARD SYSTEM ===== */
+        .flashcard-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+        .flashcard-modal.visible {
+            display: flex;
+        }
+        .flashcard-container {
+            width: 90%;
+            max-width: 600px;
+            perspective: 1000px;
+        }
+        .flashcard {
+            width: 100%;
+            min-height: 300px;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            cursor: pointer;
+        }
+        .flashcard.flipped {
+            transform: rotateY(180deg);
+        }
+        .flashcard-face {
+            position: absolute;
+            width: 100%;
+            min-height: 300px;
+            backface-visibility: hidden;
+            border-radius: 16px;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+        }
+        .flashcard-front {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: #fff;
+        }
+        .flashcard-back {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: #fff;
+            transform: rotateY(180deg);
+        }
+        .flashcard-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            opacity: 0.8;
+            margin-bottom: 15px;
+        }
+        .flashcard-content {
+            font-size: 22px;
+            line-height: 1.5;
+            font-weight: 500;
+        }
+        .flashcard-content code {
+            background: rgba(0,0,0,0.2);
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 18px;
+        }
+        .flashcard-hint {
+            position: absolute;
+            bottom: 15px;
+            font-size: 12px;
+            opacity: 0.6;
+        }
+        .flashcard-controls {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+        }
+        .flashcard-btn {
+            padding: 12px 28px;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .flashcard-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+        }
+        .flashcard-btn.primary {
+            background: #fff;
+            color: #333;
+        }
+        .flashcard-btn.secondary {
+            background: rgba(255,255,255,0.2);
+            color: #fff;
+        }
+        .flashcard-btn.correct {
+            background: #4ade80;
+            color: #fff;
+        }
+        .flashcard-btn.wrong {
+            background: #f87171;
+            color: #fff;
+        }
+        .flashcard-progress {
+            position: absolute;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            color: #fff;
+            font-size: 14px;
+        }
+        .flashcard-progress-bar {
+            width: 200px;
+            height: 6px;
+            background: rgba(255,255,255,0.2);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        .flashcard-progress-fill {
+            height: 100%;
+            background: #4ade80;
+            border-radius: 3px;
+            transition: width 0.3s;
+        }
+        .flashcard-close {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: #fff;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            font-size: 20px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .flashcard-close:hover {
+            background: rgba(255,255,255,0.3);
+        }
+        .flashcard-empty {
+            text-align: center;
+            color: #fff;
+            padding: 40px;
+        }
+        .flashcard-empty h3 {
+            font-size: 24px;
+            margin-bottom: 15px;
+        }
+        .flashcard-empty p {
+            opacity: 0.8;
+            line-height: 1.6;
+            max-width: 400px;
+        }
+        .flashcard-empty pre {
+            background: rgba(0,0,0,0.3);
+            padding: 20px;
+            border-radius: 8px;
+            text-align: left;
+            font-size: 13px;
+            margin-top: 20px;
+            overflow-x: auto;
+        }
+        .flashcard-stats {
+            display: flex;
+            gap: 30px;
+            margin-top: 20px;
+            color: #fff;
+        }
+        .flashcard-stat {
+            text-align: center;
+        }
+        .flashcard-stat-value {
+            font-size: 32px;
+            font-weight: bold;
+        }
+        .flashcard-stat-label {
+            font-size: 12px;
+            opacity: 0.7;
+            text-transform: uppercase;
+        }
+        .flashcard-stat.correct .flashcard-stat-value { color: #4ade80; }
+        .flashcard-stat.wrong .flashcard-stat-value { color: #f87171; }
+        
+        /* Shuffle animation */
+        @keyframes shuffle {
+            0% { transform: translateX(0) rotate(0deg); }
+            25% { transform: translateX(-20px) rotate(-5deg); }
+            50% { transform: translateX(20px) rotate(5deg); }
+            75% { transform: translateX(-10px) rotate(-2deg); }
+            100% { transform: translateX(0) rotate(0deg); }
+        }
+        .flashcard.shuffling {
+            animation: shuffle 0.5s ease-in-out;
+        }
+
         /* Metadata Modal */
         .metadata-modal {
             display: none;
@@ -1905,6 +2119,7 @@ HTML_TEMPLATE = '''
                 {% if is_markdown %}
                 <button onclick="downloadPDF(); closeToolbarMenu();" title="Download as PDF">📥 PDF</button>
                 <button onclick="downloadTopicZip(); closeToolbarMenu();" title="Download this page + all linked subpages as ZIP">📦 Topic</button>
+                <button onclick="openFlashcards(); closeToolbarMenu();" title="Study with flashcards">🎴 Flashcards</button>
                 {% endif %}
                 {% if is_markdown or is_pdf|default(false) %}
                 <button onclick="openAnnotation(); closeToolbarMenu();" title="Annotate with Apple Pencil">✏️ Annotate</button>
@@ -1954,6 +2169,29 @@ HTML_TEMPLATE = '''
                 <button class="metadata-save" onclick="saveMetadata()">💾 Save</button>
                 <button class="metadata-cancel" onclick="closeMetadataModal()">Cancel</button>
             </div>
+        </div>
+    </div>
+    
+    <!-- Flashcard Modal -->
+    <div id="flashcardModal" class="flashcard-modal">
+        <button class="flashcard-close" onclick="closeFlashcards()">✕</button>
+        <div class="flashcard-progress">
+            <span id="flashcardCounter">1 / 10</span>
+            <div class="flashcard-progress-bar">
+                <div class="flashcard-progress-fill" id="flashcardProgressFill" style="width: 10%"></div>
+            </div>
+        </div>
+        <div class="flashcard-container" id="flashcardContainer">
+            <!-- Cards will be inserted here by JS -->
+        </div>
+        <div class="flashcard-controls" id="flashcardControls">
+            <button class="flashcard-btn secondary" onclick="prevFlashcard()">⬅️ Previous</button>
+            <button class="flashcard-btn primary" onclick="flipFlashcard()">🔄 Flip</button>
+            <button class="flashcard-btn secondary" onclick="nextFlashcard()">Next ➡️</button>
+        </div>
+        <div class="flashcard-controls" id="flashcardRatingControls" style="display: none;">
+            <button class="flashcard-btn wrong" onclick="rateFlashcard(false)">❌ Still Learning</button>
+            <button class="flashcard-btn correct" onclick="rateFlashcard(true)">✅ Got It!</button>
         </div>
     </div>
     
@@ -2343,6 +2581,247 @@ HTML_TEMPLATE = '''
         // Close modal on backdrop click
         document.getElementById('metadataModal')?.addEventListener('click', function(e) {
             if (e.target === this) closeMetadataModal();
+        });
+        
+        // ===== FLASHCARD SYSTEM =====
+        let flashcards = [];
+        let currentCardIndex = 0;
+        let flashcardStats = { correct: 0, wrong: 0 };
+        
+        async function openFlashcards() {
+            const filePath = '{{ file_path|default("") }}';
+            if (!filePath) {
+                alert('No file loaded');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/flashcards/' + encodeURIComponent(filePath));
+                const data = await response.json();
+                
+                if (data.success && data.flashcards && data.flashcards.length > 0) {
+                    flashcards = data.flashcards;
+                    currentCardIndex = 0;
+                    flashcardStats = { correct: 0, wrong: 0 };
+                    renderFlashcard();
+                    document.getElementById('flashcardModal').classList.add('visible');
+                } else {
+                    showEmptyFlashcardState();
+                    document.getElementById('flashcardModal').classList.add('visible');
+                }
+            } catch (err) {
+                console.error('Failed to load flashcards:', err);
+                alert('Failed to load flashcards: ' + err.message);
+            }
+        }
+        
+        function showEmptyFlashcardState() {
+            const container = document.getElementById('flashcardContainer');
+            container.innerHTML = `
+                <div class="flashcard-empty">
+                    <h3>🎴 No Flashcards Found</h3>
+                    <p>Add a flashcard section at the end of your MD file to create flashcards.</p>
+                    <pre>## Flashcards
+
+Q: What is the capital of France?
+A: Paris
+
+Q: What does HTTP stand for?
+A: HyperText Transfer Protocol
+
+Q: Name the 4 TCP/IP layers
+A: LITA - Link, Internet, Transport, Application</pre>
+                    <p style="margin-top: 20px; font-size: 13px;">
+                        You can also use <code>&gt; [!flashcard]</code> callouts anywhere in your notes!
+                    </p>
+                </div>
+            `;
+            document.getElementById('flashcardControls').style.display = 'none';
+            document.getElementById('flashcardRatingControls').style.display = 'none';
+            document.querySelector('.flashcard-progress').style.display = 'none';
+        }
+        
+        function renderFlashcard() {
+            const card = flashcards[currentCardIndex];
+            const container = document.getElementById('flashcardContainer');
+            
+            container.innerHTML = `
+                <div class="flashcard" id="currentFlashcard" onclick="flipFlashcard()">
+                    <div class="flashcard-face flashcard-front">
+                        <div class="flashcard-label">Question</div>
+                        <div class="flashcard-content">${escapeHtml(card.question)}</div>
+                        <div class="flashcard-hint">Click or tap to reveal answer</div>
+                    </div>
+                    <div class="flashcard-face flashcard-back">
+                        <div class="flashcard-label">Answer</div>
+                        <div class="flashcard-content">${escapeHtml(card.answer)}</div>
+                        <div class="flashcard-hint">Rate your response below</div>
+                    </div>
+                </div>
+            `;
+            
+            // Update progress
+            const counter = document.getElementById('flashcardCounter');
+            const fill = document.getElementById('flashcardProgressFill');
+            counter.textContent = `${currentCardIndex + 1} / ${flashcards.length}`;
+            fill.style.width = `${((currentCardIndex + 1) / flashcards.length) * 100}%`;
+            
+            // Show controls
+            document.getElementById('flashcardControls').style.display = 'flex';
+            document.getElementById('flashcardRatingControls').style.display = 'none';
+            document.querySelector('.flashcard-progress').style.display = 'flex';
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function flipFlashcard() {
+            const card = document.getElementById('currentFlashcard');
+            if (card) {
+                card.classList.toggle('flipped');
+                // Show rating controls when flipped to back
+                if (card.classList.contains('flipped')) {
+                    document.getElementById('flashcardControls').style.display = 'none';
+                    document.getElementById('flashcardRatingControls').style.display = 'flex';
+                } else {
+                    document.getElementById('flashcardControls').style.display = 'flex';
+                    document.getElementById('flashcardRatingControls').style.display = 'none';
+                }
+            }
+        }
+        
+        function nextFlashcard() {
+            if (currentCardIndex < flashcards.length - 1) {
+                currentCardIndex++;
+                renderFlashcard();
+            } else {
+                showFlashcardSummary();
+            }
+        }
+        
+        function prevFlashcard() {
+            if (currentCardIndex > 0) {
+                currentCardIndex--;
+                renderFlashcard();
+            }
+        }
+        
+        function rateFlashcard(correct) {
+            if (correct) {
+                flashcardStats.correct++;
+            } else {
+                flashcardStats.wrong++;
+            }
+            
+            // Add shuffle animation
+            const card = document.getElementById('currentFlashcard');
+            if (card) {
+                card.classList.add('shuffling');
+                setTimeout(() => {
+                    nextFlashcard();
+                }, 300);
+            } else {
+                nextFlashcard();
+            }
+        }
+        
+        function showFlashcardSummary() {
+            const container = document.getElementById('flashcardContainer');
+            const total = flashcardStats.correct + flashcardStats.wrong;
+            const percentage = total > 0 ? Math.round((flashcardStats.correct / total) * 100) : 0;
+            
+            container.innerHTML = `
+                <div class="flashcard-empty">
+                    <h3>🎉 Session Complete!</h3>
+                    <div class="flashcard-stats">
+                        <div class="flashcard-stat correct">
+                            <div class="flashcard-stat-value">${flashcardStats.correct}</div>
+                            <div class="flashcard-stat-label">Correct</div>
+                        </div>
+                        <div class="flashcard-stat">
+                            <div class="flashcard-stat-value">${percentage}%</div>
+                            <div class="flashcard-stat-label">Score</div>
+                        </div>
+                        <div class="flashcard-stat wrong">
+                            <div class="flashcard-stat-value">${flashcardStats.wrong}</div>
+                            <div class="flashcard-stat-label">Learning</div>
+                        </div>
+                    </div>
+                    <div style="margin-top: 30px;">
+                        <button class="flashcard-btn primary" onclick="restartFlashcards()">🔄 Study Again</button>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('flashcardControls').style.display = 'none';
+            document.getElementById('flashcardRatingControls').style.display = 'none';
+        }
+        
+        function restartFlashcards() {
+            currentCardIndex = 0;
+            flashcardStats = { correct: 0, wrong: 0 };
+            // Shuffle cards for variety
+            flashcards = shuffleArray([...flashcards]);
+            renderFlashcard();
+        }
+        
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+            return array;
+        }
+        
+        function closeFlashcards() {
+            document.getElementById('flashcardModal').classList.remove('visible');
+        }
+        
+        // Close flashcard modal on backdrop click
+        document.getElementById('flashcardModal')?.addEventListener('click', function(e) {
+            if (e.target === this) closeFlashcards();
+        });
+        
+        // Keyboard shortcuts for flashcards
+        document.addEventListener('keydown', function(e) {
+            const modal = document.getElementById('flashcardModal');
+            if (!modal || !modal.classList.contains('visible')) return;
+            
+            switch(e.key) {
+                case 'Escape':
+                    closeFlashcards();
+                    break;
+                case ' ':
+                case 'Enter':
+                    e.preventDefault();
+                    flipFlashcard();
+                    break;
+                case 'ArrowRight':
+                case 'l':
+                    nextFlashcard();
+                    break;
+                case 'ArrowLeft':
+                case 'h':
+                    prevFlashcard();
+                    break;
+                case '1':
+                case 'x':
+                    const card = document.getElementById('currentFlashcard');
+                    if (card && card.classList.contains('flipped')) {
+                        rateFlashcard(false);
+                    }
+                    break;
+                case '2':
+                case 'c':
+                    const card2 = document.getElementById('currentFlashcard');
+                    if (card2 && card2.classList.contains('flipped')) {
+                        rateFlashcard(true);
+                    }
+                    break;
+            }
         });
         
         function toggleFullscreen() {
@@ -5436,6 +5915,89 @@ def delete_annotations(filepath):
 
 
 # ============================================
+# FLASHCARD API ENDPOINTS
+# ============================================
+
+def parse_flashcards(content):
+    """
+    Parse flashcards from markdown content.
+    
+    Supports multiple formats:
+    1. ## Flashcards section with Q:/A: pairs
+    2. > [!flashcard] callouts
+    3. #flashcard tagged sections
+    """
+    flashcards = []
+    
+    # Pattern 1: ## Flashcards section
+    flashcard_section = re.search(r'##\s*Flashcards?\s*\n([\s\S]*?)(?=\n##\s|\Z)', content, re.IGNORECASE)
+    if flashcard_section:
+        section_content = flashcard_section.group(1)
+        # Parse Q:/A: pairs
+        qa_pattern = re.compile(r'Q:\s*(.+?)\nA:\s*(.+?)(?=\nQ:|\n\n|\Z)', re.DOTALL | re.IGNORECASE)
+        for match in qa_pattern.finditer(section_content):
+            question = match.group(1).strip()
+            answer = match.group(2).strip()
+            if question and answer:
+                flashcards.append({'question': question, 'answer': answer})
+    
+    # Pattern 2: > [!flashcard] callouts
+    callout_pattern = re.compile(r'>\s*\[!flashcard\][+-]?\s*(.+?)\n((?:>.*\n)*)', re.IGNORECASE)
+    for match in callout_pattern.finditer(content):
+        title = match.group(1).strip()
+        body_lines = match.group(2).strip()
+        # Remove > prefix from body lines
+        body = '\n'.join(line.lstrip('>').strip() for line in body_lines.split('\n') if line.strip())
+        if title and body:
+            flashcards.append({'question': title, 'answer': body})
+    
+    # Pattern 3: Extract from [!brain] memory tips (Q&A tables)
+    brain_pattern = re.compile(r'>\s*\[!brain\][+-]?\s*(.+?)\n((?:>.*\n)*)', re.IGNORECASE)
+    for match in brain_pattern.finditer(content):
+        title = match.group(1).strip()
+        body_lines = match.group(2).strip()
+        body = '\n'.join(line.lstrip('>').strip() for line in body_lines.split('\n') if line.strip())
+        if title and body:
+            # Create a flashcard from the memory tip
+            flashcards.append({
+                'question': f"🧠 {title.replace('Memory Tip:', '').strip()}",
+                'answer': body[:500] + ('...' if len(body) > 500 else '')  # Truncate long answers
+            })
+    
+    # Pattern 4: Simple --- separated cards
+    card_blocks = re.findall(r'---\s*\nQ:\s*(.+?)\nA:\s*(.+?)\n---', content, re.DOTALL | re.IGNORECASE)
+    for q, a in card_blocks:
+        question = q.strip()
+        answer = a.strip()
+        if question and answer:
+            flashcards.append({'question': question, 'answer': answer})
+    
+    return flashcards
+
+@app.route('/api/flashcards/<path:filepath>')
+def api_get_flashcards(filepath):
+    """Get flashcards parsed from a markdown file"""
+    try:
+        full_path = os.path.join(VAULT_PATH, filepath)
+        
+        if not os.path.exists(full_path):
+            return jsonify({'success': False, 'error': 'File not found'}), 404
+        
+        with open(full_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        flashcards = parse_flashcards(content)
+        
+        return jsonify({
+            'success': True,
+            'flashcards': flashcards,
+            'count': len(flashcards)
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============================================
 # METADATA API ENDPOINTS
 # ============================================
 
@@ -5559,8 +6121,69 @@ def api_download_offline_zip():
             font-size: 12px;
             color: #888;
         }
+        .callout {
+            border-left: 4px solid;
+            padding: 12px 16px;
+            margin: 16px 0;
+            border-radius: 0 6px 6px 0;
+        }
+        .callout-title { font-weight: bold; margin-bottom: 8px; }
+        .callout-note, .callout-info { background: #1a3a5c; border-color: #0066cc; }
+        .callout-tip, .callout-hint { background: #1a3c2a; border-color: #10b981; }
+        .callout-warning, .callout-caution { background: #3c2a1a; border-color: #f59e0b; }
+        .callout-danger, .callout-error { background: #3c1a1a; border-color: #dc2626; }
+        .callout-question, .callout-help, .callout-faq { background: #2a1a3c; border-color: #8b5cf6; }
+        .callout-example { background: #1a2a3c; border-color: #6366f1; }
+        .callout-quote { background: #2a2a2a; border-color: #6b7280; }
+        .callout-diagram { background: #1a2a3c; border-color: #06b6d4; }
+        details.callout summary { cursor: pointer; }
+        details.callout summary::-webkit-details-marker { display: none; }
+        details.callout summary::before { content: '▶ '; font-size: 10px; }
+        details.callout[open] summary::before { content: '▼ '; }
     </style>
     '''
+    
+    # Helper function to convert image to base64 data URI
+    def image_to_base64(image_path, file_full_path):
+        """Convert an image file to base64 data URI"""
+        import base64
+        import mimetypes
+        
+        # Determine full path
+        if os.path.isabs(image_path):
+            full_img_path = image_path
+        else:
+            # Try relative to current markdown file
+            current_dir = os.path.dirname(file_full_path)
+            full_img_path = os.path.join(current_dir, image_path)
+            full_img_path = os.path.normpath(full_img_path)
+            
+            # If not found, try relative to vault
+            if not os.path.exists(full_img_path):
+                full_img_path = os.path.join(VAULT_PATH, image_path)
+            
+            # Try finding in vault using find_file_in_vault
+            if not os.path.exists(full_img_path):
+                found = find_file_in_vault(image_path)
+                if found:
+                    full_img_path = os.path.join(VAULT_PATH, found)
+        
+        if not os.path.exists(full_img_path):
+            return None
+        
+        try:
+            mime_type, _ = mimetypes.guess_type(full_img_path)
+            if not mime_type:
+                ext = image_path.lower().rsplit('.', 1)[-1]
+                mime_map = {'png': 'image/png', 'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 
+                           'gif': 'image/gif', 'webp': 'image/webp', 'svg': 'image/svg+xml'}
+                mime_type = mime_map.get(ext, 'application/octet-stream')
+            
+            with open(full_img_path, 'rb') as img_file:
+                img_data = base64.b64encode(img_file.read()).decode('utf-8')
+            return f'data:{mime_type};base64,{img_data}'
+        except Exception as e:
+            return None
     
     # Create ZIP in memory
     zip_buffer = io.BytesIO()
@@ -5591,11 +6214,62 @@ def api_download_offline_zip():
                 with open(full_path, 'r', encoding='utf-8') as f:
                     md_content = f.read()
                 
+                # Strip YAML frontmatter
+                if md_content.startswith('---'):
+                    parts = md_content.split('---', 2)
+                    if len(parts) >= 3:
+                        md_content = parts[2]
+                
+                # Convert Obsidian image embeds ![[image.png]] to base64
+                def replace_obsidian_image(match):
+                    inner = match.group(1)
+                    if '|' in inner:
+                        link_part, alt_text = inner.split('|', 1)
+                    else:
+                        link_part = inner
+                        alt_text = inner
+                    
+                    ext = link_part.lower().rsplit('.', 1)[-1] if '.' in link_part else ''
+                    if ext in ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp']:
+                        data_uri = image_to_base64(link_part, full_path)
+                        if data_uri:
+                            return f'![{alt_text}]({data_uri})'
+                        else:
+                            return f'![{alt_text} (image not found)]({link_part})'
+                    return match.group(0)  # Return unchanged for non-images
+                
+                md_content = re.sub(r'!\[\[([^\]]+)\]\]', replace_obsidian_image, md_content)
+                
+                # Also convert standard markdown images ![alt](path) to base64
+                def replace_md_image(match):
+                    alt_text = match.group(1)
+                    img_path = match.group(2)
+                    
+                    # Skip if already a data URI or external URL
+                    if img_path.startswith('data:') or img_path.startswith('http'):
+                        return match.group(0)
+                    
+                    data_uri = image_to_base64(img_path, full_path)
+                    if data_uri:
+                        return f'![{alt_text}]({data_uri})'
+                    return match.group(0)  # Return unchanged if image not found
+                
+                md_content = re.sub(r'!\[([^\]]*)\]\(([^)]+)\)', replace_md_image, md_content)
+                
+                # Process callouts
+                md_content = convert_obsidian_callouts(md_content)
+                
+                # Protect math expressions
+                md_content, math_placeholders = protect_math_expressions(md_content)
+                
                 # Convert markdown to HTML
                 html_body = markdown.markdown(
                     md_content,
-                    extensions=['tables', 'fenced_code', 'codehilite', 'toc']
+                    extensions=['tables', 'fenced_code', 'toc', 'nl2br', 'sane_lists']
                 )
+                
+                # Restore math
+                html_body = restore_math_expressions(html_body, math_placeholders)
                 
                 # Convert wiki links to relative HTML links
                 current_dir = os.path.dirname(rel_path)
@@ -5650,6 +6324,13 @@ def api_download_offline_zip():
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{title}</title>
     {css_content}
+    <script>
+        MathJax = {{
+            tex: {{ inlineMath: [['$', '$'], ['\\\\(', '\\\\)']], displayMath: [['$$', '$$'], ['\\\\[', '\\\\]']] }},
+            svg: {{ fontCache: 'global' }}
+        }};
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
 </head>
 <body>
     <div class="file-header">📄 {rel_path}</div>
