@@ -2693,10 +2693,10 @@ A: LITA - Link, Internet, Transport, Application</pre>
             // First escape HTML for safety
             let html = escapeHtml(text);
             // Parse markdown formatting
-            html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');  // **bold**
-            html = html.replace(/\*([^*]+?)\*/g, '<em>$1</em>');  // *italic*
+            html = html.replace(/\\*\\*(.+?)\\*\\*/g, '<strong>$1</strong>');  // **bold**
+            html = html.replace(/\\*([^*]+?)\\*/g, '<em>$1</em>');  // *italic*
             html = html.replace(/`([^`]+?)`/g, '<code>$1</code>');  // `code`
-            html = html.replace(/\n/g, '<br>');  // line breaks
+            html = html.replace(/\\n/g, '<br>');  // line breaks
             return html;
         }
         
