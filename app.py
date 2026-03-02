@@ -1686,6 +1686,254 @@ HTML_TEMPLATE = '''
             animation: shuffle 0.5s ease-in-out;
         }
 
+        /* ===== MCQ SYSTEM ===== */
+        .mcq-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 1100;
+            align-items: center;
+            justify-content: center;
+        }
+        .mcq-modal.visible {
+            display: flex;
+        }
+        .mcq-container {
+            width: 90%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+            background: #1e1e1e;
+            border-radius: 16px;
+            padding: 30px;
+            position: relative;
+        }
+        .mcq-close {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            color: #fff;
+            font-size: 20px;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .mcq-close:hover {
+            background: rgba(255,255,255,0.2);
+        }
+        .mcq-progress {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 25px;
+        }
+        .mcq-progress-bar {
+            flex: 1;
+            height: 8px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        .mcq-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            transition: width 0.3s ease;
+        }
+        .mcq-counter {
+            color: #888;
+            font-size: 14px;
+            white-space: nowrap;
+        }
+        .mcq-score-badge {
+            background: rgba(255,255,255,0.1);
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            color: #888;
+        }
+        .mcq-question {
+            font-size: 20px;
+            color: #fff;
+            margin-bottom: 25px;
+            line-height: 1.5;
+        }
+        .mcq-options {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        .mcq-option {
+            background: rgba(255,255,255,0.05);
+            border: 2px solid rgba(255,255,255,0.1);
+            border-radius: 12px;
+            padding: 15px 20px;
+            color: #fff;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: left;
+        }
+        .mcq-option:hover:not(.disabled) {
+            background: rgba(255,255,255,0.1);
+            border-color: rgba(255,255,255,0.2);
+        }
+        .mcq-option.selected {
+            border-color: #667eea;
+            background: rgba(102,126,234,0.2);
+        }
+        .mcq-option.correct {
+            border-color: #4ade80;
+            background: rgba(74,222,128,0.2);
+        }
+        .mcq-option.wrong {
+            border-color: #f87171;
+            background: rgba(248,113,113,0.2);
+        }
+        .mcq-option.disabled {
+            cursor: default;
+            opacity: 0.7;
+        }
+        .mcq-option-marker {
+            display: inline-block;
+            width: 28px;
+            height: 28px;
+            line-height: 28px;
+            text-align: center;
+            background: rgba(255,255,255,0.1);
+            border-radius: 50%;
+            margin-right: 12px;
+            font-weight: 600;
+        }
+        .mcq-feedback {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 12px;
+            font-size: 14px;
+            display: none;
+        }
+        .mcq-feedback.correct {
+            background: rgba(74,222,128,0.15);
+            color: #4ade80;
+            display: block;
+        }
+        .mcq-feedback.wrong {
+            background: rgba(248,113,113,0.15);
+            color: #f87171;
+            display: block;
+        }
+        .mcq-next-btn {
+            margin-top: 20px;
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 12px;
+            color: #fff;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            display: none;
+        }
+        .mcq-next-btn.visible {
+            display: block;
+        }
+        .mcq-next-btn:hover {
+            opacity: 0.9;
+        }
+        .mcq-results {
+            text-align: center;
+            padding: 30px 0;
+        }
+        .mcq-results-score {
+            font-size: 64px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .mcq-results-text {
+            color: #888;
+            font-size: 18px;
+            margin: 15px 0 30px;
+        }
+        .mcq-results-details {
+            display: flex;
+            justify-content: center;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        .mcq-results-stat {
+            text-align: center;
+        }
+        .mcq-results-stat-value {
+            font-size: 28px;
+            font-weight: 600;
+            color: #fff;
+        }
+        .mcq-results-stat-label {
+            font-size: 12px;
+            color: #888;
+            text-transform: uppercase;
+        }
+        .mcq-results-stat.correct .mcq-results-stat-value { color: #4ade80; }
+        .mcq-results-stat.wrong .mcq-results-stat-value { color: #f87171; }
+        .mcq-restart-btn {
+            padding: 15px 40px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border: none;
+            border-radius: 25px;
+            color: #fff;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        .mcq-empty {
+            text-align: center;
+            padding: 40px;
+            color: #888;
+        }
+        .mcq-empty h3 {
+            color: #fff;
+            margin-bottom: 15px;
+        }
+        .mcq-empty pre {
+            background: rgba(255,255,255,0.05);
+            padding: 20px;
+            border-radius: 12px;
+            text-align: left;
+            font-size: 13px;
+            overflow-x: auto;
+            margin-top: 20px;
+        }
+        .mcq-prev-score {
+            background: rgba(255,255,255,0.05);
+            padding: 15px 20px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .mcq-prev-score-label {
+            color: #888;
+            font-size: 14px;
+        }
+        .mcq-prev-score-value {
+            color: #fff;
+            font-weight: 600;
+        }
+
         /* Metadata Modal */
         .metadata-modal {
             display: none;
@@ -2131,6 +2379,7 @@ HTML_TEMPLATE = '''
                 <button onclick="downloadPDF(); closeToolbarMenu();" title="Download as PDF">📥 PDF</button>
                 <button onclick="downloadTopicZip(); closeToolbarMenu();" title="Download this page + all linked subpages as ZIP">📦 Topic</button>
                 <button onclick="openFlashcards(); closeToolbarMenu();" title="Study with flashcards">🎴 Flashcards</button>
+                <button onclick="openMcq(); closeToolbarMenu();" title="Multiple choice quiz">📝 MCQ</button>
                 {% endif %}
                 {% if is_markdown or is_pdf|default(false) %}
                 <button onclick="openAnnotation(); closeToolbarMenu();" title="Annotate with Apple Pencil">✏️ Annotate</button>
@@ -2203,6 +2452,26 @@ HTML_TEMPLATE = '''
         <div class="flashcard-controls" id="flashcardRatingControls" style="display: none;">
             <button class="flashcard-btn wrong" onclick="rateFlashcard(false)">❌ Still Learning</button>
             <button class="flashcard-btn correct" onclick="rateFlashcard(true)">✅ Got It!</button>
+        </div>
+    </div>
+    
+    <!-- MCQ Modal -->
+    <div id="mcqModal" class="mcq-modal">
+        <div class="mcq-container">
+            <button class="mcq-close" onclick="closeMcq()">✕</button>
+            <div id="mcqPrevScore" class="mcq-prev-score" style="display: none;">
+                <span class="mcq-prev-score-label">Previous Score</span>
+                <span class="mcq-prev-score-value" id="mcqPrevScoreValue">-</span>
+            </div>
+            <div class="mcq-progress">
+                <span class="mcq-counter" id="mcqCounter">1 / 10</span>
+                <div class="mcq-progress-bar">
+                    <div class="mcq-progress-fill" id="mcqProgressFill" style="width: 10%"></div>
+                </div>
+            </div>
+            <div id="mcqContent">
+                <!-- MCQ content will be inserted here by JS -->
+            </div>
         </div>
     </div>
     
@@ -2841,6 +3110,261 @@ A: LITA - Link, Internet, Transport, Application</pre>
                     const card2 = document.getElementById('currentFlashcard');
                     if (card2 && card2.classList.contains('flipped')) {
                         rateFlashcard(true);
+                    }
+                    break;
+            }
+        });
+        
+        // ===== MCQ SYSTEM =====
+        let mcqQuestions = [];
+        let currentMcqIndex = 0;
+        let mcqScore = { correct: 0, wrong: 0 };
+        let mcqAnswered = false;
+        let mcqPreviousScore = null;
+        
+        async function openMcq() {
+            const filepath = '{{ current_file }}';
+            if (!filepath) {
+                alert('No file selected');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/mcq/' + encodeURIComponent(filepath));
+                const data = await response.json();
+                
+                if (!data.success) {
+                    alert('Error loading MCQs: ' + data.error);
+                    return;
+                }
+                
+                if (data.mcqs.length === 0) {
+                    showMcqEmpty();
+                    document.getElementById('mcqModal').classList.add('visible');
+                    return;
+                }
+                
+                mcqQuestions = data.mcqs;
+                currentMcqIndex = 0;
+                mcqScore = { correct: 0, wrong: 0 };
+                mcqPreviousScore = data.score;
+                
+                // Show previous score if exists
+                const prevScoreEl = document.getElementById('mcqPrevScore');
+                if (mcqPreviousScore && mcqPreviousScore.percentage !== undefined) {
+                    document.getElementById('mcqPrevScoreValue').textContent = 
+                        mcqPreviousScore.percentage + '% (' + mcqPreviousScore.correct + '/' + mcqPreviousScore.total + ')';
+                    prevScoreEl.style.display = 'flex';
+                } else {
+                    prevScoreEl.style.display = 'none';
+                }
+                
+                renderMcq();
+                document.getElementById('mcqModal').classList.add('visible');
+                
+            } catch (err) {
+                alert('Error: ' + err.message);
+            }
+        }
+        
+        function showMcqEmpty() {
+            document.getElementById('mcqContent').innerHTML = `
+                <div class="mcq-empty">
+                    <h3>📝 No MCQs Found</h3>
+                    <p>Add MCQs at the bottom of this file using the syntax:</p>
+                    <pre>## MCQ
+
+Q: What is the capital of France?
+- [ ] London
+- [ ] Berlin
+- [x] Paris
+- [ ] Madrid
+
+Q: Which port does HTTP use?
+- [x] 80
+- [ ] 443
+- [ ] 22
+- [ ] 21</pre>
+                </div>
+            `;
+            document.getElementById('mcqPrevScore').style.display = 'none';
+            document.querySelector('.mcq-progress').style.display = 'none';
+        }
+        
+        function renderMcq() {
+            const q = mcqQuestions[currentMcqIndex];
+            const container = document.getElementById('mcqContent');
+            mcqAnswered = false;
+            
+            // Update progress
+            document.getElementById('mcqCounter').textContent = (currentMcqIndex + 1) + ' / ' + mcqQuestions.length;
+            document.getElementById('mcqProgressFill').style.width = ((currentMcqIndex + 1) / mcqQuestions.length * 100) + '%';
+            document.querySelector('.mcq-progress').style.display = 'flex';
+            
+            const optionLetters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+            
+            let optionsHtml = q.options.map((opt, idx) => `
+                <button class="mcq-option" onclick="selectMcqOption(${idx})" data-index="${idx}">
+                    <span class="mcq-option-marker">${optionLetters[idx]}</span>
+                    ${escapeHtml(opt)}
+                </button>
+            `).join('');
+            
+            container.innerHTML = `
+                <div class="mcq-question">${parseMarkdown(q.question)}</div>
+                <div class="mcq-options">${optionsHtml}</div>
+                <div class="mcq-feedback" id="mcqFeedback"></div>
+                <button class="mcq-next-btn" id="mcqNextBtn" onclick="nextMcq()">
+                    ${currentMcqIndex < mcqQuestions.length - 1 ? 'Next Question →' : 'See Results'}
+                </button>
+            `;
+        }
+        
+        function selectMcqOption(selectedIdx) {
+            if (mcqAnswered) return;
+            mcqAnswered = true;
+            
+            const q = mcqQuestions[currentMcqIndex];
+            const isCorrect = selectedIdx === q.correct;
+            
+            if (isCorrect) {
+                mcqScore.correct++;
+            } else {
+                mcqScore.wrong++;
+            }
+            
+            // Update option styles
+            const options = document.querySelectorAll('.mcq-option');
+            options.forEach((opt, idx) => {
+                opt.classList.add('disabled');
+                if (idx === q.correct) {
+                    opt.classList.add('correct');
+                } else if (idx === selectedIdx && !isCorrect) {
+                    opt.classList.add('wrong');
+                }
+            });
+            
+            // Show feedback
+            const feedback = document.getElementById('mcqFeedback');
+            if (isCorrect) {
+                feedback.className = 'mcq-feedback correct';
+                feedback.textContent = '✓ Correct!';
+            } else {
+                feedback.className = 'mcq-feedback wrong';
+                const correctLetter = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'][q.correct];
+                feedback.textContent = '✗ Incorrect. The correct answer is ' + correctLetter + '.';
+            }
+            
+            // Show next button
+            document.getElementById('mcqNextBtn').classList.add('visible');
+        }
+        
+        function nextMcq() {
+            if (currentMcqIndex < mcqQuestions.length - 1) {
+                currentMcqIndex++;
+                renderMcq();
+            } else {
+                showMcqResults();
+            }
+        }
+        
+        async function showMcqResults() {
+            const total = mcqQuestions.length;
+            const percentage = Math.round((mcqScore.correct / total) * 100);
+            
+            // Save score
+            const filepath = '{{ current_file }}';
+            try {
+                await fetch('/api/mcq-score/' + encodeURIComponent(filepath), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        correct: mcqScore.correct,
+                        total: total,
+                        percentage: percentage,
+                        last_attempt: new Date().toISOString()
+                    })
+                });
+            } catch (err) {
+                console.error('Failed to save score:', err);
+            }
+            
+            let message = '';
+            if (percentage >= 90) message = '🌟 Excellent!';
+            else if (percentage >= 70) message = '👍 Good job!';
+            else if (percentage >= 50) message = '📚 Keep studying!';
+            else message = '💪 Try again!';
+            
+            document.getElementById('mcqContent').innerHTML = `
+                <div class="mcq-results">
+                    <div class="mcq-results-score">${percentage}%</div>
+                    <div class="mcq-results-text">${message}</div>
+                    <div class="mcq-results-details">
+                        <div class="mcq-results-stat correct">
+                            <div class="mcq-results-stat-value">${mcqScore.correct}</div>
+                            <div class="mcq-results-stat-label">Correct</div>
+                        </div>
+                        <div class="mcq-results-stat wrong">
+                            <div class="mcq-results-stat-value">${mcqScore.wrong}</div>
+                            <div class="mcq-results-stat-label">Wrong</div>
+                        </div>
+                    </div>
+                    <button class="mcq-restart-btn" onclick="restartMcq()">🔄 Try Again</button>
+                </div>
+            `;
+            document.querySelector('.mcq-progress').style.display = 'none';
+            document.getElementById('mcqPrevScore').style.display = 'none';
+        }
+        
+        function restartMcq() {
+            currentMcqIndex = 0;
+            mcqScore = { correct: 0, wrong: 0 };
+            renderMcq();
+        }
+        
+        function closeMcq() {
+            document.getElementById('mcqModal').classList.remove('visible');
+        }
+        
+        // Close MCQ modal on backdrop click
+        document.getElementById('mcqModal')?.addEventListener('click', function(e) {
+            if (e.target === this) closeMcq();
+        });
+        
+        // Keyboard shortcuts for MCQ
+        document.addEventListener('keydown', function(e) {
+            const modal = document.getElementById('mcqModal');
+            if (!modal || !modal.classList.contains('visible')) return;
+            
+            switch(e.key) {
+                case 'Escape':
+                    closeMcq();
+                    break;
+                case '1':
+                case 'a':
+                case 'A':
+                    if (!mcqAnswered) selectMcqOption(0);
+                    break;
+                case '2':
+                case 'b':
+                case 'B':
+                    if (!mcqAnswered) selectMcqOption(1);
+                    break;
+                case '3':
+                case 'c':
+                case 'C':
+                    if (!mcqAnswered) selectMcqOption(2);
+                    break;
+                case '4':
+                case 'd':
+                case 'D':
+                    if (!mcqAnswered) selectMcqOption(3);
+                    break;
+                case 'Enter':
+                case ' ':
+                    if (mcqAnswered) {
+                        e.preventDefault();
+                        nextMcq();
                     }
                     break;
             }
@@ -6015,6 +6539,123 @@ def api_get_flashcards(filepath):
             'flashcards': flashcards,
             'count': len(flashcards)
         })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============================================
+# MCQ (Multiple Choice Questions) API ENDPOINTS
+# ============================================
+
+def parse_mcq(content):
+    """
+    Parse MCQs from markdown content.
+    
+    Supports format:
+    ## MCQ
+    Q: Question text?
+    - [ ] Option A
+    - [ ] Option B
+    - [x] Correct answer
+    - [ ] Option D
+    """
+    mcqs = []
+    
+    # Look for ## MCQ section
+    mcq_section = re.search(r'##\s*MCQ\s*\n([\s\S]*?)(?=\n##\s|\Z)', content, re.IGNORECASE)
+    if not mcq_section:
+        return mcqs
+    
+    section_content = mcq_section.group(1)
+    
+    # Split by Q: to get individual questions
+    questions = re.split(r'\nQ:\s*', section_content)
+    
+    for q_block in questions:
+        if not q_block.strip():
+            continue
+        
+        lines = q_block.strip().split('\n')
+        if not lines:
+            continue
+        
+        # First line is the question
+        question = lines[0].strip()
+        if question.startswith('Q:'):
+            question = question[2:].strip()
+        
+        options = []
+        correct_index = -1
+        
+        # Parse options (- [ ] or - [x])
+        for line in lines[1:]:
+            line = line.strip()
+            # Match checked option [x] or [X]
+            if re.match(r'^-\s*\[x\]\s*', line, re.IGNORECASE):
+                option_text = re.sub(r'^-\s*\[x\]\s*', '', line, flags=re.IGNORECASE).strip()
+                if option_text:
+                    correct_index = len(options)
+                    options.append(option_text)
+            # Match unchecked option [ ]
+            elif re.match(r'^-\s*\[\s*\]\s*', line):
+                option_text = re.sub(r'^-\s*\[\s*\]\s*', '', line).strip()
+                if option_text:
+                    options.append(option_text)
+        
+        if question and len(options) >= 2 and correct_index >= 0:
+            mcqs.append({
+                'question': question,
+                'options': options,
+                'correct': correct_index
+            })
+    
+    return mcqs
+
+@app.route('/api/mcq/<path:filepath>')
+def api_get_mcq(filepath):
+    """Get MCQs parsed from a markdown file"""
+    try:
+        full_path = os.path.join(VAULT_PATH, filepath)
+        
+        if not os.path.exists(full_path):
+            return jsonify({'success': False, 'error': 'File not found'}), 404
+        
+        with open(full_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        mcqs = parse_mcq(content)
+        
+        # Get existing MCQ score from metadata
+        metadata = get_file_metadata(filepath)
+        mcq_score = metadata.get('mcq_score', {})
+        
+        return jsonify({
+            'success': True,
+            'mcqs': mcqs,
+            'count': len(mcqs),
+            'score': mcq_score
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/mcq-score/<path:filepath>', methods=['POST'])
+def api_save_mcq_score(filepath):
+    """Save MCQ score for a file"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'No data provided'}), 400
+        
+        metadata = get_file_metadata(filepath)
+        metadata['mcq_score'] = {
+            'correct': data.get('correct', 0),
+            'total': data.get('total', 0),
+            'percentage': data.get('percentage', 0),
+            'last_attempt': data.get('last_attempt', '')
+        }
+        set_file_metadata(filepath, metadata)
+        
+        return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
