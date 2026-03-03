@@ -8348,12 +8348,32 @@ def get_study_json_path(filepath):
     """
     Get the path to the .study.json file for a given MD file.
     Returns (json_path, exists) tuple.
+    
+    Checks two locations in order:
+    1. Same directory: {filename}.study.json (new preferred location)
+    2. Legacy: .obsidian-viewer/study/{path_with_underscores}.study.json
     """
+    # New location: alongside the MD file
+    full_md_path = os.path.join(VAULT_PATH, filepath)
+    if filepath.endswith('.md'):
+        new_json_path = full_md_path[:-3] + '.study.json'
+    else:
+        new_json_path = full_md_path + '.study.json'
+    
+    if os.path.exists(new_json_path):
+        return new_json_path, True
+    
+    # Legacy location: in .obsidian-viewer/study folder
     rel_path = filepath
     json_filename = rel_path.replace('/', '_').replace('\\', '_') + '.study.json'
     study_dir = os.path.join(VAULT_PATH, '.obsidian-viewer', 'study')
-    json_path = os.path.join(study_dir, json_filename)
-    return json_path, os.path.exists(json_path)
+    legacy_json_path = os.path.join(study_dir, json_filename)
+    
+    if os.path.exists(legacy_json_path):
+        return legacy_json_path, True
+    
+    # Return new path (for creating new files)
+    return new_json_path, False
 
 
 def load_study_json(filepath):

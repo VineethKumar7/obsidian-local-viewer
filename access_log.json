@@ -19,19 +19,19 @@
     },
     "192.168.178.23": {
       "first_seen": "2026-02-17 16:26:18",
-      "last_seen": "2026-03-03 10:31:02",
-      "count": 971,
+      "last_seen": "2026-03-03 15:45:02",
+      "count": 1017,
       "paths": [
-        "/view/Exam based  topics/7 Security/06-EWADIS-Security.md",
-        "/",
-        "/view/Week 1 - Ethernet/Ethernet.md",
-        "/api/annotations/Week 1 - Ethernet/Ethernet.md",
-        "/view/Week 1 - Ethernet/subpages/Communication over a shared Medium.md",
-        "/raw/Week 1 - Ethernet/img/Pasted image 20241219173108.png",
-        "/raw/Week 1 - Ethernet/img/Pasted image 20241219174606.png",
-        "/api/annotations/Week 1 - Ethernet/subpages/Communication over a shared Medium.md",
-        "/manifest.json",
-        "/api/mcq/Week 1 - Ethernet/subpages/Communication over a shared Medium.md"
+        "/raw/Week 1 - Ethernet/img/Pasted image 20241219181633.png",
+        "/raw/Week 1 - Ethernet/img/Pasted image 20241219181404.png",
+        "/raw/Course work/img/Pasted image 20241219182532.png",
+        "/raw/Course work/img/Pasted image 20241219182025.png",
+        "/raw/Course work/img/Pasted image 20241219182926.png",
+        "/raw/Course work/img/Pasted image 20241219202432.png",
+        "/raw/Course work/img/Pasted image 20241219202536.png",
+        "/raw/Course work/img/Pasted image 20241219203344.png",
+        "/raw/Course work/img/Pasted image 20241219203330.png",
+        "/api/study/settings"
       ]
     },
     "192.168.178.27": {
@@ -53,519 +53,522 @@
     },
     "127.0.0.1": {
       "first_seen": "2026-02-20 09:19:41",
-      "last_seen": "2026-03-03 10:31:17",
-      "count": 12,
+      "last_seen": "2026-03-03 16:17:07",
+      "count": 126,
       "paths": [
-        "/",
-        "/view/Module outline.md",
-        "/view/Week 4 - HTTP  Web Conten/subpages/Cascading Style Sheets.md",
-        "/view/Week 5 - Dynamic Web Content - Size of Web/Dynamic Web Content.md",
-        "/api/annotations/Week 5 - Dynamic Web Content - Size of Web/Dynamic Web Content.md",
-        "/view/Week 1 - Ethernet/Ethernet.md",
-        "/api/annotations/Week 1 - Ethernet/Ethernet.md"
+        "/api/study/settings",
+        "/api/annotations/Week 1 - Ethernet/subpages/Ethernet header.md",
+        "/api/flashcards",
+        "/api/flashcards/Week 1 - Ethernet/subpages/Ethernet header.md",
+        "/api/cloze/Week 1 - Ethernet/subpages/Ethernet header.md",
+        "/api/mcq/Week 1 - Ethernet/subpages/Ethernet header.md",
+        "/view/Week 1 - Ethernet/subpages/Ethernet header.md",
+        "/raw/Week 1 - Ethernet/img/Pasted image 20241219181633.png",
+        "/raw/Week 1 - Ethernet/img/Pasted image 20241219181404.png",
+        "/raw/Course work/img/Pasted image 20241219182025.png"
       ]
     }
   },
   "recent": [
     {
-      "ip": "192.168.178.27",
-      "path": "/view/ApplDiffEqs.pdf",
-      "time": "2026-02-22 16:11:05"
-    },
-    {
-      "ip": "192.168.178.27",
-      "path": "/manifest.json",
-      "time": "2026-02-22 16:11:05"
-    },
-    {
-      "ip": "192.168.178.27",
-      "path": "/raw/ApplDiffEqs.pdf",
-      "time": "2026-02-22 16:11:06"
-    },
-    {
-      "ip": "192.168.178.27",
-      "path": "/api/annotations/ApplDiffEqs.pdf",
-      "time": "2026-02-22 16:11:08"
-    },
-    {
-      "ip": "192.168.178.27",
-      "path": "/api/annotations/ApplDiffEqs.pdf",
-      "time": "2026-02-22 16:12:38"
-    },
-    {
-      "ip": "192.168.178.27",
-      "path": "/view/Tutorial /tut04_answers.md",
-      "time": "2026-02-22 16:16:44"
-    },
-    {
-      "ip": "192.168.178.27",
-      "path": "/manifest.json",
-      "time": "2026-02-22 16:16:44"
-    },
-    {
-      "ip": "192.168.178.27",
-      "path": "/api/annotations/Tutorial /tut04_answers.md",
-      "time": "2026-02-22 16:16:45"
-    },
-    {
-      "ip": "192.168.178.27",
-      "path": "/view/Tutorial /tut04_answers.md",
-      "time": "2026-02-22 16:18:29"
-    },
-    {
-      "ip": "192.168.178.27",
-      "path": "/manifest.json",
-      "time": "2026-02-22 16:18:30"
-    },
-    {
-      "ip": "192.168.178.27",
-      "path": "/api/annotations/Tutorial /tut04_answers.md",
-      "time": "2026-02-22 16:18:30"
-    },
-    {
-      "ip": "192.168.178.27",
-      "path": "/view/Tutorial /tut04_answers.md",
-      "time": "2026-02-22 16:37:13"
-    },
-    {
-      "ip": "192.168.178.27",
-      "path": "/manifest.json",
-      "time": "2026-02-22 16:37:13"
-    },
-    {
-      "ip": "192.168.178.27",
-      "path": "/api/annotations/Tutorial /tut04_answers.md",
-      "time": "2026-02-22 16:37:14"
-    },
-    {
-      "ip": "192.168.178.27",
-      "path": "/view/Task2_Matrix_Exponential_Solution.md",
-      "time": "2026-02-22 16:37:18"
-    },
-    {
-      "ip": "192.168.178.27",
-      "path": "/manifest.json",
-      "time": "2026-02-22 16:37:18"
-    },
-    {
-      "ip": "192.168.178.27",
-      "path": "/api/annotations/Task2_Matrix_Exponential_Solution.md",
-      "time": "2026-02-22 16:37:18"
-    },
-    {
-      "ip": "192.168.178.27",
-      "path": "/view/Task2_Matrix_Exponential_Solution.md",
-      "time": "2026-02-22 17:35:00"
-    },
-    {
-      "ip": "192.168.178.27",
-      "path": "/manifest.json",
-      "time": "2026-02-22 17:35:01"
-    },
-    {
-      "ip": "192.168.178.27",
-      "path": "/api/annotations/Task2_Matrix_Exponential_Solution.md",
-      "time": "2026-02-22 17:35:02"
-    },
-    {
-      "ip": "192.168.178.27",
-      "path": "/view/Numerical_Methods_QA.md",
-      "time": "2026-02-23 08:02:34"
-    },
-    {
-      "ip": "192.168.178.27",
-      "path": "/manifest.json",
-      "time": "2026-02-23 08:02:34"
-    },
-    {
-      "ip": "192.168.178.27",
-      "path": "/api/annotations/Numerical_Methods_QA.md",
-      "time": "2026-02-23 08:02:36"
-    },
-    {
-      "ip": "192.168.178.27",
-      "path": "/view/Numerical_Methods_QA_PDF1.md",
-      "time": "2026-02-23 08:02:47"
-    },
-    {
-      "ip": "192.168.178.27",
-      "path": "/manifest.json",
-      "time": "2026-02-23 08:02:47"
-    },
-    {
-      "ip": "192.168.178.27",
-      "path": "/api/annotations/Numerical_Methods_QA_PDF1.md",
-      "time": "2026-02-23 08:02:48"
-    },
-    {
-      "ip": "192.168.178.27",
-      "path": "/view/Chapter4_Numerical_Methods.md",
-      "time": "2026-02-23 08:17:38"
-    },
-    {
-      "ip": "192.168.178.27",
-      "path": "/manifest.json",
-      "time": "2026-02-23 08:17:38"
-    },
-    {
-      "ip": "192.168.178.27",
-      "path": "/api/annotations/Chapter4_Numerical_Methods.md",
-      "time": "2026-02-23 08:17:39"
-    },
-    {
-      "ip": "192.168.178.27",
-      "path": "/view/ApplDiffEqs.pdf",
-      "time": "2026-02-23 08:17:40"
-    },
-    {
-      "ip": "192.168.178.27",
-      "path": "/manifest.json",
-      "time": "2026-02-23 08:17:40"
-    },
-    {
-      "ip": "192.168.178.27",
-      "path": "/raw/ApplDiffEqs.pdf",
-      "time": "2026-02-23 08:17:40"
-    },
-    {
-      "ip": "192.168.178.27",
-      "path": "/api/annotations/ApplDiffEqs.pdf",
-      "time": "2026-02-23 08:17:42"
-    },
-    {
-      "ip": "192.168.178.27",
-      "path": "/view/Chapter4_Numerical_Methods.md",
-      "time": "2026-02-23 08:17:47"
-    },
-    {
-      "ip": "192.168.178.27",
-      "path": "/manifest.json",
-      "time": "2026-02-23 08:17:47"
-    },
-    {
-      "ip": "192.168.178.27",
-      "path": "/api/annotations/Chapter4_Numerical_Methods.md",
-      "time": "2026-02-23 08:17:48"
-    },
-    {
-      "ip": "192.168.178.27",
-      "path": "/view/Chapter4_Numerical_Methods.md",
-      "time": "2026-02-23 09:58:41"
-    },
-    {
-      "ip": "192.168.178.27",
-      "path": "/manifest.json",
-      "time": "2026-02-23 09:58:41"
-    },
-    {
-      "ip": "192.168.178.27",
-      "path": "/api/annotations/Chapter4_Numerical_Methods.md",
-      "time": "2026-02-23 09:58:42"
-    },
-    {
-      "ip": "192.168.178.27",
-      "path": "/view/Stability_Exam3_QA.md",
-      "time": "2026-02-23 09:58:49"
-    },
-    {
-      "ip": "192.168.178.27",
-      "path": "/manifest.json",
-      "time": "2026-02-23 09:58:50"
-    },
-    {
-      "ip": "192.168.178.27",
-      "path": "/api/annotations/Stability_Exam3_QA.md",
-      "time": "2026-02-23 09:58:50"
-    },
-    {
-      "ip": "192.168.178.27",
-      "path": "/api/annotations/Stability_Exam3_QA.md",
-      "time": "2026-02-23 09:59:00"
-    },
-    {
-      "ip": "192.168.178.27",
-      "path": "/api/annotations/Stability_Exam3_QA.md",
-      "time": "2026-02-23 09:59:05"
-    },
-    {
-      "ip": "192.168.178.27",
-      "path": "/api/annotations/Stability_Exam3_QA.md",
-      "time": "2026-02-23 09:59:10"
-    },
-    {
-      "ip": "192.168.178.27",
-      "path": "/api/annotations/Stability_Exam3_QA.md",
-      "time": "2026-02-23 09:59:12"
-    },
-    {
-      "ip": "192.168.178.27",
-      "path": "/api/annotations/Stability_Exam3_QA.md",
-      "time": "2026-02-23 09:59:12"
-    },
-    {
-      "ip": "192.168.178.27",
-      "path": "/api/annotations/Stability_Exam3_QA.md",
-      "time": "2026-02-23 09:59:13"
-    },
-    {
-      "ip": "192.168.178.27",
-      "path": "/api/annotations/Stability_Exam3_QA.md",
-      "time": "2026-02-23 09:59:18"
-    },
-    {
-      "ip": "192.168.178.27",
-      "path": "/api/annotations/Stability_Exam3_QA.md",
-      "time": "2026-02-23 09:59:21"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/",
-      "time": "2026-03-02 15:37:51"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/manifest.json",
-      "time": "2026-03-02 15:37:52"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/Week 1 - Ethernet/Ethernet.md",
-      "time": "2026-03-02 15:38:20"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/api/annotations/Week 1 - Ethernet/Ethernet.md",
-      "time": "2026-03-02 15:38:20"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/manifest.json",
-      "time": "2026-03-02 15:38:20"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/Week 1 - Ethernet/subpages/Communication over a shared Medium.md",
-      "time": "2026-03-02 15:40:49"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/raw/Week 1 - Ethernet/img/Pasted image 20241219173108.png",
-      "time": "2026-03-02 15:40:49"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/raw/Week 1 - Ethernet/img/Pasted image 20241219174606.png",
-      "time": "2026-03-02 15:40:49"
-    },
-    {
-      "ip": "192.168.178.23",
+      "ip": "127.0.0.1",
       "path": "/api/annotations/Week 1 - Ethernet/subpages/Communication over a shared Medium.md",
-      "time": "2026-03-02 15:40:49"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/manifest.json",
-      "time": "2026-03-02 15:40:49"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/Week 1 - Ethernet/subpages/Communication over a shared Medium.md",
-      "time": "2026-03-02 16:34:07"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/raw/Week 1 - Ethernet/img/Pasted image 20241219173108.png",
-      "time": "2026-03-02 16:34:07"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/raw/Week 1 - Ethernet/img/Pasted image 20241219174606.png",
-      "time": "2026-03-02 16:34:07"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/manifest.json",
-      "time": "2026-03-02 16:34:07"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/Week 1 - Ethernet/subpages/Communication over a shared Medium.md",
-      "time": "2026-03-02 16:34:09"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/raw/Week 1 - Ethernet/img/Pasted image 20241219173108.png",
-      "time": "2026-03-02 16:34:09"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/raw/Week 1 - Ethernet/img/Pasted image 20241219174606.png",
-      "time": "2026-03-02 16:34:09"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/manifest.json",
-      "time": "2026-03-02 16:34:10"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/Week 1 - Ethernet/subpages/Communication over a shared Medium.md",
-      "time": "2026-03-02 16:34:16"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/raw/Week 1 - Ethernet/img/Pasted image 20241219173108.png",
-      "time": "2026-03-02 16:34:17"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/raw/Week 1 - Ethernet/img/Pasted image 20241219174606.png",
-      "time": "2026-03-02 16:34:17"
+      "time": "2026-03-03 15:15:05"
     },
     {
       "ip": "127.0.0.1",
-      "path": "/view/Module outline.md",
-      "time": "2026-03-02 16:54:13"
-    },
-    {
-      "ip": "127.0.0.1",
-      "path": "/view/Module outline.md",
-      "time": "2026-03-02 16:54:56"
-    },
-    {
-      "ip": "127.0.0.1",
-      "path": "/view/Module outline.md",
-      "time": "2026-03-02 16:55:01"
-    },
-    {
-      "ip": "127.0.0.1",
-      "path": "/view/Module outline.md",
-      "time": "2026-03-02 16:55:05"
-    },
-    {
-      "ip": "127.0.0.1",
-      "path": "/view/Week 4 - HTTP  Web Conten/subpages/Cascading Style Sheets.md",
-      "time": "2026-03-02 16:55:23"
-    },
-    {
-      "ip": "127.0.0.1",
-      "path": "/view/Week 4 - HTTP  Web Conten/subpages/Cascading Style Sheets.md",
-      "time": "2026-03-02 16:55:28"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/Week 1 - Ethernet/subpages/Communication over a shared Medium.md",
-      "time": "2026-03-02 17:10:39"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/raw/Week 1 - Ethernet/img/Pasted image 20241219173108.png",
-      "time": "2026-03-02 17:10:39"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/raw/Week 1 - Ethernet/img/Pasted image 20241219174606.png",
-      "time": "2026-03-02 17:10:39"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/Week 1 - Ethernet/subpages/Communication over a shared Medium.md",
-      "time": "2026-03-02 18:02:58"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/raw/Week 1 - Ethernet/img/Pasted image 20241219173108.png",
-      "time": "2026-03-02 18:02:58"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/raw/Week 1 - Ethernet/img/Pasted image 20241219174606.png",
-      "time": "2026-03-02 18:02:58"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/api/annotations/Week 1 - Ethernet/subpages/Communication over a shared Medium.md",
-      "time": "2026-03-02 18:02:59"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/manifest.json",
-      "time": "2026-03-02 18:02:59"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/api/mcq/Week 1 - Ethernet/subpages/Communication over a shared Medium.md",
-      "time": "2026-03-02 18:03:49"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/Week 1 - Ethernet/subpages/Communication over a shared Medium.md",
-      "time": "2026-03-02 18:04:57"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/raw/Week 1 - Ethernet/img/Pasted image 20241219173108.png",
-      "time": "2026-03-02 18:04:57"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/raw/Week 1 - Ethernet/img/Pasted image 20241219174606.png",
-      "time": "2026-03-02 18:04:57"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/api/annotations/Week 1 - Ethernet/subpages/Communication over a shared Medium.md",
-      "time": "2026-03-02 18:04:58"
+      "path": "/api/flashcards/Week 1 - Ethernet/subpages/Communication over a shared Medium.md",
+      "time": "2026-03-03 15:15:07"
     },
     {
       "ip": "127.0.0.1",
       "path": "/",
-      "time": "2026-03-03 10:29:46"
+      "time": "2026-03-03 15:15:59"
     },
     {
-      "ip": "192.168.178.23",
+      "ip": "127.0.0.1",
+      "path": "/manifest.json",
+      "time": "2026-03-03 15:15:59"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/settings",
+      "time": "2026-03-03 15:16:00"
+    },
+    {
+      "ip": "127.0.0.1",
       "path": "/view/Week 1 - Ethernet/subpages/Communication over a shared Medium.md",
-      "time": "2026-03-03 10:31:01"
+      "time": "2026-03-03 15:17:01"
     },
     {
-      "ip": "192.168.178.23",
+      "ip": "127.0.0.1",
       "path": "/raw/Week 1 - Ethernet/img/Pasted image 20241219173108.png",
-      "time": "2026-03-03 10:31:01"
+      "time": "2026-03-03 15:17:01"
     },
     {
-      "ip": "192.168.178.23",
+      "ip": "127.0.0.1",
       "path": "/raw/Week 1 - Ethernet/img/Pasted image 20241219174606.png",
-      "time": "2026-03-03 10:31:01"
+      "time": "2026-03-03 15:17:01"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/manifest.json",
+      "time": "2026-03-03 15:17:01"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/settings",
+      "time": "2026-03-03 15:17:01"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/",
+      "time": "2026-03-03 15:22:10"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/",
+      "time": "2026-03-03 15:22:22"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/Week 1 - Ethernet/subpages/Communication over a shared Medium.md",
+      "time": "2026-03-03 15:22:27"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/raw/Week 1 - Ethernet/img/Pasted image 20241219173108.png",
+      "time": "2026-03-03 15:22:27"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/raw/Week 1 - Ethernet/img/Pasted image 20241219174606.png",
+      "time": "2026-03-03 15:22:27"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/manifest.json",
+      "time": "2026-03-03 15:22:27"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/settings",
+      "time": "2026-03-03 15:22:27"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/annotations/Week 1 - Ethernet/subpages/Communication over a shared Medium.md",
+      "time": "2026-03-03 15:22:27"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/flashcards/Week 1 - Ethernet/subpages/Communication over a shared Medium.md",
+      "time": "2026-03-03 15:22:34"
     },
     {
       "ip": "192.168.178.23",
       "path": "/api/annotations/Week 1 - Ethernet/subpages/Communication over a shared Medium.md",
-      "time": "2026-03-03 10:31:02"
+      "time": "2026-03-03 15:23:10"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/",
+      "time": "2026-03-03 15:25:30"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/",
+      "time": "2026-03-03 15:25:41"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/Week 1 - Ethernet/subpages/Communication over a shared Medium.md",
+      "time": "2026-03-03 15:25:47"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/raw/Week 1 - Ethernet/img/Pasted image 20241219173108.png",
+      "time": "2026-03-03 15:25:47"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/raw/Week 1 - Ethernet/img/Pasted image 20241219174606.png",
+      "time": "2026-03-03 15:25:47"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/manifest.json",
+      "time": "2026-03-03 15:25:47"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/settings",
+      "time": "2026-03-03 15:25:48"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/annotations/Week 1 - Ethernet/subpages/Communication over a shared Medium.md",
+      "time": "2026-03-03 15:25:48"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/flashcards/Week 1 - Ethernet/subpages/Communication over a shared Medium.md",
+      "time": "2026-03-03 15:26:00"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/view/Week 1 - Ethernet/subpages/Communication over a shared Medium.md",
+      "time": "2026-03-03 15:31:15"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/raw/Week 1 - Ethernet/img/Pasted image 20241219173108.png",
+      "time": "2026-03-03 15:31:16"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/raw/Week 1 - Ethernet/img/Pasted image 20241219174606.png",
+      "time": "2026-03-03 15:31:16"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/api/study/settings",
+      "time": "2026-03-03 15:31:16"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/api/annotations/Week 1 - Ethernet/subpages/Communication over a shared Medium.md",
+      "time": "2026-03-03 15:31:16"
     },
     {
       "ip": "192.168.178.23",
       "path": "/manifest.json",
-      "time": "2026-03-03 10:31:02"
+      "time": "2026-03-03 15:31:16"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/api/flashcards/Week 1 - Ethernet/subpages/Communication over a shared Medium.md",
+      "time": "2026-03-03 15:31:18"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/view/Week 1 - Ethernet/subpages/Communication over a shared Medium.md",
+      "time": "2026-03-03 15:31:32"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/raw/Week 1 - Ethernet/img/Pasted image 20241219173108.png",
+      "time": "2026-03-03 15:31:32"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/raw/Week 1 - Ethernet/img/Pasted image 20241219174606.png",
+      "time": "2026-03-03 15:31:32"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/api/study/settings",
+      "time": "2026-03-03 15:31:32"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/api/annotations/Week 1 - Ethernet/subpages/Communication over a shared Medium.md",
+      "time": "2026-03-03 15:31:32"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/manifest.json",
+      "time": "2026-03-03 15:31:32"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/api/flashcards/Week 1 - Ethernet/subpages/Communication over a shared Medium.md",
+      "time": "2026-03-03 15:31:36"
     },
     {
       "ip": "127.0.0.1",
-      "path": "/view/Week 5 - Dynamic Web Content - Size of Web/Dynamic Web Content.md",
-      "time": "2026-03-03 10:31:08"
+      "path": "/view/Week 1 - Ethernet/subpages/Communication over a shared Medium.md",
+      "time": "2026-03-03 15:31:59"
     },
     {
       "ip": "127.0.0.1",
-      "path": "/api/annotations/Week 5 - Dynamic Web Content - Size of Web/Dynamic Web Content.md",
-      "time": "2026-03-03 10:31:08"
+      "path": "/raw/Week 1 - Ethernet/img/Pasted image 20241219173108.png",
+      "time": "2026-03-03 15:31:59"
     },
     {
       "ip": "127.0.0.1",
+      "path": "/raw/Week 1 - Ethernet/img/Pasted image 20241219174606.png",
+      "time": "2026-03-03 15:31:59"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/settings",
+      "time": "2026-03-03 15:31:59"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/annotations/Week 1 - Ethernet/subpages/Communication over a shared Medium.md",
+      "time": "2026-03-03 15:31:59"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/flashcards/Week 1 - Ethernet/subpages/Communication over a shared Medium.md",
+      "time": "2026-03-03 15:32:02"
+    },
+    {
+      "ip": "192.168.178.23",
       "path": "/view/Week 1 - Ethernet/Ethernet.md",
-      "time": "2026-03-03 10:31:16"
+      "time": "2026-03-03 15:32:18"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/api/study/settings",
+      "time": "2026-03-03 15:32:18"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/api/annotations/Week 1 - Ethernet/Ethernet.md",
+      "time": "2026-03-03 15:32:18"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/manifest.json",
+      "time": "2026-03-03 15:32:18"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/view/Week 1 - Ethernet/subpages/Ethernet header.md",
+      "time": "2026-03-03 15:32:21"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/raw/Week 1 - Ethernet/img/Pasted image 20241219181633.png",
+      "time": "2026-03-03 15:32:21"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/raw/Week 1 - Ethernet/img/Pasted image 20241219181404.png",
+      "time": "2026-03-03 15:32:21"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/raw/Course work/img/Pasted image 20241219182025.png",
+      "time": "2026-03-03 15:32:21"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/raw/Course work/img/Pasted image 20241219182532.png",
+      "time": "2026-03-03 15:32:21"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/raw/Course work/img/Pasted image 20241219182926.png",
+      "time": "2026-03-03 15:32:21"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/raw/Course work/img/Pasted image 20241219202432.png",
+      "time": "2026-03-03 15:32:22"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/raw/Course work/img/Pasted image 20241219202536.png",
+      "time": "2026-03-03 15:32:22"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/raw/Course work/img/Pasted image 20241219203344.png",
+      "time": "2026-03-03 15:32:22"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/raw/Course work/img/Pasted image 20241219203330.png",
+      "time": "2026-03-03 15:32:22"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/api/study/settings",
+      "time": "2026-03-03 15:32:22"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/manifest.json",
+      "time": "2026-03-03 15:32:22"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/api/flashcards/Week 1 - Ethernet/subpages/Ethernet header.md",
+      "time": "2026-03-03 15:32:25"
     },
     {
       "ip": "127.0.0.1",
-      "path": "/api/annotations/Week 1 - Ethernet/Ethernet.md",
-      "time": "2026-03-03 10:31:17"
+      "path": "/view/Week 1 - Ethernet/subpages/Ethernet header.md",
+      "time": "2026-03-03 15:33:26"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/raw/Week 1 - Ethernet/img/Pasted image 20241219181633.png",
+      "time": "2026-03-03 15:33:26"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/raw/Week 1 - Ethernet/img/Pasted image 20241219181404.png",
+      "time": "2026-03-03 15:33:26"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/raw/Course work/img/Pasted image 20241219182025.png",
+      "time": "2026-03-03 15:33:26"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/raw/Course work/img/Pasted image 20241219182532.png",
+      "time": "2026-03-03 15:33:26"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/raw/Course work/img/Pasted image 20241219182926.png",
+      "time": "2026-03-03 15:33:26"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/raw/Course work/img/Pasted image 20241219202432.png",
+      "time": "2026-03-03 15:33:26"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/raw/Course work/img/Pasted image 20241219202536.png",
+      "time": "2026-03-03 15:33:26"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/raw/Course work/img/Pasted image 20241219203344.png",
+      "time": "2026-03-03 15:33:26"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/raw/Course work/img/Pasted image 20241219203330.png",
+      "time": "2026-03-03 15:33:26"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/settings",
+      "time": "2026-03-03 15:33:26"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/annotations/Week 1 - Ethernet/subpages/Ethernet header.md",
+      "time": "2026-03-03 15:33:26"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/api/study/dashboard",
+      "time": "2026-03-03 15:44:31"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/view/Week 1 - Ethernet/subpages/Ethernet header.md",
+      "time": "2026-03-03 15:45:02"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/raw/Week 1 - Ethernet/img/Pasted image 20241219181633.png",
+      "time": "2026-03-03 15:45:02"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/raw/Week 1 - Ethernet/img/Pasted image 20241219181404.png",
+      "time": "2026-03-03 15:45:02"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/raw/Course work/img/Pasted image 20241219182532.png",
+      "time": "2026-03-03 15:45:02"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/raw/Course work/img/Pasted image 20241219182025.png",
+      "time": "2026-03-03 15:45:02"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/raw/Course work/img/Pasted image 20241219182926.png",
+      "time": "2026-03-03 15:45:02"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/raw/Course work/img/Pasted image 20241219202432.png",
+      "time": "2026-03-03 15:45:02"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/raw/Course work/img/Pasted image 20241219202536.png",
+      "time": "2026-03-03 15:45:02"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/raw/Course work/img/Pasted image 20241219203344.png",
+      "time": "2026-03-03 15:45:02"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/raw/Course work/img/Pasted image 20241219203330.png",
+      "time": "2026-03-03 15:45:02"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/api/study/settings",
+      "time": "2026-03-03 15:45:02"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/flashcards",
+      "time": "2026-03-03 16:12:14"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/flashcards",
+      "time": "2026-03-03 16:12:28"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/flashcards",
+      "time": "2026-03-03 16:12:35"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/flashcards/Week 1 - Ethernet/subpages/Ethernet header.md",
+      "time": "2026-03-03 16:12:52"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/cloze/Week 1 - Ethernet/subpages/Ethernet header.md",
+      "time": "2026-03-03 16:13:01"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/mcq/Week 1 - Ethernet/subpages/Ethernet header.md",
+      "time": "2026-03-03 16:13:01"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/Week 1 - Ethernet/subpages/Ethernet header.md",
+      "time": "2026-03-03 16:17:06"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/raw/Week 1 - Ethernet/img/Pasted image 20241219181633.png",
+      "time": "2026-03-03 16:17:07"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/raw/Week 1 - Ethernet/img/Pasted image 20241219181404.png",
+      "time": "2026-03-03 16:17:07"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/raw/Course work/img/Pasted image 20241219182025.png",
+      "time": "2026-03-03 16:17:07"
     }
   ]
 }
