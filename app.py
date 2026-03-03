@@ -4,7 +4,7 @@ Obsidian Local Viewer - View your Obsidian vault from any device on your network
 """
 
 from flask import Flask, render_template_string, send_file, abort, redirect, url_for, Response, request, jsonify
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
 import sys
 import re
@@ -353,6 +353,268 @@ def set_file_metadata(filepath, metadata):
     all_meta = load_all_metadata()
     all_meta[filepath] = metadata
     save_all_metadata(all_meta)
+
+
+# ============================================
+# SRS (SPACED REPETITION) STORAGE
+# ============================================
+
+def get_srs_dir():
+    """Get the path to the SRS data directory"""
+    srs_dir = os.path.join(VAULT_PATH, '.obsidian-viewer', 'srs')
+    os.makedirs(srs_dir, exist_ok=True)
+    return srs_dir
+
+def get_srs_filepath(filepath):
+    """Get SRS data file path for a given note file"""
+    import hashlib
+    file_hash = hashlib.md5(filepath.encode()).hexdigest()[:12]
+    return os.path.join(get_srs_dir(), f'{file_hash}.json')
+
+def load_srs_data(filepath):
+    """Load SRS data for a specific file"""
+    srs_path = get_srs_filepath(filepath)
+    if os.path.exists(srs_path):
+        try:
+            with open(srs_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError):
+            pass
+    return {
+        'filePath': filepath,
+        'mode': 'srs',  # 'srs' or 'leitner'
+        'cards': {},
+        'lastReview': None
+    }
+
+def save_srs_data(filepath, data):
+    """Save SRS data for a specific file"""
+    srs_path = get_srs_filepath(filepath)
+    data['filePath'] = filepath
+    with open(srs_path, 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=2)
+
+def get_study_sessions_path():
+    """Get path to study sessions log"""
+    sessions_dir = os.path.join(VAULT_PATH, '.obsidian-viewer')
+    os.makedirs(sessions_dir, exist_ok=True)
+    return os.path.join(sessions_dir, 'sessions.json')
+
+def load_study_sessions():
+    """Load study session history"""
+    path = get_study_sessions_path()
+    if os.path.exists(path):
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError):
+            pass
+    return {}
+
+def save_study_sessions(data):
+    """Save study session history"""
+    with open(get_study_sessions_path(), 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=2)
+
+def get_study_settings_path():
+    """Get path to study settings"""
+    settings_dir = os.path.join(VAULT_PATH, '.obsidian-viewer')
+    os.makedirs(settings_dir, exist_ok=True)
+    return os.path.join(settings_dir, 'settings.json')
+
+def load_study_settings():
+    """Load study settings"""
+    path = get_study_settings_path()
+    if os.path.exists(path):
+        try:
+            with open(path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except (json.JSONDecodeError, IOError):
+            pass
+    return {
+        'dailyGoal': 50,
+        'timerSeconds': 30,
+        'srsMode': 'srs',  # 'srs' or 'leitner'
+        'notifications': False
+    }
+
+def save_study_settings(data):
+    """Save study settings"""
+    with open(get_study_settings_path(), 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=2)
+
+def calculate_srs_interval(card_data, rating):
+    """
+    Calculate next review interval using SM-2 algorithm variant.
+    rating: 1=again, 2=hard, 3=good, 4=easy
+    """
+    interval = card_data.get('interval', 1)  # days
+    ease_factor = card_data.get('easeFactor', 2.5)
+    reps = card_data.get('reps', 0)
+    lapses = card_data.get('lapses', 0)
+    
+    if rating == 1:  # Again - reset
+        interval = 0.007  # ~10 minutes in days
+        ease_factor = max(1.3, ease_factor - 0.2)
+        lapses += 1
+        reps = 0
+    elif rating == 2:  # Hard
+        interval = interval * 1.2
+        ease_factor = max(1.3, ease_factor - 0.15)
+        reps += 1
+    elif rating == 3:  # Good
+        if reps == 0:
+            interval = 1
+        elif reps == 1:
+            interval = 6
+        else:
+            interval = interval * ease_factor
+        reps += 1
+    elif rating == 4:  # Easy
+        if reps == 0:
+            interval = 4
+        else:
+            interval = interval * ease_factor * 1.3
+        ease_factor = min(3.0, ease_factor + 0.15)
+        reps += 1
+    
+    next_review = (datetime.utcnow() + timedelta(days=interval)).isoformat() + 'Z'
+    
+    return {
+        'interval': round(interval, 3),
+        'easeFactor': round(ease_factor, 2),
+        'reps': reps,
+        'lapses': lapses,
+        'nextReview': next_review,
+        'lastReview': datetime.utcnow().isoformat() + 'Z'
+    }
+
+def calculate_leitner_box(card_data, correct):
+    """
+    Calculate Leitner box movement.
+    correct: True = move up, False = back to box 1
+    """
+    current_box = card_data.get('box', 1)
+    
+    # Box intervals in days
+    box_intervals = {1: 1, 2: 2, 3: 4, 4: 7, 5: 14}
+    
+    if correct:
+        new_box = min(5, current_box + 1)
+    else:
+        new_box = 1
+    
+    interval = box_intervals[new_box]
+    next_review = (datetime.utcnow() + timedelta(days=interval)).isoformat() + 'Z'
+    
+    return {
+        'box': new_box,
+        'nextReview': next_review,
+        'lastReview': datetime.utcnow().isoformat() + 'Z'
+    }
+
+
+# ============================================
+# CLOZE DELETION PARSER
+# ============================================
+
+def parse_cloze(content):
+    """
+    Parse cloze deletions from markdown content.
+    
+    Supports formats:
+    1. {{c1::text}} - Anki-style numbered cloze
+    2. {{text}} - Unnumbered cloze
+    3. {{text|hint}} - Cloze with hint
+    4. ==text== - Highlight-based cloze (simpler)
+    
+    Returns list of cloze cards with their blanks.
+    """
+    cloze_cards = []
+    
+    # Look for ## Cloze section
+    cloze_section = re.search(r'##\s*Cloze\s*\n([\s\S]*?)(?=\n##\s|\Z)', content, re.IGNORECASE)
+    section_content = cloze_section.group(1) if cloze_section else ''
+    
+    # Also check for > [!cloze] callouts
+    callout_pattern = re.compile(r'>\s*\[!cloze\][+-]?\s*(.*?)\n((?:>.*\n)*)', re.IGNORECASE)
+    for match in callout_pattern.finditer(content):
+        title = match.group(1).strip()
+        body_lines = match.group(2).strip()
+        body = '\n'.join(line.lstrip('>').strip() for line in body_lines.split('\n') if line.strip())
+        full_text = (title + '\n' + body) if title else body
+        if full_text:
+            section_content += '\n' + full_text
+    
+    if not section_content.strip():
+        return cloze_cards
+    
+    # Split into sentences/lines for individual cards
+    lines = [l.strip() for l in section_content.split('\n') if l.strip() and not l.strip().startswith('#')]
+    
+    for line in lines:
+        # Skip lines without any cloze markers
+        if not (re.search(r'\{\{.*?\}\}', line) or re.search(r'==.+?==', line)):
+            continue
+        
+        # Find all cloze deletions in this line
+        cloze_groups = {}  # group by cloze number
+        
+        # Pattern 1: {{c1::text}} or {{c1::text|hint}}
+        numbered_pattern = re.compile(r'\{\{c(\d+)::([^}|]+)(?:\|([^}]+))?\}\}')
+        for match in numbered_pattern.finditer(line):
+            num = int(match.group(1))
+            text = match.group(2).strip()
+            hint = match.group(3).strip() if match.group(3) else None
+            if num not in cloze_groups:
+                cloze_groups[num] = []
+            cloze_groups[num].append({'text': text, 'hint': hint, 'full': match.group(0)})
+        
+        # Pattern 2: {{text}} or {{text|hint}} (unnumbered)
+        unnumbered_pattern = re.compile(r'\{\{([^}:]+?)(?:\|([^}]+))?\}\}')
+        unnumbered_idx = 100  # Start at 100 to not conflict with numbered
+        for match in unnumbered_pattern.finditer(line):
+            # Skip if this was already matched as numbered
+            if '::' in match.group(0):
+                continue
+            text = match.group(1).strip()
+            hint = match.group(2).strip() if match.group(2) else None
+            cloze_groups[unnumbered_idx] = [{'text': text, 'hint': hint, 'full': match.group(0)}]
+            unnumbered_idx += 1
+        
+        # Pattern 3: ==text== (highlight-based)
+        highlight_pattern = re.compile(r'==([^=]+)==')
+        highlight_idx = 200  # Start at 200
+        for match in highlight_pattern.finditer(line):
+            text = match.group(1).strip()
+            cloze_groups[highlight_idx] = [{'text': text, 'hint': None, 'full': match.group(0)}]
+            highlight_idx += 1
+        
+        # Create cards - one per cloze group
+        for group_num, clozes in cloze_groups.items():
+            # Build the question with this group blanked out
+            question = line
+            answers = []
+            
+            for cloze in clozes:
+                hint_text = f'[{cloze["hint"]}]' if cloze['hint'] else '[...]'
+                question = question.replace(cloze['full'], f'<span class="cloze-blank">{hint_text}</span>')
+                answers.append(cloze['text'])
+            
+            # Clean up other cloze markers (show them revealed)
+            question = re.sub(r'\{\{c?\d*::([^}|]+)(?:\|[^}]+)?\}\}', r'\1', question)
+            question = re.sub(r'\{\{([^}|]+)(?:\|[^}]+)?\}\}', r'\1', question)
+            question = re.sub(r'==([^=]+)==', r'\1', question)
+            
+            cloze_cards.append({
+                'type': 'cloze',
+                'question': question,
+                'answer': ', '.join(answers),
+                'answers': answers,
+                'originalLine': line
+            })
+    
+    return cloze_cards
 
 
 HTML_TEMPLATE = '''
@@ -1686,6 +1948,308 @@ HTML_TEMPLATE = '''
             animation: shuffle 0.5s ease-in-out;
         }
 
+        /* ===== CLOZE DELETION SYSTEM ===== */
+        .cloze-blank {
+            display: inline-block;
+            min-width: 80px;
+            padding: 2px 12px;
+            margin: 0 2px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border-radius: 4px;
+            font-weight: 500;
+            text-align: center;
+        }
+        .cloze-blank.revealed {
+            background: linear-gradient(135deg, #4ade80 0%, #22c55e 100%);
+        }
+        .cloze-card {
+            font-size: 1.2em;
+            line-height: 1.8;
+            text-align: center;
+            padding: 40px 20px;
+        }
+        .cloze-input {
+            display: inline-block;
+            min-width: 100px;
+            padding: 4px 12px;
+            border: 2px dashed #667eea;
+            border-radius: 4px;
+            background: rgba(102, 126, 234, 0.1);
+            font-size: 1em;
+            text-align: center;
+            outline: none;
+        }
+        .cloze-input:focus {
+            border-color: #764ba2;
+            background: rgba(118, 75, 162, 0.1);
+        }
+        .cloze-input.correct {
+            border-color: #4ade80;
+            background: rgba(74, 222, 128, 0.2);
+        }
+        .cloze-input.incorrect {
+            border-color: #f87171;
+            background: rgba(248, 113, 113, 0.2);
+        }
+
+        /* ===== SRS RATING BUTTONS ===== */
+        .srs-rating-controls {
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+            flex-wrap: wrap;
+            padding: 16px;
+        }
+        .srs-btn {
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+        .srs-btn .interval {
+            font-size: 11px;
+            opacity: 0.8;
+        }
+        .srs-btn.again {
+            background: #fee2e2;
+            color: #dc2626;
+        }
+        .srs-btn.again:hover {
+            background: #fecaca;
+        }
+        .srs-btn.hard {
+            background: #fef3c7;
+            color: #d97706;
+        }
+        .srs-btn.hard:hover {
+            background: #fde68a;
+        }
+        .srs-btn.good {
+            background: #d1fae5;
+            color: #059669;
+        }
+        .srs-btn.good:hover {
+            background: #a7f3d0;
+        }
+        .srs-btn.easy {
+            background: #dbeafe;
+            color: #2563eb;
+        }
+        .srs-btn.easy:hover {
+            background: #bfdbfe;
+        }
+
+        /* ===== LEITNER BOX INDICATOR ===== */
+        .leitner-box {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 4px 10px;
+            background: #f3f4f6;
+            border-radius: 12px;
+            font-size: 12px;
+            color: #6b7280;
+        }
+        .leitner-box.box-1 { background: #fee2e2; color: #dc2626; }
+        .leitner-box.box-2 { background: #fef3c7; color: #d97706; }
+        .leitner-box.box-3 { background: #fef9c3; color: #ca8a04; }
+        .leitner-box.box-4 { background: #d1fae5; color: #059669; }
+        .leitner-box.box-5 { background: #dbeafe; color: #2563eb; }
+
+        /* ===== STUDY DASHBOARD ===== */
+        .dashboard-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 10000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .dashboard-modal.visible {
+            display: flex;
+        }
+        .dashboard-container {
+            background: white;
+            border-radius: 16px;
+            max-width: 800px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 24px;
+        }
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+        .dashboard-header h2 {
+            font-size: 24px;
+            color: #1f2937;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+        .dashboard-stat {
+            background: #f9fafb;
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+        }
+        .dashboard-stat-value {
+            font-size: 28px;
+            font-weight: 700;
+            color: #1f2937;
+        }
+        .dashboard-stat-label {
+            font-size: 13px;
+            color: #6b7280;
+            margin-top: 4px;
+        }
+        .dashboard-stat.streak .dashboard-stat-value {
+            color: #f97316;
+        }
+        .dashboard-stat.due .dashboard-stat-value {
+            color: #8b5cf6;
+        }
+        .dashboard-stat.mastery .dashboard-stat-value {
+            color: #10b981;
+        }
+        .dashboard-stat.weak .dashboard-stat-value {
+            color: #ef4444;
+        }
+        .dashboard-progress {
+            margin-bottom: 24px;
+        }
+        .dashboard-progress h3 {
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 8px;
+        }
+        .progress-bar-container {
+            background: #e5e7eb;
+            border-radius: 9999px;
+            height: 12px;
+            overflow: hidden;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+            border-radius: 9999px;
+            transition: width 0.3s ease;
+        }
+        .progress-label {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 4px;
+            font-size: 12px;
+            color: #6b7280;
+        }
+        .heatmap-container {
+            margin-top: 24px;
+        }
+        .heatmap-container h3 {
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 12px;
+        }
+        .heatmap {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 4px;
+        }
+        .heatmap-day {
+            aspect-ratio: 1;
+            border-radius: 4px;
+            background: #f3f4f6;
+            position: relative;
+        }
+        .heatmap-day.level-1 { background: #d1fae5; }
+        .heatmap-day.level-2 { background: #6ee7b7; }
+        .heatmap-day.level-3 { background: #34d399; }
+        .heatmap-day.level-4 { background: #10b981; }
+        .heatmap-day:hover::after {
+            content: attr(title);
+            position: absolute;
+            bottom: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #1f2937;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            white-space: nowrap;
+            z-index: 10;
+        }
+
+        /* ===== CARD TYPE BADGES ===== */
+        .card-type-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 500;
+        }
+        .card-type-badge.flash {
+            background: #fef3c7;
+            color: #d97706;
+        }
+        .card-type-badge.mcq {
+            background: #dbeafe;
+            color: #2563eb;
+        }
+        .card-type-badge.cloze {
+            background: #f3e8ff;
+            color: #9333ea;
+        }
+
+        /* ===== TIMER BAR ===== */
+        .timer-bar {
+            height: 4px;
+            background: #e5e7eb;
+            border-radius: 2px;
+            overflow: hidden;
+            margin-bottom: 16px;
+        }
+        .timer-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #4ade80 0%, #f97316 50%, #ef4444 100%);
+            transition: width 0.1s linear;
+        }
+        .timer-bar.warning .timer-bar-fill {
+            background: #f97316;
+        }
+        .timer-bar.danger .timer-bar-fill {
+            background: #ef4444;
+            animation: pulse 0.5s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+
         /* ===== MCQ SYSTEM ===== */
         .mcq-modal {
             display: none;
@@ -2379,7 +2943,10 @@ HTML_TEMPLATE = '''
                 <button onclick="downloadPDF(); closeToolbarMenu();" title="Download as PDF">📥 PDF</button>
                 <button onclick="downloadTopicZip(); closeToolbarMenu();" title="Download this page + all linked subpages as ZIP">📦 Topic</button>
                 <button onclick="openFlashcards(); closeToolbarMenu();" title="Study with flashcards">🎴 Flashcards</button>
-                <button onclick="openMcq(); closeToolbarMenu();" title="Multiple choice quiz">📝 MCQ</button>
+                <button onclick="openMcq(); closeToolbarMenu();" title="Multiple choice quiz">✅ MCQ</button>
+                <button onclick="openCloze(); closeToolbarMenu();" title="Fill in the blanks">📝 Cloze</button>
+                <button onclick="openMixMode(); closeToolbarMenu();" title="Mixed study mode">🎲 Mix Mode</button>
+                <button onclick="openDashboard(); closeToolbarMenu();" title="Study progress dashboard">📊 Dashboard</button>
                 {% endif %}
                 {% if is_markdown or is_pdf|default(false) %}
                 <button onclick="openAnnotation(); closeToolbarMenu();" title="Annotate with Apple Pencil">✏️ Annotate</button>
@@ -2472,6 +3039,13 @@ HTML_TEMPLATE = '''
             <div id="mcqContent">
                 <!-- MCQ content will be inserted here by JS -->
             </div>
+        </div>
+    </div>
+    
+    <!-- Dashboard Modal -->
+    <div id="dashboardModal" class="dashboard-modal">
+        <div class="dashboard-container" id="dashboardContainer">
+            <!-- Dashboard content will be inserted here by JS -->
         </div>
     </div>
     
@@ -3383,6 +3957,380 @@ Q: Which port does HTTP use?
             }
         });
         
+        // ===== CLOZE DELETION SYSTEM =====
+        let clozeCards = [];
+        let currentClozeIndex = 0;
+        let clozeStats = { correct: 0, wrong: 0 };
+        
+        async function openCloze() {
+            const filePath = '{{ file_path|default("") }}';
+            if (!filePath) {
+                alert('No file loaded');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/cloze/' + encodeURIComponent(filePath));
+                const data = await response.json();
+                
+                if (data.success && data.cloze && data.cloze.length > 0) {
+                    clozeCards = data.cloze;
+                    currentClozeIndex = 0;
+                    clozeStats = { correct: 0, wrong: 0 };
+                    renderClozeCard();
+                    document.getElementById('flashcardModal').classList.add('visible');
+                } else {
+                    alert('No cloze deletions found. Add a ## Cloze section with {{text}} or ==highlighted== text.');
+                }
+            } catch (err) {
+                console.error('Failed to load cloze:', err);
+                alert('Failed to load cloze: ' + err.message);
+            }
+        }
+        
+        function renderClozeCard() {
+            const card = clozeCards[currentClozeIndex];
+            const container = document.getElementById('flashcardContainer');
+            
+            container.innerHTML = `
+                <div class="flashcard" id="currentFlashcard">
+                    <div class="flashcard-face flashcard-front">
+                        <div class="flashcard-label">
+                            <span class="card-type-badge cloze">📝 Cloze</span>
+                        </div>
+                        <div class="cloze-card">${card.question}</div>
+                        <div class="flashcard-hint">Fill in the blank, then click to reveal</div>
+                    </div>
+                    <div class="flashcard-face flashcard-back">
+                        <div class="flashcard-label">Answer</div>
+                        <div class="flashcard-content" style="font-size: 1.5em; color: #059669;">${card.answer}</div>
+                    </div>
+                </div>
+            `;
+            
+            // Update progress
+            const counter = document.getElementById('flashcardCounter');
+            const fill = document.getElementById('flashcardProgressFill');
+            counter.textContent = `${currentClozeIndex + 1} / ${clozeCards.length}`;
+            fill.style.width = `${((currentClozeIndex + 1) / clozeCards.length) * 100}%`;
+            
+            document.getElementById('flashcardControls').style.display = 'flex';
+            document.getElementById('flashcardRatingControls').style.display = 'none';
+            document.querySelector('.flashcard-progress').style.display = 'flex';
+            
+            // Add click to flip
+            document.getElementById('currentFlashcard').onclick = function() {
+                this.classList.toggle('flipped');
+                if (this.classList.contains('flipped')) {
+                    document.getElementById('flashcardControls').style.display = 'none';
+                    document.getElementById('flashcardRatingControls').style.display = 'flex';
+                } else {
+                    document.getElementById('flashcardControls').style.display = 'flex';
+                    document.getElementById('flashcardRatingControls').style.display = 'none';
+                }
+            };
+        }
+        
+        // ===== SRS RATING SYSTEM =====
+        let currentSrsMode = 'srs';
+        let currentFilePath = '{{ file_path|default("") }}';
+        
+        async function rateSrs(cardId, cardType, rating) {
+            try {
+                const response = await fetch('/api/srs/' + encodeURIComponent(currentFilePath), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cardId, cardType, rating })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    console.log('SRS updated:', data);
+                }
+            } catch (err) {
+                console.error('Failed to update SRS:', err);
+            }
+        }
+        
+        function formatInterval(days) {
+            if (days < 0.01) return '< 10m';
+            if (days < 1) return Math.round(days * 24) + 'h';
+            if (days < 7) return Math.round(days) + 'd';
+            if (days < 30) return Math.round(days / 7) + 'w';
+            return Math.round(days / 30) + 'mo';
+        }
+        
+        // ===== STUDY DASHBOARD =====
+        async function openDashboard() {
+            try {
+                const response = await fetch('/api/study/dashboard');
+                const data = await response.json();
+                
+                if (!data.success) {
+                    alert('Failed to load dashboard: ' + data.error);
+                    return;
+                }
+                
+                const d = data.dashboard;
+                const container = document.getElementById('dashboardContainer');
+                
+                // Build heatmap
+                let heatmapHtml = '';
+                const dates = Object.keys(d.heatmap).sort().slice(-28);
+                for (const date of dates) {
+                    const count = d.heatmap[date];
+                    let level = 0;
+                    if (count > 0) level = 1;
+                    if (count >= 10) level = 2;
+                    if (count >= 25) level = 3;
+                    if (count >= 50) level = 4;
+                    heatmapHtml += `<div class="heatmap-day level-${level}" title="${date}: ${count} cards"></div>`;
+                }
+                
+                const progressPct = Math.min(100, (d.today.reviewed / d.today.goal) * 100);
+                
+                container.innerHTML = `
+                    <div class="dashboard-header">
+                        <h2>📊 Study Dashboard</h2>
+                        <button class="flashcard-close" onclick="closeDashboard()">✕</button>
+                    </div>
+                    
+                    <div class="dashboard-grid">
+                        <div class="dashboard-stat streak">
+                            <div class="dashboard-stat-value">🔥 ${d.streak}</div>
+                            <div class="dashboard-stat-label">Day Streak</div>
+                        </div>
+                        <div class="dashboard-stat due">
+                            <div class="dashboard-stat-value">${d.dueCount}</div>
+                            <div class="dashboard-stat-label">Cards Due</div>
+                        </div>
+                        <div class="dashboard-stat mastery">
+                            <div class="dashboard-stat-value">${d.masteryPercent}%</div>
+                            <div class="dashboard-stat-label">Mastery</div>
+                        </div>
+                        <div class="dashboard-stat weak">
+                            <div class="dashboard-stat-value">${d.weakCards}</div>
+                            <div class="dashboard-stat-label">Weak Cards</div>
+                        </div>
+                    </div>
+                    
+                    <div class="dashboard-progress">
+                        <h3>Today's Progress</h3>
+                        <div class="progress-bar-container">
+                            <div class="progress-bar-fill" style="width: ${progressPct}%"></div>
+                        </div>
+                        <div class="progress-label">
+                            <span>${d.today.reviewed} reviewed (${d.today.correct} ✓ / ${d.today.wrong} ✗)</span>
+                            <span>Goal: ${d.today.goal}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="heatmap-container">
+                        <h3>Last 4 Weeks</h3>
+                        <div class="heatmap">${heatmapHtml}</div>
+                    </div>
+                    
+                    <div style="margin-top: 24px; display: flex; gap: 12px; justify-content: center;">
+                        <button class="flashcard-btn primary" onclick="closeDashboard(); startFocusMode();">
+                            🎯 Focus on Weak Cards (${d.weakCards})
+                        </button>
+                    </div>
+                `;
+                
+                document.getElementById('dashboardModal').classList.add('visible');
+            } catch (err) {
+                console.error('Failed to load dashboard:', err);
+                alert('Failed to load dashboard: ' + err.message);
+            }
+        }
+        
+        function closeDashboard() {
+            document.getElementById('dashboardModal').classList.remove('visible');
+        }
+        
+        // ===== FOCUS MODE (WEAK CARDS) =====
+        async function startFocusMode() {
+            try {
+                const response = await fetch('/api/study/weak-cards');
+                const data = await response.json();
+                
+                if (!data.success || data.weakCards.length === 0) {
+                    alert('🎉 No weak cards! You\\'re doing great!');
+                    return;
+                }
+                
+                alert(`Found ${data.count} weak cards across your notes. Opening focus mode...`);
+            } catch (err) {
+                console.error('Failed to start focus mode:', err);
+            }
+        }
+        
+        // ===== MIX MODE (ALL CARD TYPES) =====
+        let mixCards = [];
+        let currentMixIndex = 0;
+        let mixStats = { correct: 0, wrong: 0 };
+        
+        async function openMixMode() {
+            const filePath = '{{ file_path|default("") }}';
+            if (!filePath) {
+                alert('No file loaded');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/study/all-cards/' + encodeURIComponent(filePath));
+                const data = await response.json();
+                
+                if (data.success && data.cards && data.cards.length > 0) {
+                    mixCards = data.cards.sort(() => Math.random() - 0.5);
+                    currentMixIndex = 0;
+                    mixStats = { correct: 0, wrong: 0 };
+                    renderMixCard();
+                    document.getElementById('flashcardModal').classList.add('visible');
+                } else {
+                    alert('No study cards found in this file.');
+                }
+            } catch (err) {
+                console.error('Failed to load mix cards:', err);
+            }
+        }
+        
+        function renderMixCard() {
+            const card = mixCards[currentMixIndex];
+            const container = document.getElementById('flashcardContainer');
+            
+            const typeEmoji = { flash: '🎴', mcq: '✅', cloze: '📝' };
+            const typeName = { flash: 'Flashcard', mcq: 'MCQ', cloze: 'Cloze' };
+            
+            if (card.type === 'mcq') {
+                let optionsHtml = card.options.map((opt, i) => 
+                    `<button class="mcq-option" onclick="selectMixMcq(${i}, ${card.correct})">${String.fromCharCode(65+i)}. ${opt}</button>`
+                ).join('');
+                
+                container.innerHTML = `
+                    <div class="mcq-question">
+                        <span class="card-type-badge mcq">${typeEmoji[card.type]} ${typeName[card.type]}</span>
+                        <div style="margin-top: 16px; font-size: 1.3em;">${card.question}</div>
+                    </div>
+                    <div class="mcq-options" id="mixMcqOptions">${optionsHtml}</div>
+                `;
+                document.getElementById('flashcardControls').style.display = 'none';
+                document.getElementById('flashcardRatingControls').style.display = 'none';
+            } else {
+                const questionContent = card.type === 'cloze' 
+                    ? `<div class="cloze-card">${card.question}</div>`
+                    : `<div class="flashcard-content">${parseMarkdown(card.question)}</div>`;
+                
+                container.innerHTML = `
+                    <div class="flashcard" id="currentFlashcard" onclick="flipMixCard()">
+                        <div class="flashcard-face flashcard-front">
+                            <div class="flashcard-label">
+                                <span class="card-type-badge ${card.type}">${typeEmoji[card.type]} ${typeName[card.type]}</span>
+                            </div>
+                            ${questionContent}
+                            <div class="flashcard-hint">Click to reveal</div>
+                        </div>
+                        <div class="flashcard-face flashcard-back">
+                            <div class="flashcard-label">Answer</div>
+                            <div class="flashcard-content">${parseMarkdown(card.answer)}</div>
+                        </div>
+                    </div>
+                `;
+                document.getElementById('flashcardControls').style.display = 'flex';
+                document.getElementById('flashcardRatingControls').style.display = 'none';
+            }
+            
+            const counter = document.getElementById('flashcardCounter');
+            const fill = document.getElementById('flashcardProgressFill');
+            counter.textContent = `${currentMixIndex + 1} / ${mixCards.length}`;
+            fill.style.width = `${((currentMixIndex + 1) / mixCards.length) * 100}%`;
+            document.querySelector('.flashcard-progress').style.display = 'flex';
+        }
+        
+        function flipMixCard() {
+            const card = document.getElementById('currentFlashcard');
+            if (card) {
+                card.classList.toggle('flipped');
+                if (card.classList.contains('flipped')) {
+                    document.getElementById('flashcardControls').style.display = 'none';
+                    document.getElementById('flashcardRatingControls').style.display = 'flex';
+                } else {
+                    document.getElementById('flashcardControls').style.display = 'flex';
+                    document.getElementById('flashcardRatingControls').style.display = 'none';
+                }
+            }
+        }
+        
+        function selectMixMcq(selectedIdx, correctIdx) {
+            const options = document.querySelectorAll('#mixMcqOptions .mcq-option');
+            options.forEach((opt, i) => {
+                opt.disabled = true;
+                if (i === correctIdx) opt.classList.add('correct');
+                if (i === selectedIdx && selectedIdx !== correctIdx) opt.classList.add('incorrect');
+            });
+            
+            const correct = selectedIdx === correctIdx;
+            if (correct) mixStats.correct++;
+            else mixStats.wrong++;
+            
+            const card = mixCards[currentMixIndex];
+            rateSrs(currentMixIndex, card.type, correct ? 3 : 1);
+            
+            setTimeout(() => {
+                document.getElementById('flashcardRatingControls').style.display = 'flex';
+            }, 500);
+        }
+        
+        function rateMixCard(correct) {
+            if (correct) mixStats.correct++;
+            else mixStats.wrong++;
+            
+            const card = mixCards[currentMixIndex];
+            rateSrs(currentMixIndex, card.type, correct ? 3 : 1);
+            
+            nextMixCard();
+        }
+        
+        function nextMixCard() {
+            if (currentMixIndex < mixCards.length - 1) {
+                currentMixIndex++;
+                renderMixCard();
+            } else {
+                showMixSummary();
+            }
+        }
+        
+        function showMixSummary() {
+            const container = document.getElementById('flashcardContainer');
+            const total = mixStats.correct + mixStats.wrong;
+            const pct = total > 0 ? Math.round((mixStats.correct / total) * 100) : 0;
+            
+            container.innerHTML = `
+                <div class="flashcard-empty">
+                    <h3>🎉 Study Session Complete!</h3>
+                    <div class="flashcard-stats" style="margin: 24px 0;">
+                        <div class="flashcard-stat correct">
+                            <div class="flashcard-stat-value">${mixStats.correct}</div>
+                            <div class="flashcard-stat-label">Correct</div>
+                        </div>
+                        <div class="flashcard-stat wrong">
+                            <div class="flashcard-stat-value">${mixStats.wrong}</div>
+                            <div class="flashcard-stat-label">Needs Review</div>
+                        </div>
+                        <div class="flashcard-stat">
+                            <div class="flashcard-stat-value">${pct}%</div>
+                            <div class="flashcard-stat-label">Score</div>
+                        </div>
+                    </div>
+                    <button class="flashcard-btn primary" onclick="closeFlashcards(); openDashboard();">
+                        📊 View Dashboard
+                    </button>
+                </div>
+            `;
+            document.getElementById('flashcardControls').style.display = 'none';
+            document.getElementById('flashcardRatingControls').style.display = 'none';
+            document.querySelector('.flashcard-progress').style.display = 'none';
+        }
+
         function toggleFullscreen() {
             if (!document.fullscreenElement) {
                 document.documentElement.requestFullscreen();
@@ -7752,6 +8700,402 @@ self.addEventListener('message', (event) => {
 });
 '''
     return Response(sw_code, mimetype='application/javascript')
+
+
+# ============================================
+# CLOZE API ENDPOINTS
+# ============================================
+
+@app.route('/api/cloze/<path:filepath>')
+def api_get_cloze(filepath):
+    """Get cloze deletions parsed from a markdown file"""
+    try:
+        full_path = os.path.join(VAULT_PATH, filepath)
+        
+        if not os.path.exists(full_path):
+            return jsonify({'success': False, 'error': 'File not found'}), 404
+        
+        with open(full_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        cloze_cards = parse_cloze(content)
+        
+        # Get SRS data for these cards
+        srs_data = load_srs_data(filepath)
+        
+        return jsonify({
+            'success': True,
+            'cloze': cloze_cards,
+            'count': len(cloze_cards),
+            'srs': srs_data
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============================================
+# SRS API ENDPOINTS
+# ============================================
+
+@app.route('/api/srs/<path:filepath>')
+def api_get_srs(filepath):
+    """Get SRS data for a file"""
+    try:
+        srs_data = load_srs_data(filepath)
+        return jsonify({'success': True, 'srs': srs_data})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/srs/<path:filepath>', methods=['POST'])
+def api_update_srs(filepath):
+    """Update SRS data after a review"""
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({'success': False, 'error': 'No data provided'}), 400
+        
+        card_id = data.get('cardId')
+        rating = data.get('rating')  # 1-4 for SRS, or 'correct'/'wrong' for Leitner
+        card_type = data.get('cardType', 'flash')  # flash, mcq, cloze
+        
+        if not card_id or rating is None:
+            return jsonify({'success': False, 'error': 'Missing cardId or rating'}), 400
+        
+        srs_data = load_srs_data(filepath)
+        card_key = f'{card_type}-{card_id}'
+        
+        # Get existing card data or create new
+        card_data = srs_data['cards'].get(card_key, {
+            'interval': 1,
+            'easeFactor': 2.5,
+            'reps': 0,
+            'lapses': 0,
+            'box': 1,
+            'focusStreak': 0
+        })
+        
+        # Calculate new values based on mode
+        if srs_data.get('mode') == 'leitner':
+            correct = rating in [3, 4, 'correct', True]
+            new_data = calculate_leitner_box(card_data, correct)
+            card_data.update(new_data)
+        else:
+            # SRS mode
+            if isinstance(rating, str):
+                rating = {'again': 1, 'hard': 2, 'good': 3, 'easy': 4}.get(rating, 3)
+            new_data = calculate_srs_interval(card_data, rating)
+            card_data.update(new_data)
+        
+        # Update focus streak
+        if rating in [3, 4, 'correct', 'good', 'easy', True]:
+            card_data['focusStreak'] = card_data.get('focusStreak', 0) + 1
+        else:
+            card_data['focusStreak'] = 0
+        
+        srs_data['cards'][card_key] = card_data
+        srs_data['lastReview'] = datetime.utcnow().isoformat() + 'Z'
+        save_srs_data(filepath, srs_data)
+        
+        # Log study session
+        log_study_session(filepath, card_type, rating in [3, 4, 'correct', 'good', 'easy', True])
+        
+        return jsonify({
+            'success': True,
+            'card': card_data,
+            'nextReview': card_data.get('nextReview')
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/srs/due')
+def api_get_due_cards():
+    """Get all cards due for review across all files"""
+    try:
+        srs_dir = get_srs_dir()
+        due_cards = []
+        now = datetime.utcnow().isoformat() + 'Z'
+        
+        for filename in os.listdir(srs_dir):
+            if not filename.endswith('.json'):
+                continue
+            
+            srs_path = os.path.join(srs_dir, filename)
+            with open(srs_path, 'r', encoding='utf-8') as f:
+                srs_data = json.load(f)
+            
+            filepath = srs_data.get('filePath', '')
+            for card_key, card_data in srs_data.get('cards', {}).items():
+                next_review = card_data.get('nextReview', '')
+                if next_review and next_review <= now:
+                    due_cards.append({
+                        'filepath': filepath,
+                        'cardKey': card_key,
+                        'data': card_data
+                    })
+        
+        return jsonify({
+            'success': True,
+            'dueCards': due_cards,
+            'count': len(due_cards)
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/srs/mode/<path:filepath>', methods=['POST'])
+def api_set_srs_mode(filepath):
+    """Set SRS mode (srs or leitner) for a file"""
+    try:
+        data = request.get_json()
+        mode = data.get('mode', 'srs')
+        
+        if mode not in ['srs', 'leitner']:
+            return jsonify({'success': False, 'error': 'Invalid mode'}), 400
+        
+        srs_data = load_srs_data(filepath)
+        srs_data['mode'] = mode
+        save_srs_data(filepath, srs_data)
+        
+        return jsonify({'success': True, 'mode': mode})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============================================
+# STUDY SESSION & DASHBOARD API
+# ============================================
+
+def log_study_session(filepath, card_type, correct):
+    """Log a study event to session history"""
+    sessions = load_study_sessions()
+    today = datetime.utcnow().strftime('%Y-%m-%d')
+    
+    if today not in sessions:
+        sessions[today] = {
+            'cardsReviewed': 0,
+            'correct': 0,
+            'wrong': 0,
+            'timeSpentMs': 0,
+            'files': [],
+            'byType': {'flash': 0, 'mcq': 0, 'cloze': 0}
+        }
+    
+    sessions[today]['cardsReviewed'] += 1
+    if correct:
+        sessions[today]['correct'] += 1
+    else:
+        sessions[today]['wrong'] += 1
+    
+    sessions[today]['byType'][card_type] = sessions[today]['byType'].get(card_type, 0) + 1
+    
+    if filepath not in sessions[today]['files']:
+        sessions[today]['files'].append(filepath)
+    
+    save_study_sessions(sessions)
+
+@app.route('/api/study/dashboard')
+def api_study_dashboard():
+    """Get study dashboard data"""
+    try:
+        sessions = load_study_sessions()
+        settings = load_study_settings()
+        srs_dir = get_srs_dir()
+        
+        today = datetime.utcnow().strftime('%Y-%m-%d')
+        today_data = sessions.get(today, {'cardsReviewed': 0, 'correct': 0, 'wrong': 0})
+        
+        # Calculate streak
+        streak = 0
+        check_date = datetime.utcnow()
+        while True:
+            date_str = check_date.strftime('%Y-%m-%d')
+            if date_str in sessions and sessions[date_str].get('cardsReviewed', 0) >= settings.get('dailyGoal', 50):
+                streak += 1
+                check_date -= timedelta(days=1)
+            else:
+                break
+        
+        # Count due cards
+        due_count = 0
+        total_cards = 0
+        mastered_cards = 0
+        weak_cards = 0
+        now = datetime.utcnow().isoformat() + 'Z'
+        
+        if os.path.exists(srs_dir):
+            for filename in os.listdir(srs_dir):
+                if not filename.endswith('.json'):
+                    continue
+                
+                srs_path = os.path.join(srs_dir, filename)
+                with open(srs_path, 'r', encoding='utf-8') as f:
+                    srs_data = json.load(f)
+                
+                for card_key, card_data in srs_data.get('cards', {}).items():
+                    total_cards += 1
+                    
+                    # Check if due
+                    next_review = card_data.get('nextReview', '')
+                    if next_review and next_review <= now:
+                        due_count += 1
+                    
+                    # Check if mastered (box 4-5 or interval > 7 days)
+                    if card_data.get('box', 1) >= 4 or card_data.get('interval', 0) >= 7:
+                        mastered_cards += 1
+                    
+                    # Check if weak
+                    if card_data.get('lapses', 0) >= 2 or card_data.get('easeFactor', 2.5) < 2.0:
+                        weak_cards += 1
+        
+        # Build heatmap (last 30 days)
+        heatmap = {}
+        for i in range(30):
+            date = (datetime.utcnow() - timedelta(days=i)).strftime('%Y-%m-%d')
+            if date in sessions:
+                heatmap[date] = sessions[date].get('cardsReviewed', 0)
+            else:
+                heatmap[date] = 0
+        
+        return jsonify({
+            'success': True,
+            'dashboard': {
+                'today': {
+                    'reviewed': today_data.get('cardsReviewed', 0),
+                    'correct': today_data.get('correct', 0),
+                    'wrong': today_data.get('wrong', 0),
+                    'goal': settings.get('dailyGoal', 50)
+                },
+                'streak': streak,
+                'dueCount': due_count,
+                'totalCards': total_cards,
+                'masteredCards': mastered_cards,
+                'weakCards': weak_cards,
+                'masteryPercent': round((mastered_cards / total_cards * 100) if total_cards > 0 else 0, 1),
+                'heatmap': heatmap
+            }
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({'success': False, 'error': str(e), 'trace': traceback.format_exc()}), 500
+
+@app.route('/api/study/settings', methods=['GET'])
+def api_get_study_settings():
+    """Get study settings"""
+    try:
+        settings = load_study_settings()
+        return jsonify({'success': True, 'settings': settings})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/study/settings', methods=['POST'])
+def api_set_study_settings():
+    """Update study settings"""
+    try:
+        data = request.get_json()
+        settings = load_study_settings()
+        
+        if 'dailyGoal' in data:
+            settings['dailyGoal'] = int(data['dailyGoal'])
+        if 'timerSeconds' in data:
+            settings['timerSeconds'] = int(data['timerSeconds'])
+        if 'srsMode' in data:
+            settings['srsMode'] = data['srsMode']
+        
+        save_study_settings(settings)
+        return jsonify({'success': True, 'settings': settings})
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/study/weak-cards')
+def api_get_weak_cards():
+    """Get all weak cards (frequently missed)"""
+    try:
+        srs_dir = get_srs_dir()
+        weak_cards = []
+        
+        if os.path.exists(srs_dir):
+            for filename in os.listdir(srs_dir):
+                if not filename.endswith('.json'):
+                    continue
+                
+                srs_path = os.path.join(srs_dir, filename)
+                with open(srs_path, 'r', encoding='utf-8') as f:
+                    srs_data = json.load(f)
+                
+                filepath = srs_data.get('filePath', '')
+                for card_key, card_data in srs_data.get('cards', {}).items():
+                    # Card is weak if: lapses >= 2 OR easeFactor < 2.0 OR focusStreak < 3 after lapses
+                    if card_data.get('lapses', 0) >= 2 or card_data.get('easeFactor', 2.5) < 2.0:
+                        # Only include if not yet graduated from focus mode
+                        if card_data.get('focusStreak', 0) < 3:
+                            weak_cards.append({
+                                'filepath': filepath,
+                                'cardKey': card_key,
+                                'data': card_data
+                            })
+        
+        return jsonify({
+            'success': True,
+            'weakCards': weak_cards,
+            'count': len(weak_cards)
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============================================
+# COMBINED STUDY MODE API
+# ============================================
+
+@app.route('/api/study/all-cards/<path:filepath>')
+def api_get_all_study_cards(filepath):
+    """Get all study cards (flashcards + MCQ + cloze) for a file"""
+    try:
+        full_path = os.path.join(VAULT_PATH, filepath)
+        
+        if not os.path.exists(full_path):
+            return jsonify({'success': False, 'error': 'File not found'}), 404
+        
+        with open(full_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        # Parse all card types
+        flashcards = parse_flashcards(content)
+        mcqs = parse_mcq(content)
+        cloze = parse_cloze(content)
+        
+        # Add type markers
+        all_cards = []
+        for i, card in enumerate(flashcards):
+            card['type'] = 'flash'
+            card['id'] = f'flash-{i}'
+            all_cards.append(card)
+        
+        for i, card in enumerate(mcqs):
+            card['type'] = 'mcq'
+            card['id'] = f'mcq-{i}'
+            all_cards.append(card)
+        
+        for i, card in enumerate(cloze):
+            card['type'] = 'cloze'
+            card['id'] = f'cloze-{i}'
+            all_cards.append(card)
+        
+        # Get SRS data
+        srs_data = load_srs_data(filepath)
+        
+        return jsonify({
+            'success': True,
+            'cards': all_cards,
+            'counts': {
+                'flash': len(flashcards),
+                'mcq': len(mcqs),
+                'cloze': len(cloze),
+                'total': len(all_cards)
+            },
+            'srs': srs_data
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 def get_local_ip():
