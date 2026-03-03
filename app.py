@@ -11328,10 +11328,10 @@ EXAM_TEMPLATE = '''
         
         function parseAndRenderMCQ(content, questionIndex) {
             // Remove type hints
-            content = content.replace(/<!-- type: \w+ -->/g, '');
+            content = content.replace(/<!-- type: \\w+ -->/g, '');
             
             // Find the table in content
-            const tableMatch = content.match(/\|[^\n]+\|[\s\S]*?\n(?:\|[^\n]+\|\n)+/);
+            const tableMatch = content.match(/\\|[^\\n]+\\|[\\s\\S]*?\\n(?:\\|[^\\n]+\\|\\n)+/);
             if (!tableMatch) {
                 return { before: content, mcqHtml: '', after: '' };
             }
@@ -11342,7 +11342,7 @@ EXAM_TEMPLATE = '''
             const after = content.substring(tableEnd);
             
             // Parse table rows
-            const rows = tableMatch[0].trim().split('\n').filter(r => r.includes('|'));
+            const rows = tableMatch[0].trim().split('\\n').filter(r => r.includes('|'));
             if (rows.length < 3) {
                 return { before: content, mcqHtml: '', after: '' };
             }
@@ -11478,7 +11478,7 @@ EXAM_TEMPLATE = '''
                     </div>`;
             } else if (questionType === 'paper') {
                 // Paper question - show banner and completion checkbox
-                contentHtml = marked.parse(question.content.replace(/<!-- type: \w+ -->/g, ''));
+                contentHtml = marked.parse(question.content.replace(/<!-- type: \\w+ -->/g, ''));
                 const isDone = state.answers[index] === 'PAPER_DONE';
                 answerAreaHtml = `
                     <div class="paper-question-banner">
@@ -11494,7 +11494,7 @@ EXAM_TEMPLATE = '''
                     </div>`;
             } else {
                 // Text question - show textarea
-                contentHtml = marked.parse(question.content.replace(/<!-- type: \w+ -->/g, ''));
+                contentHtml = marked.parse(question.content.replace(/<!-- type: \\w+ -->/g, ''));
                 answerAreaHtml = `
                     <div class="answer-area">
                         <div class="answer-label">
