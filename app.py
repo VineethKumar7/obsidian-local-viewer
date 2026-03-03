@@ -359,17 +359,29 @@ def set_file_metadata(filepath, metadata):
 # SRS (SPACED REPETITION) STORAGE
 # ============================================
 
-def get_srs_dir():
-    """Get the path to the SRS data directory"""
-    srs_dir = os.path.join(VAULT_PATH, '.obsidian-viewer', 'srs')
-    os.makedirs(srs_dir, exist_ok=True)
-    return srs_dir
-
 def get_srs_filepath(filepath):
-    """Get SRS data file path for a given note file"""
-    import hashlib
-    file_hash = hashlib.md5(filepath.encode()).hexdigest()[:12]
-    return os.path.join(get_srs_dir(), f'{file_hash}.json')
+    """Get SRS data file path - stored alongside the markdown file"""
+    # filepath is relative to VAULT_PATH, e.g. "Week 1/Ethernet.md"
+    full_path = os.path.join(VAULT_PATH, filepath)
+    # Store as Ethernet.md.srs.json in same directory
+    return full_path + '.srs.json'
+
+def scan_all_srs_files():
+    """Scan vault for all .srs.json files and return their data"""
+    srs_files = []
+    for root, dirs, files in os.walk(VAULT_PATH):
+        # Skip hidden directories
+        dirs[:] = [d for d in dirs if not d.startswith('.')]
+        for file in files:
+            if file.endswith('.srs.json'):
+                srs_path = os.path.join(root, file)
+                try:
+                    with open(srs_path, 'r', encoding='utf-8') as f:
+                        data = json.load(f)
+                        srs_files.append(data)
+                except (json.JSONDecodeError, IOError):
+                    pass
+    return srs_files
 
 def load_srs_data(filepath):
     """Load SRS data for a specific file"""
@@ -8946,18 +8958,10 @@ def api_update_srs(filepath):
 def api_get_due_cards():
     """Get all cards due for review across all files"""
     try:
-        srs_dir = get_srs_dir()
         due_cards = []
         now = datetime.utcnow().isoformat() + 'Z'
         
-        for filename in os.listdir(srs_dir):
-            if not filename.endswith('.json'):
-                continue
-            
-            srs_path = os.path.join(srs_dir, filename)
-            with open(srs_path, 'r', encoding='utf-8') as f:
-                srs_data = json.load(f)
-            
+        for srs_data in scan_all_srs_files():
             filepath = srs_data.get('filePath', '')
             for card_key, card_data in srs_data.get('cards', {}).items():
                 next_review = card_data.get('nextReview', '')
@@ -9033,7 +9037,6 @@ def api_study_dashboard():
     try:
         sessions = load_study_sessions()
         settings = load_study_settings()
-        srs_dir = get_srs_dir()
         
         today = datetime.utcnow().strftime('%Y-%m-%d')
         today_data = sessions.get(today, {'cardsReviewed': 0, 'correct': 0, 'wrong': 0})
@@ -9056,22 +9059,14 @@ def api_study_dashboard():
         weak_cards = 0
         now = datetime.utcnow().isoformat() + 'Z'
         
-        if os.path.exists(srs_dir):
-            for filename in os.listdir(srs_dir):
-                if not filename.endswith('.json'):
-                    continue
+        for srs_data in scan_all_srs_files():
+            for card_key, card_data in srs_data.get('cards', {}).items():
+                total_cards += 1
                 
-                srs_path = os.path.join(srs_dir, filename)
-                with open(srs_path, 'r', encoding='utf-8') as f:
-                    srs_data = json.load(f)
-                
-                for card_key, card_data in srs_data.get('cards', {}).items():
-                    total_cards += 1
-                    
-                    # Check if due
-                    next_review = card_data.get('nextReview', '')
-                    if next_review and next_review <= now:
-                        due_count += 1
+                # Check if due
+                next_review = card_data.get('nextReview', '')
+                if next_review and next_review <= now:
+                    due_count += 1
                     
                     # Check if mastered (box 4-5 or interval > 7 days)
                     if card_data.get('box', 1) >= 4 or card_data.get('interval', 0) >= 7:
@@ -9144,29 +9139,20 @@ def api_set_study_settings():
 def api_get_weak_cards():
     """Get all weak cards (frequently missed)"""
     try:
-        srs_dir = get_srs_dir()
         weak_cards = []
         
-        if os.path.exists(srs_dir):
-            for filename in os.listdir(srs_dir):
-                if not filename.endswith('.json'):
-                    continue
-                
-                srs_path = os.path.join(srs_dir, filename)
-                with open(srs_path, 'r', encoding='utf-8') as f:
-                    srs_data = json.load(f)
-                
-                filepath = srs_data.get('filePath', '')
-                for card_key, card_data in srs_data.get('cards', {}).items():
-                    # Card is weak if: lapses >= 2 OR easeFactor < 2.0 OR focusStreak < 3 after lapses
-                    if card_data.get('lapses', 0) >= 2 or card_data.get('easeFactor', 2.5) < 2.0:
-                        # Only include if not yet graduated from focus mode
-                        if card_data.get('focusStreak', 0) < 3:
-                            weak_cards.append({
-                                'filepath': filepath,
-                                'cardKey': card_key,
-                                'data': card_data
-                            })
+        for srs_data in scan_all_srs_files():
+            filepath = srs_data.get('filePath', '')
+            for card_key, card_data in srs_data.get('cards', {}).items():
+                # Card is weak if: lapses >= 2 OR easeFactor < 2.0 OR focusStreak < 3 after lapses
+                if card_data.get('lapses', 0) >= 2 or card_data.get('easeFactor', 2.5) < 2.0:
+                    # Only include if not yet graduated from focus mode
+                    if card_data.get('focusStreak', 0) < 3:
+                        weak_cards.append({
+                            'filepath': filepath,
+                            'cardKey': card_key,
+                            'data': card_data
+                        })
         
         return jsonify({
             'success': True,
