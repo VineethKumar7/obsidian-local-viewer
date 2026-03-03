@@ -3288,6 +3288,7 @@ HTML_TEMPLATE = '''
                 <button onclick="openMixMode(); closeToolbarMenu();" title="Mixed study mode">🎲 Mix Mode</button>
                 <button onclick="openDashboard(); closeToolbarMenu();" title="Study progress dashboard">📊 Dashboard</button>
                 <button onclick="openSummary(); closeToolbarMenu();" title="Quick summary view">📋 Summary</button>
+                <button onclick="openExamMode(); closeToolbarMenu();" title="Timed exam simulation">📝 Exam Mode</button>
                 <button onclick="openStudySettings(); closeToolbarMenu();" title="Study settings">⚙️ Settings</button>
                 {% endif %}
                 {% if is_markdown or is_pdf|default(false) %}
@@ -5173,6 +5174,15 @@ Text with {<!-- -->{blanks}} here.</pre>
             } catch (err) {
                 console.error('Failed to load summary:', err);
             }
+        }
+
+        // ===== EXAM MODE =====
+        function openExamMode() {
+            const filePath = '{{ file_path|default("") }}';
+            if (!filePath) return;
+            
+            // Navigate to exam simulation page
+            window.location.href = '/exam/' + encodeURIComponent(filePath);
         }
 
         // ===== STUDY SETTINGS =====
