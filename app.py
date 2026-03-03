@@ -10101,6 +10101,1310 @@ def api_get_summary(filepath):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+# ============================================
+# EXAM SIMULATION FEATURE
+# ============================================
+
+def parse_exam_sections(content):
+    """
+    Parse an exam markdown file into sections and questions.
+    
+    Returns a list of sections, each with:
+    - title: Section name
+    - points: Total points for the section
+    - questions: List of questions/subsections
+    - rawContent: The raw markdown content
+    """
+    sections = []
+    
+    # Split by ## headers (main sections)
+    section_pattern = re.compile(r'^##\s+(\d+)\s+(.+?)$\n\*\*Total:\s*(\d+)\s*Points?\*\*', re.MULTILINE)
+    
+    # Find all section headers with their positions
+    section_matches = list(section_pattern.finditer(content))
+    
+    for i, match in enumerate(section_matches):
+        section_num = match.group(1)
+        section_title = match.group(2).strip()
+        section_points = int(match.group(3))
+        section_start = match.end()
+        
+        # Find end of section (start of next section or end of content)
+        if i < len(section_matches) - 1:
+            section_end = section_matches[i + 1].start()
+        else:
+            section_end = len(content)
+        
+        section_content = content[section_start:section_end].strip()
+        
+        # Parse subsections (### headers)
+        subsections = []
+        subsection_pattern = re.compile(r'^###\s+(\d+\.\d+)\s+(.+?)$(?:\n\*\*\((\d+)\s*Points?\)\*\*)?', re.MULTILINE)
+        
+        subsection_matches = list(subsection_pattern.finditer(section_content))
+        
+        if subsection_matches:
+            for j, sub_match in enumerate(subsection_matches):
+                sub_num = sub_match.group(1)
+                sub_title = sub_match.group(2).strip()
+                sub_points_match = sub_match.group(3)
+                sub_points = int(sub_points_match) if sub_points_match else 0
+                
+                # Try to extract points from title if not in separate line
+                if sub_points == 0:
+                    points_in_title = re.search(r'\((\d+)\s*Points?\)', sub_title)
+                    if points_in_title:
+                        sub_points = int(points_in_title.group(1))
+                        sub_title = re.sub(r'\s*\(\d+\s*Points?\)', '', sub_title).strip()
+                
+                sub_start = sub_match.end()
+                if j < len(subsection_matches) - 1:
+                    sub_end = subsection_matches[j + 1].start()
+                else:
+                    sub_end = len(section_content)
+                
+                sub_content = section_content[sub_start:sub_end].strip()
+                
+                subsections.append({
+                    'number': sub_num,
+                    'title': sub_title,
+                    'points': sub_points,
+                    'content': sub_content
+                })
+        else:
+            # No subsections, use the entire section as one question
+            subsections.append({
+                'number': section_num,
+                'title': section_title,
+                'points': section_points,
+                'content': section_content
+            })
+        
+        sections.append({
+            'number': section_num,
+            'title': section_title,
+            'points': section_points,
+            'questions': subsections,
+            'rawContent': section_content
+        })
+    
+    # If no sections found with the pattern, try a simpler approach
+    if not sections:
+        # Try to split by ## headers without the strict pattern
+        simple_pattern = re.compile(r'^##\s+(\d+)?\s*(.+?)$', re.MULTILINE)
+        matches = list(simple_pattern.finditer(content))
+        
+        for i, match in enumerate(matches):
+            section_num = match.group(1) or str(i + 1)
+            section_title = match.group(2).strip()
+            
+            # Try to extract points from title
+            points_match = re.search(r'\*\*Total:\s*(\d+)\s*Points?\*\*', content[match.end():match.end()+200])
+            section_points = int(points_match.group(1)) if points_match else 10
+            
+            section_start = match.end()
+            if i < len(matches) - 1:
+                section_end = matches[i + 1].start()
+            else:
+                section_end = len(content)
+            
+            section_content = content[section_start:section_end].strip()
+            
+            sections.append({
+                'number': section_num,
+                'title': section_title,
+                'points': section_points,
+                'questions': [{
+                    'number': section_num,
+                    'title': section_title,
+                    'points': section_points,
+                    'content': section_content
+                }],
+                'rawContent': section_content
+            })
+    
+    return sections
+
+
+@app.route('/api/exam/<path:filepath>')
+def api_get_exam(filepath):
+    """Get parsed exam data for simulation"""
+    try:
+        full_path = os.path.join(VAULT_PATH, filepath)
+        
+        if not os.path.exists(full_path):
+            return jsonify({'success': False, 'error': 'File not found'}), 404
+        
+        with open(full_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        sections = parse_exam_sections(content)
+        
+        # Calculate total points and suggested time per question
+        total_points = sum(s['points'] for s in sections)
+        
+        return jsonify({
+            'success': True,
+            'sections': sections,
+            'totalPoints': total_points,
+            'filename': os.path.basename(filepath)
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({'success': False, 'error': str(e), 'trace': traceback.format_exc()}), 500
+
+
+@app.route('/exam/<path:filepath>')
+def exam_simulation(filepath):
+    """Exam simulation view"""
+    full_path = os.path.join(VAULT_PATH, filepath)
+    
+    if not os.path.exists(full_path):
+        abort(404)
+    
+    # Get exam data
+    with open(full_path, 'r', encoding='utf-8') as f:
+        content = f.read()
+    
+    sections = parse_exam_sections(content)
+    total_points = sum(s['points'] for s in sections)
+    
+    # Calculate all questions flattened
+    all_questions = []
+    for section in sections:
+        for q in section['questions']:
+            all_questions.append({
+                'sectionNum': section['number'],
+                'sectionTitle': section['title'],
+                'number': q['number'],
+                'title': q['title'],
+                'points': q['points'],
+                'content': q['content']
+            })
+    
+    filename = os.path.basename(filepath)
+    current_dir = os.path.dirname(filepath)
+    
+    return render_template_string(EXAM_TEMPLATE, 
+        filename=filename,
+        filepath=filepath,
+        sections=sections,
+        all_questions=all_questions,
+        total_points=total_points,
+        total_questions=len(all_questions),
+        current_dir=current_dir,
+        content=content)
+
+
+EXAM_TEMPLATE = '''
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Exam Simulation - {{ filename }}</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📝</text></svg>">
+    <script>
+        MathJax = {
+            tex: { inlineMath: [['$', '$'], ['\\\\(', '\\\\)']], displayMath: [['$$', '$$'], ['\\\\[', '\\\\]']] },
+            svg: { fontCache: 'global' }
+        };
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-svg.js" async></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        :root {
+            --bg-primary: #1a1a2e;
+            --bg-secondary: #16213e;
+            --bg-card: #0f3460;
+            --text-primary: #eaeaea;
+            --text-secondary: #a0a0a0;
+            --accent: #e94560;
+            --accent-green: #00d68f;
+            --accent-yellow: #ffcc00;
+            --accent-blue: #4da6ff;
+            --border-color: #2a2a4a;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* Top Timer Bar */
+        .timer-bar {
+            background: linear-gradient(135deg, var(--bg-secondary) 0%, var(--bg-card) 100%);
+            padding: 15px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--accent);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+        }
+        
+        .timer-main {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+        
+        .timer-display {
+            font-size: 2.5em;
+            font-weight: bold;
+            font-family: 'SF Mono', Monaco, monospace;
+            color: var(--accent-green);
+            text-shadow: 0 0 20px rgba(0, 214, 143, 0.3);
+        }
+        
+        .timer-display.warning {
+            color: var(--accent-yellow);
+            animation: pulse 1s infinite;
+        }
+        
+        .timer-display.danger {
+            color: var(--accent);
+            animation: pulse 0.5s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .timer-label {
+            font-size: 0.9em;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .timer-controls {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .timer-btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .timer-btn.start { background: var(--accent-green); color: #000; }
+        .timer-btn.pause { background: var(--accent-yellow); color: #000; }
+        .timer-btn.reset { background: var(--text-secondary); color: #000; }
+        .timer-btn:hover { transform: translateY(-2px); filter: brightness(1.1); }
+        
+        .progress-info {
+            text-align: right;
+        }
+        
+        .progress-text {
+            font-size: 1.1em;
+            margin-bottom: 5px;
+        }
+        
+        .progress-bar-container {
+            width: 200px;
+            height: 8px;
+            background: var(--border-color);
+            border-radius: 4px;
+            overflow: hidden;
+        }
+        
+        .progress-bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-green), var(--accent-blue));
+            transition: width 0.3s ease;
+        }
+        
+        /* Main Content Layout */
+        .exam-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        
+        /* Question Navigator Sidebar */
+        .question-nav {
+            width: 280px;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border-color);
+            overflow-y: auto;
+            padding: 20px;
+        }
+        
+        .nav-section {
+            margin-bottom: 20px;
+        }
+        
+        .nav-section-title {
+            font-size: 0.85em;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        
+        .nav-questions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        
+        .nav-question-btn {
+            width: 45px;
+            height: 45px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--bg-card);
+            color: var(--text-primary);
+            font-weight: 600;
+            font-size: 0.9em;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .nav-question-btn:hover {
+            border-color: var(--accent-blue);
+            transform: scale(1.05);
+        }
+        
+        .nav-question-btn.active {
+            background: var(--accent-blue);
+            border-color: var(--accent-blue);
+            color: #fff;
+        }
+        
+        .nav-question-btn.answered {
+            background: var(--accent-green);
+            border-color: var(--accent-green);
+            color: #000;
+        }
+        
+        .nav-question-btn.flagged {
+            border-color: var(--accent-yellow);
+            box-shadow: 0 0 10px rgba(255, 204, 0, 0.3);
+        }
+        
+        .nav-question-btn .points {
+            font-size: 0.6em;
+            opacity: 0.7;
+        }
+        
+        /* Question Content Area */
+        .question-area {
+            flex: 1;
+            overflow-y: auto;
+            padding: 30px 40px;
+        }
+        
+        .question-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid var(--border-color);
+        }
+        
+        .question-title {
+            font-size: 1.5em;
+            font-weight: 600;
+        }
+        
+        .question-meta {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        
+        .question-points {
+            background: var(--accent-blue);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+        
+        .question-time-suggest {
+            background: var(--bg-card);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.9em;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .question-time-suggest .time-icon {
+            font-size: 1.2em;
+        }
+        
+        .question-content {
+            background: var(--bg-card);
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            line-height: 1.8;
+            font-size: 1.05em;
+        }
+        
+        .question-content h1, .question-content h2, .question-content h3 {
+            color: var(--accent-blue);
+            margin: 20px 0 10px;
+        }
+        
+        .question-content h1:first-child, .question-content h2:first-child, .question-content h3:first-child {
+            margin-top: 0;
+        }
+        
+        .question-content table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        
+        .question-content th, .question-content td {
+            border: 1px solid var(--border-color);
+            padding: 10px;
+            text-align: left;
+        }
+        
+        .question-content th {
+            background: var(--bg-secondary);
+        }
+        
+        .question-content code {
+            background: var(--bg-secondary);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'SF Mono', Monaco, monospace;
+        }
+        
+        .question-content pre {
+            background: #0d1117;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+        }
+        
+        .question-content pre code {
+            background: none;
+            padding: 0;
+        }
+        
+        .question-content img {
+            max-width: 100%;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+        
+        .question-content blockquote {
+            border-left: 4px solid var(--accent-blue);
+            padding-left: 15px;
+            margin: 15px 0;
+            color: var(--text-secondary);
+        }
+        
+        /* Answer Area */
+        .answer-area {
+            margin-top: 20px;
+        }
+        
+        .answer-label {
+            font-weight: 600;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .answer-textarea {
+            width: 100%;
+            min-height: 200px;
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-color);
+            border-radius: 10px;
+            padding: 15px;
+            color: var(--text-primary);
+            font-size: 1em;
+            font-family: inherit;
+            resize: vertical;
+            transition: border-color 0.2s;
+        }
+        
+        .answer-textarea:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+        }
+        
+        .answer-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        
+        .action-btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .action-btn.flag {
+            background: var(--bg-card);
+            color: var(--accent-yellow);
+            border: 2px solid var(--accent-yellow);
+        }
+        
+        .action-btn.flag.flagged {
+            background: var(--accent-yellow);
+            color: #000;
+        }
+        
+        .action-btn.prev, .action-btn.next {
+            background: var(--accent-blue);
+            color: #fff;
+        }
+        
+        .action-btn.submit {
+            background: var(--accent-green);
+            color: #000;
+        }
+        
+        .action-btn:hover {
+            transform: translateY(-2px);
+            filter: brightness(1.1);
+        }
+        
+        .action-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        /* Navigation Footer */
+        .nav-footer {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+        }
+        
+        /* Start Screen Overlay */
+        .start-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .start-card {
+            background: var(--bg-card);
+            padding: 40px 50px;
+            border-radius: 20px;
+            text-align: center;
+            max-width: 500px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+        
+        .start-card h1 {
+            font-size: 2em;
+            margin-bottom: 10px;
+        }
+        
+        .start-card .exam-name {
+            color: var(--accent-blue);
+            font-size: 1.2em;
+            margin-bottom: 30px;
+        }
+        
+        .start-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .start-stat {
+            background: var(--bg-secondary);
+            padding: 15px;
+            border-radius: 10px;
+        }
+        
+        .start-stat-value {
+            font-size: 2em;
+            font-weight: bold;
+            color: var(--accent-green);
+        }
+        
+        .start-stat-label {
+            font-size: 0.85em;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+        }
+        
+        .time-input-group {
+            margin-bottom: 30px;
+        }
+        
+        .time-input-group label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+        
+        .time-input {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+        
+        .time-input input {
+            width: 80px;
+            padding: 10px;
+            font-size: 1.5em;
+            text-align: center;
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-primary);
+        }
+        
+        .time-input input:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+        }
+        
+        .time-input span {
+            font-size: 1.2em;
+            color: var(--text-secondary);
+        }
+        
+        .start-btn {
+            padding: 15px 50px;
+            font-size: 1.2em;
+            font-weight: 600;
+            background: linear-gradient(135deg, var(--accent-green), var(--accent-blue));
+            color: #000;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .start-btn:hover {
+            transform: scale(1.05);
+            box-shadow: 0 10px 30px rgba(0, 214, 143, 0.3);
+        }
+        
+        /* Finish Overlay */
+        .finish-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.95);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+        }
+        
+        .finish-overlay.show {
+            display: flex;
+        }
+        
+        .finish-card {
+            background: var(--bg-card);
+            padding: 40px 50px;
+            border-radius: 20px;
+            text-align: center;
+            max-width: 600px;
+        }
+        
+        .finish-card h1 {
+            font-size: 2.5em;
+            margin-bottom: 20px;
+            color: var(--accent-green);
+        }
+        
+        .finish-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            margin: 30px 0;
+        }
+        
+        .finish-btn {
+            padding: 15px 40px;
+            font-size: 1.1em;
+            font-weight: 600;
+            background: var(--accent-blue);
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        
+        .finish-btn:hover {
+            filter: brightness(1.1);
+        }
+        
+        /* Solution Toggle */
+        .solution-toggle {
+            margin-top: 20px;
+        }
+        
+        .solution-btn {
+            background: var(--bg-secondary);
+            border: 2px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .solution-btn:hover {
+            border-color: var(--accent-blue);
+        }
+        
+        .solution-content {
+            display: none;
+            margin-top: 15px;
+            padding: 20px;
+            background: rgba(0, 214, 143, 0.1);
+            border: 2px solid var(--accent-green);
+            border-radius: 10px;
+        }
+        
+        .solution-content.show {
+            display: block;
+        }
+        
+        .solution-content h4 {
+            color: var(--accent-green);
+            margin-bottom: 10px;
+        }
+        
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .timer-bar {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .question-nav {
+                display: none;
+            }
+            
+            .question-area {
+                padding: 20px;
+            }
+            
+            .question-header {
+                flex-direction: column;
+                gap: 15px;
+            }
+            
+            .start-stats {
+                grid-template-columns: 1fr;
+            }
+            
+            .nav-footer {
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .action-btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Start Screen Overlay -->
+    <div class="start-overlay" id="startOverlay">
+        <div class="start-card">
+            <h1>📝 Exam Simulation</h1>
+            <div class="exam-name">{{ filename }}</div>
+            
+            <div class="start-stats">
+                <div class="start-stat">
+                    <div class="start-stat-value">{{ total_questions }}</div>
+                    <div class="start-stat-label">Questions</div>
+                </div>
+                <div class="start-stat">
+                    <div class="start-stat-value">{{ total_points }}</div>
+                    <div class="start-stat-label">Points</div>
+                </div>
+                <div class="start-stat">
+                    <div class="start-stat-value" id="avgTimePerQuestion">--</div>
+                    <div class="start-stat-label">Min/Question</div>
+                </div>
+            </div>
+            
+            <div class="time-input-group">
+                <label>⏱️ Exam Duration</label>
+                <div class="time-input">
+                    <input type="number" id="hoursInput" value="1" min="0" max="5">
+                    <span>hours</span>
+                    <input type="number" id="minutesInput" value="30" min="0" max="59">
+                    <span>minutes</span>
+                </div>
+            </div>
+            
+            <button class="start-btn" onclick="startExam()">
+                🚀 Start Exam
+            </button>
+        </div>
+    </div>
+    
+    <!-- Finish Overlay -->
+    <div class="finish-overlay" id="finishOverlay">
+        <div class="finish-card">
+            <h1>🎉 Exam Complete!</h1>
+            <div class="finish-stats">
+                <div class="start-stat">
+                    <div class="start-stat-value" id="finalTimeUsed">--</div>
+                    <div class="start-stat-label">Time Used</div>
+                </div>
+                <div class="start-stat">
+                    <div class="start-stat-value" id="finalAnswered">--</div>
+                    <div class="start-stat-label">Answered</div>
+                </div>
+                <div class="start-stat">
+                    <div class="start-stat-value" id="finalFlagged">--</div>
+                    <div class="start-stat-label">Flagged</div>
+                </div>
+                <div class="start-stat">
+                    <div class="start-stat-value" id="finalPoints">--</div>
+                    <div class="start-stat-label">Total Points</div>
+                </div>
+            </div>
+            <button class="finish-btn" onclick="reviewAnswers()">📋 Review Answers</button>
+            <button class="finish-btn" onclick="location.href='/view/{{ filepath }}'">📄 View Original</button>
+            <button class="finish-btn" onclick="restartExam()">🔄 Restart</button>
+        </div>
+    </div>
+    
+    <!-- Timer Bar -->
+    <div class="timer-bar">
+        <div class="timer-main">
+            <div>
+                <div class="timer-label">Time Remaining</div>
+                <div class="timer-display" id="timerDisplay">01:30:00</div>
+            </div>
+            <div class="timer-controls">
+                <button class="timer-btn pause" id="pauseBtn" onclick="togglePause()">⏸️ Pause</button>
+            </div>
+        </div>
+        
+        <div class="progress-info">
+            <div class="progress-text">
+                Question <span id="currentQuestion">1</span> of {{ total_questions }}
+            </div>
+            <div class="progress-bar-container">
+                <div class="progress-bar-fill" id="progressBar" style="width: 0%"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Main Content -->
+    <div class="exam-container">
+        <!-- Question Navigator -->
+        <div class="question-nav">
+            <div class="nav-section">
+                <div class="nav-section-title">Questions</div>
+                <div class="nav-questions" id="questionNav">
+                    <!-- Generated by JS -->
+                </div>
+            </div>
+            
+            <div class="nav-section" style="margin-top: 30px;">
+                <div class="nav-section-title">Legend</div>
+                <div style="font-size: 0.85em; color: var(--text-secondary);">
+                    <div style="margin: 5px 0;">🔵 Current</div>
+                    <div style="margin: 5px 0;">🟢 Answered</div>
+                    <div style="margin: 5px 0;">🟡 Flagged</div>
+                    <div style="margin: 5px 0;">⚪ Not Visited</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Question Area -->
+        <div class="question-area" id="questionArea">
+            <!-- Generated by JS -->
+        </div>
+    </div>
+    
+    <script>
+        // Exam Data
+        const examData = {
+            filename: "{{ filename }}",
+            filepath: "{{ filepath }}",
+            totalPoints: {{ total_points }},
+            totalQuestions: {{ total_questions }},
+            sections: {{ sections | tojson | safe }},
+            questions: {{ all_questions | tojson | safe }}
+        };
+        
+        // State
+        let state = {
+            started: false,
+            paused: false,
+            finished: false,
+            totalSeconds: 90 * 60, // Default 1.5 hours
+            remainingSeconds: 90 * 60,
+            currentIndex: 0,
+            answers: {},
+            flagged: new Set(),
+            startTime: null,
+            timerInterval: null
+        };
+        
+        // Initialize
+        document.addEventListener('DOMContentLoaded', () => {
+            updateAvgTime();
+            buildQuestionNav();
+            
+            // Listen for time input changes
+            document.getElementById('hoursInput').addEventListener('input', updateAvgTime);
+            document.getElementById('minutesInput').addEventListener('input', updateAvgTime);
+        });
+        
+        function updateAvgTime() {
+            const hours = parseInt(document.getElementById('hoursInput').value) || 0;
+            const minutes = parseInt(document.getElementById('minutesInput').value) || 0;
+            const totalMinutes = hours * 60 + minutes;
+            const avgTime = (totalMinutes / examData.totalQuestions).toFixed(1);
+            document.getElementById('avgTimePerQuestion').textContent = avgTime;
+        }
+        
+        function buildQuestionNav() {
+            const nav = document.getElementById('questionNav');
+            nav.innerHTML = '';
+            
+            examData.questions.forEach((q, i) => {
+                const btn = document.createElement('button');
+                btn.className = 'nav-question-btn';
+                btn.innerHTML = `${q.number}<span class="points">${q.points}p</span>`;
+                btn.onclick = () => goToQuestion(i);
+                btn.id = `navBtn${i}`;
+                nav.appendChild(btn);
+            });
+        }
+        
+        function startExam() {
+            const hours = parseInt(document.getElementById('hoursInput').value) || 0;
+            const minutes = parseInt(document.getElementById('minutesInput').value) || 0;
+            state.totalSeconds = (hours * 60 + minutes) * 60;
+            state.remainingSeconds = state.totalSeconds;
+            state.started = true;
+            state.startTime = Date.now();
+            
+            document.getElementById('startOverlay').style.display = 'none';
+            
+            updateTimerDisplay();
+            state.timerInterval = setInterval(tick, 1000);
+            
+            goToQuestion(0);
+        }
+        
+        function tick() {
+            if (state.paused || state.finished) return;
+            
+            state.remainingSeconds--;
+            updateTimerDisplay();
+            
+            if (state.remainingSeconds <= 0) {
+                finishExam();
+            }
+        }
+        
+        function updateTimerDisplay() {
+            const hours = Math.floor(state.remainingSeconds / 3600);
+            const mins = Math.floor((state.remainingSeconds % 3600) / 60);
+            const secs = state.remainingSeconds % 60;
+            
+            const display = document.getElementById('timerDisplay');
+            display.textContent = `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`;
+            
+            // Warning states
+            const percentRemaining = state.remainingSeconds / state.totalSeconds;
+            display.classList.remove('warning', 'danger');
+            
+            if (percentRemaining < 0.1) {
+                display.classList.add('danger');
+            } else if (percentRemaining < 0.25) {
+                display.classList.add('warning');
+            }
+        }
+        
+        function togglePause() {
+            state.paused = !state.paused;
+            const btn = document.getElementById('pauseBtn');
+            btn.textContent = state.paused ? '▶️ Resume' : '⏸️ Pause';
+            btn.classList.toggle('start', state.paused);
+            btn.classList.toggle('pause', !state.paused);
+        }
+        
+        function goToQuestion(index) {
+            // Save current answer
+            saveCurrentAnswer();
+            
+            state.currentIndex = index;
+            const question = examData.questions[index];
+            
+            // Calculate suggested time for this question
+            const minutesPerPoint = state.totalSeconds / 60 / examData.totalPoints;
+            const suggestedMinutes = Math.ceil(question.points * minutesPerPoint);
+            
+            // Build question HTML
+            const area = document.getElementById('questionArea');
+            
+            // Convert markdown content to HTML
+            let contentHtml = marked.parse(question.content);
+            
+            area.innerHTML = `
+                <div class="question-header">
+                    <div>
+                        <div class="question-title">
+                            ${question.sectionNum}. ${question.sectionTitle}
+                        </div>
+                        <div style="color: var(--text-secondary); margin-top: 5px;">
+                            Question ${question.number}: ${question.title}
+                        </div>
+                    </div>
+                    <div class="question-meta">
+                        <div class="question-points">${question.points} Points</div>
+                        <div class="question-time-suggest">
+                            <span class="time-icon">⏱️</span>
+                            ~${suggestedMinutes} min suggested
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="question-content" id="questionContent">
+                    ${contentHtml}
+                </div>
+                
+                <div class="answer-area">
+                    <div class="answer-label">
+                        ✏️ Your Answer
+                        <span style="font-weight: normal; color: var(--text-secondary);">
+                            (Auto-saved)
+                        </span>
+                    </div>
+                    <textarea 
+                        class="answer-textarea" 
+                        id="answerInput"
+                        placeholder="Type your answer here..."
+                        oninput="autoSave()"
+                    >${state.answers[index] || ''}</textarea>
+                </div>
+                
+                <div class="nav-footer">
+                    <div class="answer-actions">
+                        <button class="action-btn flag ${state.flagged.has(index) ? 'flagged' : ''}" onclick="toggleFlag()">
+                            🚩 ${state.flagged.has(index) ? 'Unflag' : 'Flag for Review'}
+                        </button>
+                    </div>
+                    <div class="answer-actions">
+                        <button class="action-btn prev" onclick="prevQuestion()" ${index === 0 ? 'disabled' : ''}>
+                            ← Previous
+                        </button>
+                        <button class="action-btn next" onclick="nextQuestion()" ${index === examData.totalQuestions - 1 ? 'disabled' : ''}>
+                            Next →
+                        </button>
+                        ${index === examData.totalQuestions - 1 ? `
+                            <button class="action-btn submit" onclick="finishExam()">
+                                ✅ Finish Exam
+                            </button>
+                        ` : ''}
+                    </div>
+                </div>
+            `;
+            
+            // Re-render math
+            if (window.MathJax) {
+                MathJax.typesetPromise([document.getElementById('questionContent')]);
+            }
+            
+            // Update navigation
+            updateNavState();
+            updateProgress();
+        }
+        
+        function saveCurrentAnswer() {
+            const input = document.getElementById('answerInput');
+            if (input) {
+                const answer = input.value.trim();
+                if (answer) {
+                    state.answers[state.currentIndex] = answer;
+                } else {
+                    delete state.answers[state.currentIndex];
+                }
+            }
+        }
+        
+        function autoSave() {
+            saveCurrentAnswer();
+            updateNavState();
+        }
+        
+        function updateNavState() {
+            document.querySelectorAll('.nav-question-btn').forEach((btn, i) => {
+                btn.classList.remove('active', 'answered', 'flagged');
+                
+                if (i === state.currentIndex) {
+                    btn.classList.add('active');
+                }
+                if (state.answers[i]) {
+                    btn.classList.add('answered');
+                }
+                if (state.flagged.has(i)) {
+                    btn.classList.add('flagged');
+                }
+            });
+            
+            document.getElementById('currentQuestion').textContent = state.currentIndex + 1;
+        }
+        
+        function updateProgress() {
+            const answered = Object.keys(state.answers).length;
+            const percent = (answered / examData.totalQuestions) * 100;
+            document.getElementById('progressBar').style.width = `${percent}%`;
+        }
+        
+        function toggleFlag() {
+            if (state.flagged.has(state.currentIndex)) {
+                state.flagged.delete(state.currentIndex);
+            } else {
+                state.flagged.add(state.currentIndex);
+            }
+            goToQuestion(state.currentIndex); // Refresh
+        }
+        
+        function prevQuestion() {
+            if (state.currentIndex > 0) {
+                goToQuestion(state.currentIndex - 1);
+            }
+        }
+        
+        function nextQuestion() {
+            if (state.currentIndex < examData.totalQuestions - 1) {
+                goToQuestion(state.currentIndex + 1);
+            }
+        }
+        
+        function finishExam() {
+            saveCurrentAnswer();
+            state.finished = true;
+            
+            if (state.timerInterval) {
+                clearInterval(state.timerInterval);
+            }
+            
+            // Calculate stats
+            const timeUsed = state.totalSeconds - state.remainingSeconds;
+            const hours = Math.floor(timeUsed / 3600);
+            const mins = Math.floor((timeUsed % 3600) / 60);
+            
+            document.getElementById('finalTimeUsed').textContent = 
+                hours > 0 ? `${hours}h ${mins}m` : `${mins} min`;
+            document.getElementById('finalAnswered').textContent = 
+                `${Object.keys(state.answers).length}/${examData.totalQuestions}`;
+            document.getElementById('finalFlagged').textContent = state.flagged.size;
+            document.getElementById('finalPoints').textContent = examData.totalPoints;
+            
+            document.getElementById('finishOverlay').classList.add('show');
+        }
+        
+        function reviewAnswers() {
+            document.getElementById('finishOverlay').classList.remove('show');
+            state.finished = false; // Allow navigation
+            goToQuestion(0);
+        }
+        
+        function restartExam() {
+            state = {
+                started: false,
+                paused: false,
+                finished: false,
+                totalSeconds: 90 * 60,
+                remainingSeconds: 90 * 60,
+                currentIndex: 0,
+                answers: {},
+                flagged: new Set(),
+                startTime: null,
+                timerInterval: null
+            };
+            
+            document.getElementById('finishOverlay').classList.remove('show');
+            document.getElementById('startOverlay').style.display = 'flex';
+            updateAvgTime();
+            buildQuestionNav();
+        }
+        
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (!state.started || state.finished) return;
+            if (e.target.tagName === 'TEXTAREA') return;
+            
+            if (e.key === 'ArrowLeft' || e.key === 'p') {
+                prevQuestion();
+            } else if (e.key === 'ArrowRight' || e.key === 'n') {
+                nextQuestion();
+            } else if (e.key === 'f') {
+                toggleFlag();
+            } else if (e.key === ' ') {
+                e.preventDefault();
+                togglePause();
+            }
+        });
+    </script>
+</body>
+</html>
+'''
+
+
 def get_local_ip():
     """Get the local network IP address"""
     try:
