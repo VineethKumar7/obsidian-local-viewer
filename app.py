@@ -1880,8 +1880,11 @@ HTML_TEMPLATE = '''
             background: rgba(0,0,0,0.85);
             z-index: 2000;
             align-items: center;
-            justify-content: center;
+            justify-content: flex-start;
             flex-direction: column;
+            padding-top: 80px;
+            padding-bottom: 20px;
+            overflow-y: auto;
         }
         .flashcard-modal.visible {
             display: flex;
@@ -1890,8 +1893,10 @@ HTML_TEMPLATE = '''
             width: 90%;
             max-width: 600px;
             perspective: 1000px;
-            max-height: calc(100vh - 200px);
-            flex-shrink: 1;
+            max-height: calc(100vh - 250px);
+            flex-shrink: 0;
+            margin-bottom: auto;
+            margin-top: auto;
         }
         .flashcard {
             width: 100%;
@@ -1972,6 +1977,9 @@ HTML_TEMPLATE = '''
             margin-top: 20px;
             flex-shrink: 0;
             padding-bottom: 20px;
+            position: sticky;
+            bottom: 20px;
+            z-index: 10;
         }
         .flashcard-btn {
             padding: 12px 28px;
