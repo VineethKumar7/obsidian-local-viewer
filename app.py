@@ -1322,6 +1322,58 @@ HTML_TEMPLATE = '''
             color: #6cb6ff;
             border-color: #2a4a6a;
         }
+        
+        /* Dashboard Dark Mode */
+        body.dark-theme .dashboard-container {
+            background: #1e1e1e;
+            color: #e0e0e0;
+        }
+        body.dark-theme .dashboard-header h2 {
+            color: #e0e0e0;
+        }
+        body.dark-theme .dashboard-stat {
+            background: #2d2d2d;
+        }
+        body.dark-theme .dashboard-stat-value {
+            color: #e0e0e0;
+        }
+        body.dark-theme .dashboard-stat-label {
+            color: #9ca3af;
+        }
+        body.dark-theme .dashboard-progress h3 {
+            color: #9ca3af;
+        }
+        body.dark-theme .progress-bar-container {
+            background: #374151;
+        }
+        body.dark-theme .progress-label {
+            color: #9ca3af;
+        }
+        body.dark-theme .heatmap-container h3 {
+            color: #9ca3af;
+        }
+        body.dark-theme .heatmap-day {
+            background: #374151;
+        }
+        body.dark-theme .heatmap-day.level-1 { background: #064e3b; }
+        body.dark-theme .heatmap-day.level-2 { background: #047857; }
+        body.dark-theme .heatmap-day.level-3 { background: #059669; }
+        body.dark-theme .heatmap-day.level-4 { background: #10b981; }
+        body.dark-theme .flashcard-empty {
+            background: #2d2d2d;
+            color: #e0e0e0;
+        }
+        body.dark-theme .flashcard-empty h3 {
+            color: #e0e0e0;
+        }
+        body.dark-theme .flashcard-empty p {
+            color: #9ca3af;
+        }
+        body.dark-theme .flashcard-empty pre {
+            background: #1a1a1a;
+            color: #a5d6ff;
+        }
+        
         .content h3 { color: #444; margin: 20px 0 10px; font-size: 1.25em; }
         .content p { line-height: 1.8; margin: 15px 0; color: #444; font-size: 16px; }
         .content ul, .content ol { margin: 15px 0 15px 30px; }
