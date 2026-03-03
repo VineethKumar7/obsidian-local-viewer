@@ -3980,12 +3980,33 @@ Q: Which port does HTTP use?
                     renderClozeCard();
                     document.getElementById('flashcardModal').classList.add('visible');
                 } else {
-                    alert('No cloze deletions found. Add a ## Cloze section with {{text}} or ==highlighted== text.');
+                    showEmptyClozeState();
+                    document.getElementById('flashcardModal').classList.add('visible');
                 }
             } catch (err) {
                 console.error('Failed to load cloze:', err);
-                alert('Failed to load cloze: ' + err.message);
             }
+        }
+        
+        function showEmptyClozeState() {
+            const container = document.getElementById('flashcardContainer');
+            container.innerHTML = `
+                <div class="flashcard-empty">
+                    <h3>📝 No Cloze Deletions Found</h3>
+                    <p>Add a cloze section to create fill-in-the-blank cards:</p>
+                    <pre>## Cloze
+
+TCP uses {{sequence numbers}} to track packets.
+The OSI model has {{c1::7}} layers.
+HTTP is a ==stateless== protocol.</pre>
+                    <p style="margin-top: 16px; font-size: 13px; color: #6b7280;">
+                        Syntax: <code>{{text}}</code>, <code>{{c1::text}}</code>, or <code>==highlighted==</code>
+                    </p>
+                </div>
+            `;
+            document.getElementById('flashcardControls').style.display = 'none';
+            document.getElementById('flashcardRatingControls').style.display = 'none';
+            document.querySelector('.flashcard-progress').style.display = 'none';
         }
         
         function renderClozeCard() {
@@ -4066,7 +4087,7 @@ Q: Which port does HTTP use?
                 const data = await response.json();
                 
                 if (!data.success) {
-                    alert('Failed to load dashboard: ' + data.error);
+                    console.error('Dashboard error:', data.error);
                     return;
                 }
                 
@@ -4139,7 +4160,6 @@ Q: Which port does HTTP use?
                 document.getElementById('dashboardModal').classList.add('visible');
             } catch (err) {
                 console.error('Failed to load dashboard:', err);
-                alert('Failed to load dashboard: ' + err.message);
             }
         }
         
@@ -4154,14 +4174,51 @@ Q: Which port does HTTP use?
                 const data = await response.json();
                 
                 if (!data.success || data.weakCards.length === 0) {
-                    alert('🎉 No weak cards! You\\'re doing great!');
+                    showEmptyFocusState();
+                    document.getElementById('flashcardModal').classList.add('visible');
                     return;
                 }
                 
-                alert(`Found ${data.count} weak cards across your notes. Opening focus mode...`);
+                // TODO: Load and display weak cards from multiple files
+                showEmptyFocusState(data.count);
             } catch (err) {
                 console.error('Failed to start focus mode:', err);
             }
+        }
+        
+        function showEmptyFocusState(count = 0) {
+            const container = document.getElementById('flashcardContainer');
+            if (count === 0) {
+                container.innerHTML = `
+                    <div class="flashcard-empty">
+                        <h3>🎉 No Weak Cards!</h3>
+                        <p>Great job! You don't have any cards that need extra focus.</p>
+                        <p style="margin-top: 16px; color: #6b7280;">
+                            Cards become "weak" when you miss them 2+ times.
+                        </p>
+                        <button class="flashcard-btn primary" onclick="closeFlashcards();" style="margin-top: 20px;">
+                            👍 Keep it up!
+                        </button>
+                    </div>
+                `;
+            } else {
+                container.innerHTML = `
+                    <div class="flashcard-empty">
+                        <h3>🎯 Focus Mode</h3>
+                        <p>Found <strong>${count}</strong> weak cards across your notes.</p>
+                        <p style="margin-top: 16px; color: #6b7280;">
+                            Focus mode for cross-file review coming soon!
+                        </p>
+                        <button class="flashcard-btn secondary" onclick="closeFlashcards();" style="margin-top: 20px;">
+                            Close
+                        </button>
+                    </div>
+                `;
+            }
+            document.getElementById('flashcardModal').classList.add('visible');
+            document.getElementById('flashcardControls').style.display = 'none';
+            document.getElementById('flashcardRatingControls').style.display = 'none';
+            document.querySelector('.flashcard-progress').style.display = 'none';
         }
         
         // ===== MIX MODE (ALL CARD TYPES) =====
@@ -4187,11 +4244,37 @@ Q: Which port does HTTP use?
                     renderMixCard();
                     document.getElementById('flashcardModal').classList.add('visible');
                 } else {
-                    alert('No study cards found in this file.');
+                    showEmptyMixState();
+                    document.getElementById('flashcardModal').classList.add('visible');
                 }
             } catch (err) {
                 console.error('Failed to load mix cards:', err);
             }
+        }
+        
+        function showEmptyMixState() {
+            const container = document.getElementById('flashcardContainer');
+            container.innerHTML = `
+                <div class="flashcard-empty">
+                    <h3>🎲 No Study Cards Found</h3>
+                    <p>This file doesn't have any flashcards, MCQs, or cloze deletions yet.</p>
+                    <p style="margin-top: 16px;">Add any of these sections:</p>
+                    <pre>## Flashcards
+Q: Question here?
+A: Answer here
+
+## MCQ
+Q: Question?
+- [ ] Wrong answer
+- [x] Correct answer
+
+## Cloze
+Text with {{blanks}} here.</pre>
+                </div>
+            `;
+            document.getElementById('flashcardControls').style.display = 'none';
+            document.getElementById('flashcardRatingControls').style.display = 'none';
+            document.querySelector('.flashcard-progress').style.display = 'none';
         }
         
         function renderMixCard() {
