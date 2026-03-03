@@ -10932,6 +10932,108 @@ EXAM_TEMPLATE = '''
             margin-bottom: 10px;
         }
         
+        /* Interactive MCQ Styles */
+        .mcq-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        
+        .mcq-table th {
+            background: var(--bg-secondary);
+            padding: 12px;
+            text-align: center;
+            border: 1px solid var(--border-color);
+        }
+        
+        .mcq-table td {
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            vertical-align: middle;
+        }
+        
+        .mcq-table tr:hover {
+            background: rgba(77, 166, 255, 0.1);
+        }
+        
+        .mcq-checkbox {
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+            accent-color: var(--accent-blue);
+        }
+        
+        .mcq-cell {
+            text-align: center;
+            width: 60px;
+        }
+        
+        .mcq-statement {
+            text-align: left;
+        }
+        
+        /* Paper Question Indicator */
+        .paper-question-banner {
+            background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+            color: #000;
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 600;
+        }
+        
+        .paper-question-banner .icon {
+            font-size: 1.5em;
+        }
+        
+        .paper-done-checkbox {
+            margin-top: 20px;
+            padding: 15px;
+            background: var(--bg-secondary);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .paper-done-checkbox input {
+            width: 24px;
+            height: 24px;
+            cursor: pointer;
+        }
+        
+        .paper-done-checkbox label {
+            cursor: pointer;
+            font-weight: 500;
+        }
+        
+        /* Question Type Badge */
+        .question-type-badge {
+            padding: 5px 12px;
+            border-radius: 15px;
+            font-size: 0.8em;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+        
+        .question-type-badge.mcq {
+            background: var(--accent-blue);
+            color: #fff;
+        }
+        
+        .question-type-badge.paper {
+            background: var(--accent-yellow);
+            color: #000;
+        }
+        
+        .question-type-badge.text {
+            background: var(--accent-green);
+            color: #000;
+        }
+        
         /* Mobile Responsive */
         @media (max-width: 768px) {
             .timer-bar {
@@ -11104,6 +11206,7 @@ EXAM_TEMPLATE = '''
             remainingSeconds: 90 * 60,
             currentIndex: 0,
             answers: {},
+            mcqAnswers: {},  // Store MCQ selections separately
             flagged: new Set(),
             startTime: null,
             timerInterval: null
@@ -11195,12 +11298,156 @@ EXAM_TEMPLATE = '''
             btn.classList.toggle('pause', !state.paused);
         }
         
+        function detectQuestionType(content) {
+            // Check for type hints in comments
+            if (content.includes('<!-- type: mcq-truefalse -->') || content.includes('<!-- type: mcq -->')) {
+                return 'mcq';
+            }
+            if (content.includes('<!-- type: paper -->')) {
+                return 'paper';
+            }
+            if (content.includes('<!-- type: text -->')) {
+                return 'text';
+            }
+            
+            // Auto-detect MCQ tables (True/False columns)
+            if (content.includes('| True | False |') || content.includes('| # | True | False |')) {
+                return 'mcq';
+            }
+            
+            // Auto-detect drawing/calculation questions
+            if (content.toLowerCase().includes('draw the graph') || 
+                content.toLowerCase().includes('calculate') ||
+                content.toLowerCase().includes('provide all') ||
+                content.includes('adjacency matrix')) {
+                return 'paper';
+            }
+            
+            return 'text';
+        }
+        
+        function parseAndRenderMCQ(content, questionIndex) {
+            // Remove type hints
+            content = content.replace(/<!-- type: \w+ -->/g, '');
+            
+            // Find the table in content
+            const tableMatch = content.match(/\|[^\n]+\|[\s\S]*?\n(?:\|[^\n]+\|\n)+/);
+            if (!tableMatch) {
+                return { before: content, mcqHtml: '', after: '' };
+            }
+            
+            const tableStart = content.indexOf(tableMatch[0]);
+            const tableEnd = tableStart + tableMatch[0].length;
+            const before = content.substring(0, tableStart);
+            const after = content.substring(tableEnd);
+            
+            // Parse table rows
+            const rows = tableMatch[0].trim().split('\n').filter(r => r.includes('|'));
+            if (rows.length < 3) {
+                return { before: content, mcqHtml: '', after: '' };
+            }
+            
+            // Skip header and separator rows
+            const dataRows = rows.slice(2);
+            
+            // Get saved answers for this question
+            const savedMcq = state.mcqAnswers[questionIndex] || {};
+            
+            let mcqHtml = `<table class="mcq-table">
+                <thead>
+                    <tr>
+                        <th style="width: 40px">#</th>
+                        <th style="width: 60px">True</th>
+                        <th style="width: 60px">False</th>
+                        <th>Statement</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+            
+            dataRows.forEach((row, rowIdx) => {
+                const cells = row.split('|').map(c => c.trim()).filter(c => c);
+                if (cells.length >= 4) {
+                    const num = cells[0];
+                    const statement = cells[3];
+                    const savedValue = savedMcq[num] || '';
+                    
+                    mcqHtml += `
+                        <tr>
+                            <td class="mcq-cell">${num}</td>
+                            <td class="mcq-cell">
+                                <input type="checkbox" class="mcq-checkbox" 
+                                    data-num="${num}" data-value="true"
+                                    ${savedValue === 'true' ? 'checked' : ''}
+                                    onchange="handleMcqChange(this, ${questionIndex}, '${num}', 'true')">
+                            </td>
+                            <td class="mcq-cell">
+                                <input type="checkbox" class="mcq-checkbox"
+                                    data-num="${num}" data-value="false"
+                                    ${savedValue === 'false' ? 'checked' : ''}
+                                    onchange="handleMcqChange(this, ${questionIndex}, '${num}', 'false')">
+                            </td>
+                            <td class="mcq-statement">${statement}</td>
+                        </tr>`;
+                }
+            });
+            
+            mcqHtml += '</tbody></table>';
+            
+            return { before, mcqHtml, after };
+        }
+        
+        function handleMcqChange(checkbox, questionIndex, num, value) {
+            // Initialize if needed
+            if (!state.mcqAnswers[questionIndex]) {
+                state.mcqAnswers[questionIndex] = {};
+            }
+            
+            // Uncheck the other checkbox in the same row
+            const row = checkbox.closest('tr');
+            const checkboxes = row.querySelectorAll('.mcq-checkbox');
+            checkboxes.forEach(cb => {
+                if (cb !== checkbox) {
+                    cb.checked = false;
+                }
+            });
+            
+            // Save the answer
+            if (checkbox.checked) {
+                state.mcqAnswers[questionIndex][num] = value;
+            } else {
+                delete state.mcqAnswers[questionIndex][num];
+            }
+            
+            // Mark as answered if any MCQ is filled
+            if (Object.keys(state.mcqAnswers[questionIndex]).length > 0) {
+                state.answers[questionIndex] = 'MCQ_ANSWERED';
+            } else {
+                delete state.answers[questionIndex];
+            }
+            
+            updateNavState();
+            updateProgress();
+        }
+        
+        function handlePaperDone(checkbox, questionIndex) {
+            if (checkbox.checked) {
+                state.answers[questionIndex] = 'PAPER_DONE';
+            } else {
+                delete state.answers[questionIndex];
+            }
+            updateNavState();
+            updateProgress();
+        }
+        
         function goToQuestion(index) {
             // Save current answer
             saveCurrentAnswer();
             
             state.currentIndex = index;
             const question = examData.questions[index];
+            
+            // Detect question type
+            const questionType = detectQuestionType(question.content);
             
             // Calculate suggested time for this question
             const minutesPerPoint = state.totalSeconds / 60 / examData.totalPoints;
@@ -11209,14 +11456,74 @@ EXAM_TEMPLATE = '''
             // Build question HTML
             const area = document.getElementById('questionArea');
             
-            // Convert markdown content to HTML
-            let contentHtml = marked.parse(question.content);
+            // Type badge
+            const typeBadges = {
+                'mcq': '<span class="question-type-badge mcq">MCQ</span>',
+                'paper': '<span class="question-type-badge paper">✏️ Paper</span>',
+                'text': '<span class="question-type-badge text">Written</span>'
+            };
+            
+            let answerAreaHtml = '';
+            let contentHtml = '';
+            
+            if (questionType === 'mcq') {
+                // Parse and render interactive MCQ
+                const { before, mcqHtml, after } = parseAndRenderMCQ(question.content, index);
+                contentHtml = marked.parse(before) + mcqHtml + marked.parse(after);
+                answerAreaHtml = `
+                    <div class="answer-area" style="background: var(--bg-secondary); padding: 15px; border-radius: 10px; margin-top: 20px;">
+                        <p style="color: var(--text-secondary); margin: 0;">
+                            ℹ️ Click the checkboxes above to mark your answers. Your selections are auto-saved.
+                        </p>
+                    </div>`;
+            } else if (questionType === 'paper') {
+                // Paper question - show banner and completion checkbox
+                contentHtml = marked.parse(question.content.replace(/<!-- type: \w+ -->/g, ''));
+                const isDone = state.answers[index] === 'PAPER_DONE';
+                answerAreaHtml = `
+                    <div class="paper-question-banner">
+                        <span class="icon">📝</span>
+                        <div>
+                            <strong>Paper Question</strong> - Write or draw your answer on paper
+                        </div>
+                    </div>
+                    <div class="paper-done-checkbox">
+                        <input type="checkbox" id="paperDone" ${isDone ? 'checked' : ''} 
+                            onchange="handlePaperDone(this, ${index})">
+                        <label for="paperDone">✅ I've completed this question on paper</label>
+                    </div>`;
+            } else {
+                // Text question - show textarea
+                contentHtml = marked.parse(question.content.replace(/<!-- type: \w+ -->/g, ''));
+                answerAreaHtml = `
+                    <div class="answer-area">
+                        <div class="answer-label">
+                            ✏️ Your Answer
+                            <span style="font-weight: normal; color: var(--text-secondary);">
+                                (Auto-saved)
+                            </span>
+                        </div>
+                        <textarea 
+                            class="answer-textarea" 
+                            id="answerInput"
+                            placeholder="Type your answer here..."
+                            oninput="autoSave()"
+                        >${state.answers[index] || ''}</textarea>
+                    </div>`;
+            }
+            
+            // Fix image paths - convert relative paths to /raw/ URLs
+            contentHtml = contentHtml.replace(/src="(?!http|\/raw)([^"]+)"/g, (match, path) => {
+                const dir = examData.filepath.substring(0, examData.filepath.lastIndexOf('/'));
+                return `src="/raw/${dir}/${path}"`;
+            });
             
             area.innerHTML = `
                 <div class="question-header">
                     <div>
                         <div class="question-title">
                             ${question.sectionNum}. ${question.sectionTitle}
+                            ${typeBadges[questionType]}
                         </div>
                         <div style="color: var(--text-secondary); margin-top: 5px;">
                             Question ${question.number}: ${question.title}
@@ -11235,20 +11542,7 @@ EXAM_TEMPLATE = '''
                     ${contentHtml}
                 </div>
                 
-                <div class="answer-area">
-                    <div class="answer-label">
-                        ✏️ Your Answer
-                        <span style="font-weight: normal; color: var(--text-secondary);">
-                            (Auto-saved)
-                        </span>
-                    </div>
-                    <textarea 
-                        class="answer-textarea" 
-                        id="answerInput"
-                        placeholder="Type your answer here..."
-                        oninput="autoSave()"
-                    >${state.answers[index] || ''}</textarea>
-                </div>
+                ${answerAreaHtml}
                 
                 <div class="nav-footer">
                     <div class="answer-actions">
@@ -11382,6 +11676,7 @@ EXAM_TEMPLATE = '''
                 remainingSeconds: 90 * 60,
                 currentIndex: 0,
                 answers: {},
+                mcqAnswers: {},
                 flagged: new Set(),
                 startTime: null,
                 timerInterval: null
