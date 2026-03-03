@@ -447,6 +447,8 @@ def load_study_settings():
         'dailyGoal': 50,
         'timerSeconds': 30,
         'srsMode': 'srs',  # 'srs' or 'leitner'
+        'timedMode': False,
+        'confidenceRating': False,
         'notifications': False
     }
 
@@ -2346,6 +2348,161 @@ HTML_TEMPLATE = '''
             z-index: 10;
         }
 
+        /* ===== SETTINGS MODAL ===== */
+        .settings-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.85);
+            z-index: 10000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .settings-modal.visible {
+            display: flex;
+        }
+        .settings-container {
+            background: white;
+            border-radius: 16px;
+            max-width: 500px;
+            width: 100%;
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 24px;
+        }
+        .settings-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+        .settings-header h2 {
+            font-size: 20px;
+            color: #1f2937;
+        }
+        .settings-section {
+            margin-bottom: 24px;
+        }
+        .settings-section h3 {
+            font-size: 14px;
+            color: #6b7280;
+            margin-bottom: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .setting-item:last-child {
+            border-bottom: none;
+        }
+        .setting-label {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+        .setting-label span {
+            font-size: 15px;
+            color: #1f2937;
+        }
+        .setting-label small {
+            font-size: 12px;
+            color: #6b7280;
+        }
+        .setting-toggle {
+            position: relative;
+            width: 48px;
+            height: 26px;
+        }
+        .setting-toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .setting-toggle .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #d1d5db;
+            transition: 0.3s;
+            border-radius: 26px;
+        }
+        .setting-toggle .slider:before {
+            position: absolute;
+            content: "";
+            height: 20px;
+            width: 20px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.3s;
+            border-radius: 50%;
+        }
+        .setting-toggle input:checked + .slider {
+            background-color: #8b5cf6;
+        }
+        .setting-toggle input:checked + .slider:before {
+            transform: translateX(22px);
+        }
+        .setting-input {
+            width: 80px;
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 8px;
+            font-size: 14px;
+            text-align: center;
+        }
+        .setting-input:focus {
+            outline: none;
+            border-color: #8b5cf6;
+        }
+        .settings-save {
+            width: 100%;
+            padding: 14px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            margin-top: 16px;
+        }
+        .settings-save:hover {
+            opacity: 0.9;
+        }
+        body.dark-theme .settings-container {
+            background: #1e1e1e;
+        }
+        body.dark-theme .settings-header h2 {
+            color: #e0e0e0;
+        }
+        body.dark-theme .setting-label span {
+            color: #e0e0e0;
+        }
+        body.dark-theme .setting-label small {
+            color: #9ca3af;
+        }
+        body.dark-theme .setting-item {
+            border-color: #374151;
+        }
+        body.dark-theme .setting-input {
+            background: #2d2d2d;
+            border-color: #374151;
+            color: #e0e0e0;
+        }
+
         /* ===== CARD TYPE BADGES ===== */
         .card-type-badge {
             display: inline-flex;
@@ -3092,6 +3249,7 @@ HTML_TEMPLATE = '''
                 <button onclick="openMixMode(); closeToolbarMenu();" title="Mixed study mode">🎲 Mix Mode</button>
                 <button onclick="openDashboard(); closeToolbarMenu();" title="Study progress dashboard">📊 Dashboard</button>
                 <button onclick="openSummary(); closeToolbarMenu();" title="Quick summary view">📋 Summary</button>
+                <button onclick="openStudySettings(); closeToolbarMenu();" title="Study settings">⚙️ Settings</button>
                 {% endif %}
                 {% if is_markdown or is_pdf|default(false) %}
                 <button onclick="openAnnotation(); closeToolbarMenu();" title="Annotate with Apple Pencil">✏️ Annotate</button>
@@ -3191,6 +3349,74 @@ HTML_TEMPLATE = '''
     <div id="dashboardModal" class="dashboard-modal">
         <div class="dashboard-container" id="dashboardContainer">
             <!-- Dashboard content will be inserted here by JS -->
+        </div>
+    </div>
+    
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="settings-modal">
+        <div class="settings-container">
+            <div class="settings-header">
+                <h2>⚙️ Study Settings</h2>
+                <button class="flashcard-close" onclick="closeStudySettings()">✕</button>
+            </div>
+            
+            <div class="settings-section">
+                <h3>Study Modes</h3>
+                <div class="setting-item">
+                    <div class="setting-label">
+                        <span>Timed Mode</span>
+                        <small>30-second countdown per card</small>
+                    </div>
+                    <label class="setting-toggle">
+                        <input type="checkbox" id="settingTimedMode">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+                <div class="setting-item">
+                    <div class="setting-label">
+                        <span>Confidence Rating</span>
+                        <small>Rate confidence before reveal</small>
+                    </div>
+                    <label class="setting-toggle">
+                        <input type="checkbox" id="settingConfidence">
+                        <span class="slider"></span>
+                    </label>
+                </div>
+            </div>
+            
+            <div class="settings-section">
+                <h3>Goals</h3>
+                <div class="setting-item">
+                    <div class="setting-label">
+                        <span>Daily Card Goal</span>
+                        <small>Cards to review per day</small>
+                    </div>
+                    <input type="number" class="setting-input" id="settingDailyGoal" value="50" min="1" max="500">
+                </div>
+                <div class="setting-item">
+                    <div class="setting-label">
+                        <span>Timer Duration</span>
+                        <small>Seconds per card</small>
+                    </div>
+                    <input type="number" class="setting-input" id="settingTimerSeconds" value="30" min="10" max="120">
+                </div>
+            </div>
+            
+            <div class="settings-section">
+                <h3>Spaced Repetition</h3>
+                <div class="setting-item">
+                    <div class="setting-label">
+                        <span>Algorithm</span>
+                        <small>SRS (Anki-style) or Leitner (5-box)</small>
+                    </div>
+                    <select class="setting-input" id="settingSrsMode" style="width: auto;">
+                        <option value="srs">SRS</option>
+                        <option value="leitner">Leitner</option>
+                    </select>
+                </div>
+            </div>
+            
+            <button class="settings-save" onclick="saveStudySettings()">Save Settings</button>
         </div>
     </div>
     
@@ -4909,6 +5135,81 @@ Text with {<!-- -->{blanks}} here.</pre>
                 console.error('Failed to load summary:', err);
             }
         }
+
+        // ===== STUDY SETTINGS =====
+        let studySettings = {
+            timedMode: false,
+            confidenceRating: false,
+            dailyGoal: 50,
+            timerSeconds: 30,
+            srsMode: 'srs'
+        };
+        
+        async function loadStudySettings() {
+            try {
+                const response = await fetch('/api/study/settings');
+                const data = await response.json();
+                if (data.success && data.settings) {
+                    studySettings = { ...studySettings, ...data.settings };
+                    applySettingsToUI();
+                }
+            } catch (err) {
+                console.error('Failed to load settings:', err);
+            }
+        }
+        
+        function applySettingsToUI() {
+            document.getElementById('settingTimedMode').checked = studySettings.timedMode || false;
+            document.getElementById('settingConfidence').checked = studySettings.confidenceRating || false;
+            document.getElementById('settingDailyGoal').value = studySettings.dailyGoal || 50;
+            document.getElementById('settingTimerSeconds').value = studySettings.timerSeconds || 30;
+            document.getElementById('settingSrsMode').value = studySettings.srsMode || 'srs';
+        }
+        
+        function openStudySettings() {
+            loadStudySettings();
+            document.getElementById('settingsModal').classList.add('visible');
+        }
+        
+        function closeStudySettings() {
+            document.getElementById('settingsModal').classList.remove('visible');
+        }
+        
+        async function saveStudySettings() {
+            studySettings = {
+                timedMode: document.getElementById('settingTimedMode').checked,
+                confidenceRating: document.getElementById('settingConfidence').checked,
+                dailyGoal: parseInt(document.getElementById('settingDailyGoal').value) || 50,
+                timerSeconds: parseInt(document.getElementById('settingTimerSeconds').value) || 30,
+                srsMode: document.getElementById('settingSrsMode').value || 'srs'
+            };
+            
+            try {
+                const response = await fetch('/api/study/settings', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(studySettings)
+                });
+                const data = await response.json();
+                if (data.success) {
+                    closeStudySettings();
+                    // Show confirmation
+                    const btn = document.querySelector('.settings-save');
+                    btn.textContent = '✅ Saved!';
+                    setTimeout(() => { btn.textContent = 'Save Settings'; }, 1500);
+                }
+            } catch (err) {
+                console.error('Failed to save settings:', err);
+            }
+        }
+        
+        // Close settings on backdrop click
+        document.getElementById('settingsModal')?.addEventListener('click', function(e) {
+            if (e.target === this) closeStudySettings();
+        });
+        
+        // Load settings on page load
+        document.addEventListener('DOMContentLoaded', loadStudySettings);
 
         function toggleFullscreen() {
             if (!document.fullscreenElement) {
@@ -9561,6 +9862,10 @@ def api_set_study_settings():
             settings['timerSeconds'] = int(data['timerSeconds'])
         if 'srsMode' in data:
             settings['srsMode'] = data['srsMode']
+        if 'timedMode' in data:
+            settings['timedMode'] = bool(data['timedMode'])
+        if 'confidenceRating' in data:
+            settings['confidenceRating'] = bool(data['confidenceRating'])
         
         save_study_settings(settings)
         return jsonify({'success': True, 'settings': settings})
