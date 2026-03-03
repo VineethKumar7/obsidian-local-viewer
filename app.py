@@ -629,6 +629,86 @@ def parse_cloze(content):
     return cloze_cards
 
 
+def parse_summary(content):
+    """
+    Extract summary content from markdown.
+    
+    Looks for:
+    1. > [!summary] callouts
+    2. ## Summary / ## TL;DR sections
+    3. **bold terms** as key terms
+    4. > [!tip] and > [!important] callouts
+    """
+    summary = {
+        'sections': [],
+        'keyTerms': []
+    }
+    
+    # Extract key terms (bold text)
+    bold_pattern = re.compile(r'\*\*([^*]+)\*\*')
+    key_terms = set()
+    for match in bold_pattern.finditer(content):
+        term = match.group(1).strip()
+        if len(term) < 50 and not term.startswith('http'):  # Skip long text and URLs
+            key_terms.add(term)
+    summary['keyTerms'] = list(key_terms)[:15]  # Limit to 15 terms
+    
+    # Extract [!summary] callouts
+    summary_callout = re.compile(r'>\s*\[!(summary|tldr|abstract)\][+-]?\s*(.*?)\n((?:>.*\n)*)', re.IGNORECASE)
+    for match in summary_callout.finditer(content):
+        title = match.group(2).strip() or 'Summary'
+        body = match.group(3)
+        points = []
+        for line in body.split('\n'):
+            line = line.lstrip('>').strip()
+            if line.startswith('- ') or line.startswith('* '):
+                points.append(line[2:].strip())
+            elif line and not line.startswith('#'):
+                points.append(line)
+        if points:
+            summary['sections'].append({'title': title, 'points': points[:10]})
+    
+    # Extract [!tip] and [!important] callouts
+    tip_callout = re.compile(r'>\s*\[!(tip|important|warning|note)\][+-]?\s*(.*?)\n((?:>.*\n)*)', re.IGNORECASE)
+    for match in tip_callout.finditer(content):
+        callout_type = match.group(1).capitalize()
+        title = match.group(2).strip() or callout_type
+        body = match.group(3)
+        points = []
+        for line in body.split('\n'):
+            line = line.lstrip('>').strip()
+            if line:
+                points.append(line)
+        if points:
+            summary['sections'].append({'title': f"💡 {title}", 'points': points[:5]})
+    
+    # Extract ## Summary or ## TL;DR sections
+    summary_section = re.search(r'##\s*(Summary|TL;?DR|Key\s*Points?|Overview)\s*\n([\s\S]*?)(?=\n##\s|\Z)', content, re.IGNORECASE)
+    if summary_section:
+        title = summary_section.group(1).strip()
+        body = summary_section.group(2)
+        points = []
+        for line in body.split('\n'):
+            line = line.strip()
+            if line.startswith('- ') or line.startswith('* '):
+                points.append(line[2:].strip())
+            elif line.startswith(('1.', '2.', '3.', '4.', '5.', '6.', '7.', '8.', '9.')):
+                points.append(line[2:].strip())
+        if points:
+            summary['sections'].insert(0, {'title': title, 'points': points[:10]})
+    
+    # If no sections found, extract headings as overview
+    if not summary['sections']:
+        headings = re.findall(r'^##\s+(.+)$', content, re.MULTILINE)
+        if headings:
+            summary['sections'].append({
+                'title': 'Topics Covered',
+                'points': headings[:10]
+            })
+    
+    return summary if summary['sections'] or summary['keyTerms'] else None
+
+
 HTML_TEMPLATE = '''
 <!DOCTYPE html>
 <html>
@@ -3011,6 +3091,7 @@ HTML_TEMPLATE = '''
                 <button onclick="openCloze(); closeToolbarMenu();" title="Fill in the blanks">📝 Cloze</button>
                 <button onclick="openMixMode(); closeToolbarMenu();" title="Mixed study mode">🎲 Mix Mode</button>
                 <button onclick="openDashboard(); closeToolbarMenu();" title="Study progress dashboard">📊 Dashboard</button>
+                <button onclick="openSummary(); closeToolbarMenu();" title="Quick summary view">📋 Summary</button>
                 {% endif %}
                 {% if is_markdown or is_pdf|default(false) %}
                 <button onclick="openAnnotation(); closeToolbarMenu();" title="Annotate with Apple Pencil">✏️ Annotate</button>
@@ -4215,7 +4296,7 @@ HTTP is a ==stateless== protocol.</pre>
                     </div>
                     
                     <div style="margin-top: 24px; display: flex; gap: 12px; justify-content: center;">
-                        <button class="flashcard-btn primary" onclick="closeDashboard(); startFocusMode();">
+                        <button class="flashcard-btn primary" onclick="closeDashboard(); startFocusModeReal();">
                             🎯 Focus on Weak Cards (${d.weakCards})
                         </button>
                     </div>
@@ -4476,6 +4557,357 @@ Text with {<!-- -->{blanks}} here.</pre>
             document.getElementById('flashcardControls').style.display = 'none';
             document.getElementById('flashcardRatingControls').style.display = 'none';
             document.querySelector('.flashcard-progress').style.display = 'none';
+        }
+
+        // ===== TIMED MODE =====
+        let timerInterval = null;
+        let timerSeconds = 30;
+        let timerEnabled = false;
+        
+        function startTimer(seconds = 30) {
+            stopTimer();
+            timerSeconds = seconds;
+            timerEnabled = true;
+            updateTimerDisplay();
+            
+            timerInterval = setInterval(() => {
+                timerSeconds--;
+                updateTimerDisplay();
+                
+                if (timerSeconds <= 0) {
+                    stopTimer();
+                    handleTimerExpired();
+                }
+            }, 1000);
+        }
+        
+        function stopTimer() {
+            if (timerInterval) {
+                clearInterval(timerInterval);
+                timerInterval = null;
+            }
+            const timerBar = document.getElementById('timerBar');
+            if (timerBar) timerBar.style.display = 'none';
+        }
+        
+        function updateTimerDisplay() {
+            let timerBar = document.getElementById('timerBar');
+            if (!timerBar) {
+                // Create timer bar if it doesn't exist
+                const progress = document.querySelector('.flashcard-progress');
+                if (progress) {
+                    timerBar = document.createElement('div');
+                    timerBar.id = 'timerBar';
+                    timerBar.className = 'timer-bar';
+                    timerBar.innerHTML = '<div class="timer-bar-fill" id="timerBarFill"></div>';
+                    progress.parentNode.insertBefore(timerBar, progress);
+                }
+            }
+            
+            if (timerBar) {
+                timerBar.style.display = 'block';
+                const fill = document.getElementById('timerBarFill');
+                const pct = (timerSeconds / 30) * 100;
+                fill.style.width = pct + '%';
+                
+                // Color warnings
+                timerBar.className = 'timer-bar';
+                if (timerSeconds <= 10) timerBar.classList.add('danger');
+                else if (timerSeconds <= 15) timerBar.classList.add('warning');
+            }
+        }
+        
+        function handleTimerExpired() {
+            // Auto-mark as wrong when timer expires
+            const card = document.getElementById('currentFlashcard');
+            if (card && !card.classList.contains('flipped')) {
+                card.classList.add('flipped');
+            }
+            // Show timeout message
+            const container = document.getElementById('flashcardContainer');
+            const timeoutMsg = document.createElement('div');
+            timeoutMsg.className = 'timer-expired-msg';
+            timeoutMsg.innerHTML = '⏱️ Time\\'s up!';
+            timeoutMsg.style.cssText = 'text-align:center;color:#ef4444;font-weight:bold;margin-top:10px;';
+            container.appendChild(timeoutMsg);
+            
+            document.getElementById('flashcardControls').style.display = 'none';
+            document.getElementById('flashcardRatingControls').style.display = 'flex';
+        }
+        
+        // ===== CONFIDENCE RATING =====
+        let pendingConfidence = null;
+        
+        function showConfidenceRating() {
+            const controls = document.getElementById('flashcardControls');
+            controls.innerHTML = `
+                <div style="text-align: center; width: 100%;">
+                    <div style="margin-bottom: 12px; color: #6b7280;">How confident are you?</div>
+                    <div style="display: flex; gap: 8px; justify-content: center;">
+                        <button class="srs-btn again" onclick="setConfidence(1)">1<br><span class="interval">Not at all</span></button>
+                        <button class="srs-btn hard" onclick="setConfidence(2)">2<br><span class="interval">Unsure</span></button>
+                        <button class="srs-btn" style="background:#e0e7ff;color:#4338ca;" onclick="setConfidence(3)">3<br><span class="interval">Maybe</span></button>
+                        <button class="srs-btn good" onclick="setConfidence(4)">4<br><span class="interval">Likely</span></button>
+                        <button class="srs-btn easy" onclick="setConfidence(5)">5<br><span class="interval">Certain</span></button>
+                    </div>
+                </div>
+            `;
+            controls.style.display = 'flex';
+        }
+        
+        function setConfidence(level) {
+            pendingConfidence = level;
+            // Now flip the card to reveal answer
+            flipFlashcard();
+        }
+        
+        // ===== CROSS-FILE FOCUS MODE =====
+        let focusCards = [];
+        let currentFocusIndex = 0;
+        let focusStats = { correct: 0, wrong: 0 };
+        
+        async function startFocusModeReal() {
+            try {
+                const response = await fetch('/api/study/weak-cards');
+                const data = await response.json();
+                
+                if (!data.success || data.weakCards.length === 0) {
+                    showEmptyFocusState();
+                    document.getElementById('flashcardModal').classList.add('visible');
+                    return;
+                }
+                
+                // Load actual card content for each weak card
+                focusCards = [];
+                for (const weak of data.weakCards) {
+                    const cardResp = await fetch('/api/study/all-cards/' + encodeURIComponent(weak.filepath));
+                    const cardData = await cardResp.json();
+                    
+                    if (cardData.success && cardData.cards) {
+                        // Find the specific card by key (e.g., "flash-0", "mcq-2")
+                        const [cardType, cardIdx] = weak.cardKey.split('-');
+                        const idx = parseInt(cardIdx);
+                        const card = cardData.cards.find(c => c.type === cardType && c.id === weak.cardKey);
+                        if (card) {
+                            card.filepath = weak.filepath;
+                            card.srsData = weak.data;
+                            focusCards.push(card);
+                        }
+                    }
+                }
+                
+                if (focusCards.length === 0) {
+                    showEmptyFocusState();
+                    document.getElementById('flashcardModal').classList.add('visible');
+                    return;
+                }
+                
+                currentFocusIndex = 0;
+                focusStats = { correct: 0, wrong: 0 };
+                renderFocusCard();
+                document.getElementById('flashcardModal').classList.add('visible');
+            } catch (err) {
+                console.error('Failed to load focus cards:', err);
+            }
+        }
+        
+        function renderFocusCard() {
+            const card = focusCards[currentFocusIndex];
+            const container = document.getElementById('flashcardContainer');
+            
+            const typeEmoji = { flash: '🎴', mcq: '✅', cloze: '📝' };
+            const fileName = card.filepath.split('/').pop().replace('.md', '');
+            
+            if (card.type === 'mcq') {
+                let optionsHtml = card.options.map((opt, i) => 
+                    `<button class="mcq-option" onclick="selectFocusMcq(${i}, ${card.correct})">${String.fromCharCode(65+i)}. ${opt}</button>`
+                ).join('');
+                
+                container.innerHTML = `
+                    <div class="mcq-question">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                            <span class="card-type-badge mcq">${typeEmoji[card.type]} Focus</span>
+                            <span style="font-size:12px;color:#6b7280;">📄 ${fileName}</span>
+                        </div>
+                        <div style="font-size: 1.3em;">${card.question}</div>
+                    </div>
+                    <div class="mcq-options" id="focusMcqOptions">${optionsHtml}</div>
+                `;
+                document.getElementById('flashcardControls').style.display = 'none';
+                document.getElementById('flashcardRatingControls').style.display = 'none';
+            } else {
+                const questionContent = card.type === 'cloze' 
+                    ? `<div class="cloze-card">${card.question}</div>`
+                    : `<div class="flashcard-content">${parseMarkdown(card.question)}</div>`;
+                
+                container.innerHTML = `
+                    <div class="flashcard" id="currentFlashcard" onclick="flipFocusCard()">
+                        <div class="flashcard-face flashcard-front">
+                            <div class="flashcard-label" style="display:flex;justify-content:space-between;">
+                                <span class="card-type-badge ${card.type}">${typeEmoji[card.type]} Focus</span>
+                                <span style="font-size:12px;color:#6b7280;">📄 ${fileName}</span>
+                            </div>
+                            ${questionContent}
+                            <div class="flashcard-hint">Click to reveal</div>
+                        </div>
+                        <div class="flashcard-face flashcard-back">
+                            <div class="flashcard-label">Answer</div>
+                            <div class="flashcard-content">${parseMarkdown(card.answer)}</div>
+                        </div>
+                    </div>
+                `;
+                document.getElementById('flashcardControls').style.display = 'flex';
+                document.getElementById('flashcardRatingControls').style.display = 'none';
+            }
+            
+            const counter = document.getElementById('flashcardCounter');
+            const fill = document.getElementById('flashcardProgressFill');
+            counter.textContent = `🎯 ${currentFocusIndex + 1} / ${focusCards.length}`;
+            fill.style.width = `${((currentFocusIndex + 1) / focusCards.length) * 100}%`;
+            document.querySelector('.flashcard-progress').style.display = 'flex';
+        }
+        
+        function flipFocusCard() {
+            const card = document.getElementById('currentFlashcard');
+            if (card) {
+                card.classList.toggle('flipped');
+                if (card.classList.contains('flipped')) {
+                    document.getElementById('flashcardControls').style.display = 'none';
+                    document.getElementById('flashcardRatingControls').style.display = 'flex';
+                }
+            }
+        }
+        
+        function selectFocusMcq(selectedIdx, correctIdx) {
+            const options = document.querySelectorAll('#focusMcqOptions .mcq-option');
+            options.forEach((opt, i) => {
+                opt.disabled = true;
+                if (i === correctIdx) opt.classList.add('correct');
+                if (i === selectedIdx && selectedIdx !== correctIdx) opt.classList.add('incorrect');
+            });
+            
+            const correct = selectedIdx === correctIdx;
+            rateFocusCard(correct);
+        }
+        
+        function rateFocusCard(correct) {
+            if (correct) focusStats.correct++;
+            else focusStats.wrong++;
+            
+            const card = focusCards[currentFocusIndex];
+            // Update SRS for this card's file
+            fetch('/api/srs/' + encodeURIComponent(card.filepath), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    cardId: card.id.split('-')[1], 
+                    cardType: card.type, 
+                    rating: correct ? 3 : 1 
+                })
+            });
+            
+            setTimeout(() => nextFocusCard(), 500);
+        }
+        
+        function nextFocusCard() {
+            if (currentFocusIndex < focusCards.length - 1) {
+                currentFocusIndex++;
+                renderFocusCard();
+            } else {
+                showFocusSummary();
+            }
+        }
+        
+        function showFocusSummary() {
+            const container = document.getElementById('flashcardContainer');
+            const total = focusStats.correct + focusStats.wrong;
+            const pct = total > 0 ? Math.round((focusStats.correct / total) * 100) : 0;
+            
+            container.innerHTML = `
+                <div class="flashcard-empty">
+                    <h3>🎯 Focus Session Complete!</h3>
+                    <div class="flashcard-stats" style="margin: 24px 0;">
+                        <div class="flashcard-stat correct">
+                            <div class="flashcard-stat-value">${focusStats.correct}</div>
+                            <div class="flashcard-stat-label">Improved</div>
+                        </div>
+                        <div class="flashcard-stat wrong">
+                            <div class="flashcard-stat-value">${focusStats.wrong}</div>
+                            <div class="flashcard-stat-label">Still Weak</div>
+                        </div>
+                        <div class="flashcard-stat">
+                            <div class="flashcard-stat-value">${pct}%</div>
+                            <div class="flashcard-stat-label">Score</div>
+                        </div>
+                    </div>
+                    <p style="color:#6b7280;margin-bottom:20px;">Keep practicing weak cards until they stick!</p>
+                    <button class="flashcard-btn primary" onclick="closeFlashcards(); openDashboard();">
+                        📊 View Dashboard
+                    </button>
+                </div>
+            `;
+            document.getElementById('flashcardControls').style.display = 'none';
+            document.getElementById('flashcardRatingControls').style.display = 'none';
+            document.querySelector('.flashcard-progress').style.display = 'none';
+        }
+        
+        // ===== SUMMARY VIEW =====
+        async function openSummary() {
+            const filePath = '{{ file_path|default("") }}';
+            if (!filePath) return;
+            
+            try {
+                const response = await fetch('/api/summary/' + encodeURIComponent(filePath));
+                const data = await response.json();
+                
+                const container = document.getElementById('flashcardContainer');
+                
+                if (data.success && data.summary) {
+                    container.innerHTML = `
+                        <div style="max-width: 600px; margin: 0 auto; padding: 20px; text-align: left;">
+                            <h2 style="margin-bottom: 20px; display: flex; align-items: center; gap: 10px;">
+                                📋 Quick Summary
+                            </h2>
+                            <div style="background: #f9fafb; border-radius: 12px; padding: 20px;">
+                                ${data.summary.sections.map(s => `
+                                    <div style="margin-bottom: 16px;">
+                                        <h3 style="font-size: 14px; color: #6b7280; margin-bottom: 8px;">${s.title}</h3>
+                                        <ul style="margin: 0; padding-left: 20px;">
+                                            ${s.points.map(p => `<li style="margin: 4px 0;">${p}</li>`).join('')}
+                                        </ul>
+                                    </div>
+                                `).join('')}
+                            </div>
+                            ${data.summary.keyTerms.length > 0 ? `
+                                <div style="margin-top: 20px;">
+                                    <h3 style="font-size: 14px; color: #6b7280; margin-bottom: 8px;">Key Terms</h3>
+                                    <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                                        ${data.summary.keyTerms.map(t => `<span style="background: #e0e7ff; color: #4338ca; padding: 4px 10px; border-radius: 12px; font-size: 13px;">${t}</span>`).join('')}
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    `;
+                } else {
+                    container.innerHTML = `
+                        <div class="flashcard-empty">
+                            <h3>📋 No Summary Available</h3>
+                            <p>Add summaries to your notes using callouts:</p>
+                            <pre>> [!summary]
+> - Key point 1
+> - Key point 2
+> - Key point 3</pre>
+                        </div>
+                    `;
+                }
+                
+                document.getElementById('flashcardModal').classList.add('visible');
+                document.getElementById('flashcardControls').style.display = 'none';
+                document.getElementById('flashcardRatingControls').style.display = 'none';
+                document.querySelector('.flashcard-progress').style.display = 'none';
+            } catch (err) {
+                console.error('Failed to load summary:', err);
+            }
         }
 
         function toggleFullscreen() {
@@ -9214,6 +9646,28 @@ def api_get_all_study_cards(filepath):
                 'total': len(all_cards)
             },
             'srs': srs_data
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/summary/<path:filepath>')
+def api_get_summary(filepath):
+    """Get auto-generated summary for a markdown file"""
+    try:
+        full_path = os.path.join(VAULT_PATH, filepath)
+        
+        if not os.path.exists(full_path):
+            return jsonify({'success': False, 'error': 'File not found'}), 404
+        
+        with open(full_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        
+        summary = parse_summary(content)
+        
+        return jsonify({
+            'success': True,
+            'summary': summary
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
