@@ -3996,11 +3996,11 @@ Q: Which port does HTTP use?
                     <p>Add a cloze section to create fill-in-the-blank cards:</p>
                     <pre>## Cloze
 
-TCP uses {{sequence numbers}} to track packets.
-The OSI model has {{c1::7}} layers.
+TCP uses {<!-- -->{sequence numbers}} to track packets.
+The OSI model has {<!-- -->{c1::7}} layers.
 HTTP is a ==stateless== protocol.</pre>
                     <p style="margin-top: 16px; font-size: 13px; color: #6b7280;">
-                        Syntax: <code>{{text}}</code>, <code>{{c1::text}}</code>, or <code>==highlighted==</code>
+                        Syntax: <code>{<!-- -->{text}}</code>, <code>{<!-- -->{c1::text}}</code>, or <code>==highlighted==</code>
                     </p>
                 </div>
             `;
@@ -4269,7 +4269,7 @@ Q: Question?
 - [x] Correct answer
 
 ## Cloze
-Text with {{blanks}} here.</pre>
+Text with {<!-- -->{blanks}} here.</pre>
                 </div>
             `;
             document.getElementById('flashcardControls').style.display = 'none';
