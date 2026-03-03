@@ -8305,6 +8305,33 @@ def delete_annotations(filepath):
 # FLASHCARD API ENDPOINTS
 # ============================================
 
+def get_study_json_path(filepath):
+    """
+    Get the path to the .study.json file for a given MD file.
+    Returns (json_path, exists) tuple.
+    """
+    rel_path = filepath
+    json_filename = rel_path.replace('/', '_').replace('\\', '_') + '.study.json'
+    study_dir = os.path.join(VAULT_PATH, '.obsidian-viewer', 'study')
+    json_path = os.path.join(study_dir, json_filename)
+    return json_path, os.path.exists(json_path)
+
+
+def load_study_json(filepath):
+    """
+    Load study data from JSON file if it exists.
+    Returns dict with flashcards, mcq, cloze or None if no JSON file.
+    """
+    json_path, exists = get_study_json_path(filepath)
+    if not exists:
+        return None
+    try:
+        with open(json_path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except Exception:
+        return None
+
+
 def parse_flashcards(content):
     """
     Parse flashcards from markdown content.
@@ -8363,13 +8390,24 @@ def parse_flashcards(content):
 
 @app.route('/api/flashcards/<path:filepath>')
 def api_get_flashcards(filepath):
-    """Get flashcards parsed from a markdown file"""
+    """Get flashcards - checks JSON file first, falls back to parsing MD"""
     try:
         full_path = os.path.join(VAULT_PATH, filepath)
         
         if not os.path.exists(full_path):
             return jsonify({'success': False, 'error': 'File not found'}), 404
         
+        # Check for study JSON first
+        study_data = load_study_json(filepath)
+        if study_data and study_data.get('flashcards'):
+            return jsonify({
+                'success': True,
+                'flashcards': study_data['flashcards'],
+                'count': len(study_data['flashcards']),
+                'source': 'json'
+            })
+        
+        # Fallback: parse from MD file
         with open(full_path, 'r', encoding='utf-8') as f:
             content = f.read()
         
@@ -8378,7 +8416,8 @@ def api_get_flashcards(filepath):
         return jsonify({
             'success': True,
             'flashcards': flashcards,
-            'count': len(flashcards)
+            'count': len(flashcards),
+            'source': 'md'
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -8454,17 +8493,24 @@ def parse_mcq(content):
 
 @app.route('/api/mcq/<path:filepath>')
 def api_get_mcq(filepath):
-    """Get MCQs parsed from a markdown file"""
+    """Get MCQs - checks JSON file first, falls back to parsing MD"""
     try:
         full_path = os.path.join(VAULT_PATH, filepath)
         
         if not os.path.exists(full_path):
             return jsonify({'success': False, 'error': 'File not found'}), 404
         
-        with open(full_path, 'r', encoding='utf-8') as f:
-            content = f.read()
-        
-        mcqs = parse_mcq(content)
+        # Check for study JSON first
+        study_data = load_study_json(filepath)
+        if study_data and study_data.get('mcq'):
+            mcqs = study_data['mcq']
+            source = 'json'
+        else:
+            # Fallback: parse from MD file
+            with open(full_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            mcqs = parse_mcq(content)
+            source = 'md'
         
         # Get existing MCQ score from metadata
         metadata = get_file_metadata(filepath)
@@ -8474,7 +8520,8 @@ def api_get_mcq(filepath):
             'success': True,
             'mcqs': mcqs,
             'count': len(mcqs),
-            'score': mcq_score
+            'score': mcq_score,
+            'source': source
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -9588,17 +9635,24 @@ self.addEventListener('message', (event) => {
 
 @app.route('/api/cloze/<path:filepath>')
 def api_get_cloze(filepath):
-    """Get cloze deletions parsed from a markdown file"""
+    """Get cloze deletions - checks JSON file first, falls back to parsing MD"""
     try:
         full_path = os.path.join(VAULT_PATH, filepath)
         
         if not os.path.exists(full_path):
             return jsonify({'success': False, 'error': 'File not found'}), 404
         
-        with open(full_path, 'r', encoding='utf-8') as f:
-            content = f.read()
-        
-        cloze_cards = parse_cloze(content)
+        # Check for study JSON first
+        study_data = load_study_json(filepath)
+        if study_data and study_data.get('cloze'):
+            cloze_cards = study_data['cloze']
+            source = 'json'
+        else:
+            # Fallback: parse from MD file
+            with open(full_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            cloze_cards = parse_cloze(content)
+            source = 'md'
         
         # Get SRS data for these cards
         srs_data = load_srs_data(filepath)
@@ -9607,7 +9661,8 @@ def api_get_cloze(filepath):
             'success': True,
             'cloze': cloze_cards,
             'count': len(cloze_cards),
-            'srs': srs_data
+            'srs': srs_data,
+            'source': source
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
@@ -9906,20 +9961,28 @@ def api_get_weak_cards():
 
 @app.route('/api/study/all-cards/<path:filepath>')
 def api_get_all_study_cards(filepath):
-    """Get all study cards (flashcards + MCQ + cloze) for a file"""
+    """Get all study cards (flashcards + MCQ + cloze) for a file - JSON first, then MD"""
     try:
         full_path = os.path.join(VAULT_PATH, filepath)
         
         if not os.path.exists(full_path):
             return jsonify({'success': False, 'error': 'File not found'}), 404
         
-        with open(full_path, 'r', encoding='utf-8') as f:
-            content = f.read()
-        
-        # Parse all card types
-        flashcards = parse_flashcards(content)
-        mcqs = parse_mcq(content)
-        cloze = parse_cloze(content)
+        # Check for study JSON first
+        study_data = load_study_json(filepath)
+        if study_data:
+            flashcards = study_data.get('flashcards', [])
+            mcqs = study_data.get('mcq', [])
+            cloze = study_data.get('cloze', [])
+            source = 'json'
+        else:
+            # Fallback: parse from MD file
+            with open(full_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            flashcards = parse_flashcards(content)
+            mcqs = parse_mcq(content)
+            cloze = parse_cloze(content)
+            source = 'md'
         
         # Add type markers
         all_cards = []
@@ -9950,7 +10013,8 @@ def api_get_all_study_cards(filepath):
                 'cloze': len(cloze),
                 'total': len(all_cards)
             },
-            'srs': srs_data
+            'srs': srs_data,
+            'source': source
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
