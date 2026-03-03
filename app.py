@@ -4033,11 +4033,11 @@ Q: Which port does HTTP use?
         
         // ===== SRS RATING SYSTEM =====
         let currentSrsMode = 'srs';
-        let currentFilePath = '{{ file_path|default("") }}';
+        let srsFilePath = '{{ file_path|default("") }}';
         
         async function rateSrs(cardId, cardType, rating) {
             try {
-                const response = await fetch('/api/srs/' + encodeURIComponent(currentFilePath), {
+                const response = await fetch('/api/srs/' + encodeURIComponent(srsFilePath), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ cardId, cardType, rating })
