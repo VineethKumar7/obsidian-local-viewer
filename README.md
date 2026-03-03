@@ -47,13 +47,178 @@ A lightweight Python server that renders your markdown files beautifully in any 
 - **Video playback** — Plyr.js player (YouTube-style controls)
 - **Images** — PNG, JPG, GIF, WebP displayed inline
 
+---
+
+## 🧠 Study Features
+
+Transform your notes into an active learning system with flashcards, quizzes, and spaced repetition.
+
+### 🎴 Flashcards
+
+Add a `## Flashcards` section to any markdown file:
+
+```markdown
+## Flashcards
+
+Q: What is the capital of France?
+A: Paris
+
+Q: What does HTTP stand for?
+A: HyperText Transfer Protocol
+
+Q: Name the 4 TCP/IP layers
+A: LITA - Link, Internet, Transport, Application
+```
+
+Or use callouts anywhere in your notes:
+
+```markdown
+> [!flashcard] What is DNS?
+> Domain Name System - translates domain names to IP addresses
+```
+
+### ✅ Multiple Choice Questions (MCQ)
+
+```markdown
+## MCQ
+
+Q: Which protocol is connection-oriented?
+- [ ] UDP
+- [x] TCP
+- [ ] ICMP
+- [ ] ARP
+
+Q: What port does HTTPS use?
+- [ ] 80
+- [x] 443
+- [ ] 22
+- [ ] 21
+```
+
+### 📝 Cloze Deletions (Fill-in-the-blank)
+
+```markdown
+## Cloze
+
+TCP uses {{sequence numbers}} to track packets.
+The OSI model has {{c1::7}} layers.
+HTTP is a {{stateless|hint: no memory}} protocol.
+DNS operates on port {{53}}.
+```
+
+**Syntax options:**
+| Syntax | Description |
+|--------|-------------|
+| `{{text}}` | Simple blank |
+| `{{c1::text}}` | Numbered cloze (same number = revealed together) |
+| `{{text\|hint}}` | Blank with hint shown |
+| `==text==` | Highlight-based cloze |
+
+### 📋 Summary View
+
+Auto-generates a quick summary from your notes. Add summary callouts:
+
+```markdown
+> [!summary]
+> - TCP is connection-oriented
+> - Uses 3-way handshake
+> - Guarantees delivery
+
+> [!tip] Remember
+> TCP = Reliable, UDP = Fast
+```
+
+Or use a dedicated section:
+
+```markdown
+## Summary
+- Key point 1
+- Key point 2
+- Key point 3
+
+## TL;DR
+- Quick overview here
+```
+
+**Bold text** is automatically extracted as key terms.
+
+### 🎲 Mix Mode
+
+Combines all card types (flashcards + MCQ + cloze) into one shuffled study session. Great for variety and comprehensive review.
+
+### 📊 Study Dashboard
+
+Track your learning progress:
+- 🔥 **Day streak** — Consecutive days meeting your goal
+- **Cards due** — Cards ready for review
+- **Mastery %** — Percentage of cards in advanced boxes
+- **Weak cards** — Cards you've missed 2+ times
+- **Heatmap** — 4-week activity calendar
+
+### 🎯 Focus Mode
+
+Review weak cards from ALL files in one session. Cards are marked "weak" when:
+- Missed 2+ times (lapses ≥ 2)
+- Ease factor drops below 2.0
+
+Focus mode shows the source filename on each card.
+
+### ⏱️ Timed Mode
+
+30-second countdown per question:
+- Green → Yellow at 15s → Red pulse at 10s
+- Auto-submits when timer expires
+
+### 🔄 Spaced Repetition (SRS)
+
+Built-in SM-2 algorithm tracks optimal review intervals:
+
+| Rating | Button | Effect |
+|--------|--------|--------|
+| 1 | Again | Reset to 10 minutes |
+| 2 | Hard | Interval × 1.2 |
+| 3 | Good | Interval × ease factor |
+| 4 | Easy | Interval × ease factor × 1.3 |
+
+**Data storage:** SRS data saved alongside each file as `filename.md.srs.json`
+
+### 📦 Leitner Box System
+
+Simpler alternative to SRS with 5 boxes:
+
+| Box | Review Interval |
+|-----|-----------------|
+| 1 | Daily |
+| 2 | Every 2 days |
+| 3 | Every 4 days |
+| 4 | Weekly |
+| 5 | Bi-weekly (mastered) |
+
+Correct → move up. Wrong → back to Box 1.
+
+---
+
+## 🔧 Study Toolbar Buttons
+
+| Button | Function |
+|--------|----------|
+| 🎴 **Flashcards** | Study flashcards from current file |
+| ✅ **MCQ** | Multiple choice quiz |
+| 📝 **Cloze** | Fill-in-the-blank practice |
+| 🎲 **Mix Mode** | Shuffled mix of all card types |
+| 📊 **Dashboard** | View study progress & stats |
+| 📋 **Summary** | Quick summary of current file |
+
+---
+
 ## 🎯 Who Is This For?
 
-- **Students** studying for exams who want to annotate notes on iPad
-- **Learners** tracking study progress with completion checkboxes
+- **Students** studying for exams with flashcards, quizzes, and spaced repetition
+- **Learners** tracking study progress with completion checkboxes and streaks
+- **iPad users** who want to annotate notes and PDFs with Apple Pencil
 - **Anyone with an Obsidian vault** wanting easy multi-device access
 - **People who need offline access** to their notes (train, plane, etc.)
-- **iPad users** who want to annotate PDFs with Apple Pencil
+- **Active learners** who want to turn notes into testable knowledge
 
 ## 📦 Installation
 
@@ -124,6 +289,13 @@ python app.py ~/Documents/MyVault --ssl
 | Button | Function |
 |--------|----------|
 | 📥 **PDF** | Download current page as PDF |
+| 📦 **Topic** | Download page + linked subpages as ZIP |
+| 🎴 **Flashcards** | Study flashcards from current file |
+| ✅ **MCQ** | Multiple choice quiz |
+| 📝 **Cloze** | Fill-in-the-blank practice |
+| 🎲 **Mix Mode** | Shuffled mix of all card types |
+| 📊 **Dashboard** | View study progress & stats |
+| 📋 **Summary** | Quick summary of current file |
 | ✏️ **Annotate** | Enter annotation mode (Apple Pencil) |
 | ℹ️ **Info** | View/edit file metadata |
 | 🔄 **Sync** | Sync metadata to index tables |
