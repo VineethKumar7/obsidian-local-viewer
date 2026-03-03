@@ -1890,10 +1890,13 @@ HTML_TEMPLATE = '''
             width: 90%;
             max-width: 600px;
             perspective: 1000px;
+            max-height: calc(100vh - 200px);
+            flex-shrink: 1;
         }
         .flashcard {
             width: 100%;
-            min-height: 300px;
+            min-height: 250px;
+            max-height: calc(100vh - 220px);
             position: relative;
             transform-style: preserve-3d;
             transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1);
@@ -1905,16 +1908,18 @@ HTML_TEMPLATE = '''
         .flashcard-face {
             position: absolute;
             width: 100%;
-            min-height: 300px;
+            min-height: 250px;
+            max-height: calc(100vh - 220px);
             backface-visibility: hidden;
             border-radius: 16px;
             padding: 30px;
             display: flex;
             flex-direction: column;
-            justify-content: center;
+            justify-content: flex-start;
             align-items: center;
             text-align: center;
             box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+            overflow: hidden;
         }
         .flashcard-front {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -1936,11 +1941,12 @@ HTML_TEMPLATE = '''
             font-size: 22px;
             line-height: 1.5;
             font-weight: 500;
-            max-height: 55vh;
+            max-height: calc(100vh - 320px);
             overflow-y: auto;
             padding: 10px;
             width: 100%;
             text-align: left;
+            flex: 1;
         }
         .flashcard-content strong {
             font-weight: 700;
@@ -1963,7 +1969,9 @@ HTML_TEMPLATE = '''
         .flashcard-controls {
             display: flex;
             gap: 15px;
-            margin-top: 30px;
+            margin-top: 20px;
+            flex-shrink: 0;
+            padding-bottom: 20px;
         }
         .flashcard-btn {
             padding: 12px 28px;
