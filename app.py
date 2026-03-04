@@ -3868,6 +3868,7 @@ HTML_TEMPLATE = '''
                     flashcards = data.flashcards;
                     currentCardIndex = 0;
                     flashcardStats = { correct: 0, wrong: 0 };
+                    currentStudyMode = 'flashcard';
                     renderFlashcard();
                     document.getElementById('flashcardModal').classList.add('visible');
                 } else {
@@ -3986,6 +3987,17 @@ A: LITA - Link, Internet, Transport, Application</pre>
         }
         
         function rateFlashcard(correct) {
+            // Route to the correct rating function based on current mode
+            if (currentStudyMode === 'cloze') {
+                rateClozeCard(correct);
+                return;
+            }
+            if (currentStudyMode === 'mix') {
+                rateMixCard(correct);
+                return;
+            }
+            
+            // Default: flashcard mode
             if (correct) {
                 flashcardStats.correct++;
             } else {
@@ -4372,6 +4384,7 @@ Q: Which port does HTTP use?
         let clozeCards = [];
         let currentClozeIndex = 0;
         let clozeStats = { correct: 0, wrong: 0 };
+        let currentStudyMode = 'flashcard'; // 'flashcard', 'cloze', 'mix'
         
         async function openCloze() {
             const filePath = '{{ file_path|default("") }}';
@@ -4388,6 +4401,7 @@ Q: Which port does HTTP use?
                     clozeCards = data.cloze;
                     currentClozeIndex = 0;
                     clozeStats = { correct: 0, wrong: 0 };
+                    currentStudyMode = 'cloze';
                     renderClozeCard();
                     document.getElementById('flashcardModal').classList.add('visible');
                 } else {
@@ -4489,6 +4503,74 @@ HTTP is a ==stateless== protocol.</pre>
                     document.getElementById('flashcardRatingControls').style.display = 'none';
                 }
             };
+        }
+        
+        function rateClozeCard(correct) {
+            if (correct) {
+                clozeStats.correct++;
+            } else {
+                clozeStats.wrong++;
+            }
+            
+            const card = document.getElementById('currentFlashcard');
+            if (card) {
+                card.classList.add('shuffling');
+                setTimeout(() => {
+                    nextClozeCard();
+                }, 300);
+            } else {
+                nextClozeCard();
+            }
+        }
+        
+        function nextClozeCard() {
+            if (currentClozeIndex < clozeCards.length - 1) {
+                currentClozeIndex++;
+                renderClozeCard();
+            } else {
+                showClozeSummary();
+            }
+        }
+        
+        function showClozeSummary() {
+            const container = document.getElementById('flashcardContainer');
+            const total = clozeStats.correct + clozeStats.wrong;
+            const percentage = total > 0 ? Math.round((clozeStats.correct / total) * 100) : 0;
+            
+            container.innerHTML = `
+                <div class="flashcard-empty">
+                    <h3>🎉 Cloze Session Complete!</h3>
+                    <div class="flashcard-stats">
+                        <div class="flashcard-stat correct">
+                            <div class="flashcard-stat-value">${clozeStats.correct}</div>
+                            <div class="flashcard-stat-label">Correct</div>
+                        </div>
+                        <div class="flashcard-stat">
+                            <div class="flashcard-stat-value">${percentage}%</div>
+                            <div class="flashcard-stat-label">Score</div>
+                        </div>
+                        <div class="flashcard-stat wrong">
+                            <div class="flashcard-stat-value">${clozeStats.wrong}</div>
+                            <div class="flashcard-stat-label">Learning</div>
+                        </div>
+                    </div>
+                    <div style="margin-top: 30px;">
+                        <button class="flashcard-btn primary" onclick="restartCloze()">🔄 Study Again</button>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('flashcardControls').style.display = 'none';
+            document.getElementById('flashcardRatingControls').style.display = 'none';
+            document.querySelector('.flashcard-progress').style.display = 'none';
+        }
+        
+        function restartCloze() {
+            currentClozeIndex = 0;
+            clozeStats = { correct: 0, wrong: 0 };
+            clozeCards = shuffleArray([...clozeCards]);
+            renderClozeCard();
+            document.querySelector('.flashcard-progress').style.display = 'flex';
         }
         
         // ===== SRS RATING SYSTEM =====
@@ -4680,6 +4762,7 @@ HTTP is a ==stateless== protocol.</pre>
                     mixCards = data.cards.sort(() => Math.random() - 0.5);
                     currentMixIndex = 0;
                     mixStats = { correct: 0, wrong: 0 };
+                    currentStudyMode = 'mix';
                     renderMixCard();
                     document.getElementById('flashcardModal').classList.add('visible');
                 } else {
