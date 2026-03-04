@@ -4420,9 +4420,37 @@ HTTP is a ==stateless== protocol.</pre>
             document.querySelector('.flashcard-progress').style.display = 'none';
         }
         
+        function processClozeText(text, showAnswers = false) {
+            // Convert {% raw %}{{answer}}{% endraw %} or {% raw %}{{answer|hint}}{% endraw %} to blanks or revealed answers
+            const pipe = String.fromCharCode(124); // | character
+            return text.replace(/\{\{([^}]+)\}\}/g, (match, content) => {
+                let answer = content;
+                let hint = '...';
+                const hintMarker = pipe + 'hint:';
+                if (content.includes(hintMarker)) {
+                    [answer, hint] = content.split(hintMarker);
+                    answer = answer.trim();
+                    hint = hint.trim();
+                } else if (content.includes(pipe)) {
+                    [answer, hint] = content.split(pipe);
+                    answer = answer.trim();
+                    hint = hint.trim();
+                }
+                if (showAnswers) {
+                    return '<span class="cloze-blank revealed">' + answer + '</span>';
+                } else {
+                    return '<span class="cloze-blank">___</span>';
+                }
+            });
+        }
+        
         function renderClozeCard() {
             const card = clozeCards[currentClozeIndex];
             const container = document.getElementById('flashcardContainer');
+            
+            // Process the question to show blanks, and revealed version for answer
+            const questionWithBlanks = processClozeText(card.question, false);
+            const questionWithAnswers = processClozeText(card.question, true);
             
             container.innerHTML = `
                 <div class="flashcard" id="currentFlashcard">
@@ -4430,12 +4458,12 @@ HTTP is a ==stateless== protocol.</pre>
                         <div class="flashcard-label">
                             <span class="card-type-badge cloze">📝 Cloze</span>
                         </div>
-                        <div class="cloze-card">${card.question}</div>
+                        <div class="cloze-card">${questionWithBlanks}</div>
                         <div class="flashcard-hint">Fill in the blank, then click to reveal</div>
                     </div>
                     <div class="flashcard-face flashcard-back">
                         <div class="flashcard-label">Answer</div>
-                        <div class="flashcard-content" style="font-size: 1.5em; color: #059669;">${card.answer}</div>
+                        <div class="cloze-card" style="font-size: 1.2em;">${questionWithAnswers}</div>
                     </div>
                 </div>
             `;
@@ -8572,7 +8600,7 @@ def api_get_mcq(filepath):
         # Check for study JSON first
         study_data = load_study_json(filepath)
         if study_data and study_data.get('mcq'):
-            mcqs = study_data['mcq']
+            mcqs = [normalize_mcq(m) for m in study_data['mcq']]
             source = 'json'
         else:
             # Fallback: parse from MD file
@@ -9714,7 +9742,14 @@ def api_get_cloze(filepath):
         # Check for study JSON first
         study_data = load_study_json(filepath)
         if study_data and study_data.get('cloze'):
-            cloze_cards = study_data['cloze']
+            # Normalize JSON format: 'text' -> 'question' for frontend compatibility
+            cloze_cards = []
+            for card in study_data['cloze']:
+                normalized = {
+                    'question': card.get('text', card.get('question', '')),
+                    'answers': card.get('answers', [])
+                }
+                cloze_cards.append(normalized)
             source = 'json'
         else:
             # Fallback: parse from MD file
@@ -10028,6 +10063,35 @@ def api_get_weak_cards():
 # COMBINED STUDY MODE API
 # ============================================
 
+def normalize_mcq(mcq):
+    """
+    Normalize MCQ format from JSON (options as objects) to frontend format (options as strings + correct index).
+    JSON format: {options: [{correct: bool, text: str}, ...]}
+    Frontend format: {options: [str, ...], correct: int}
+    """
+    if not mcq.get('options'):
+        return mcq
+    
+    # Check if options are already in the simple string format
+    if mcq['options'] and isinstance(mcq['options'][0], str):
+        return mcq  # Already normalized
+    
+    # Convert from object format to string format
+    normalized = {k: v for k, v in mcq.items() if k != 'options'}
+    normalized['options'] = []
+    normalized['correct'] = -1
+    
+    for i, opt in enumerate(mcq['options']):
+        if isinstance(opt, dict):
+            normalized['options'].append(opt.get('text', str(opt)))
+            if opt.get('correct'):
+                normalized['correct'] = i
+        else:
+            normalized['options'].append(str(opt))
+    
+    return normalized
+
+
 @app.route('/api/study/all-cards/<path:filepath>')
 def api_get_all_study_cards(filepath):
     """Get all study cards (flashcards + MCQ + cloze) for a file - JSON first, then MD"""
@@ -10041,7 +10105,7 @@ def api_get_all_study_cards(filepath):
         study_data = load_study_json(filepath)
         if study_data:
             flashcards = study_data.get('flashcards', [])
-            mcqs = study_data.get('mcq', [])
+            mcqs = [normalize_mcq(m) for m in study_data.get('mcq', [])]
             cloze = study_data.get('cloze', [])
             source = 'json'
         else:
