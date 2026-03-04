@@ -2,10 +2,9 @@
   "ips": {
     "192.168.178.34": {
       "first_seen": "2026-02-17 16:24:50",
-      "last_seen": "2026-03-04 12:24:16",
-      "count": 541,
+      "last_seen": "2026-03-04 12:37:46",
+      "count": 542,
       "paths": [
-        "/raw/Course work/img/Pasted image 20241219182926.png",
         "/raw/Course work/img/Pasted image 20241219202432.png",
         "/raw/Course work/img/Pasted image 20241219202536.png",
         "/raw/Course work/img/Pasted image 20241219203344.png",
@@ -14,24 +13,25 @@
         "/api/annotations/Week 1 - Ethernet/subpages/Ethernet header.md",
         "/api/cloze/Week 1 - Ethernet/subpages/Ethernet header.md",
         "/api/study/all-cards/Week 1 - Ethernet/subpages/Ethernet header.md",
-        "/api/mcq/Week 1 - Ethernet/subpages/Ethernet header.md"
+        "/api/mcq/Week 1 - Ethernet/subpages/Ethernet header.md",
+        "/"
       ]
     },
     "192.168.178.23": {
       "first_seen": "2026-02-17 16:26:18",
-      "last_seen": "2026-03-04 12:33:54",
-      "count": 1326,
+      "last_seen": "2026-03-04 12:38:55",
+      "count": 1344,
       "paths": [
-        "/raw/Course work/img/Pasted image 20241219182926.png",
         "/raw/Course work/img/Pasted image 20241219202432.png",
+        "/raw/Course work/img/Pasted image 20241219203344.png",
         "/raw/Course work/img/Pasted image 20241219202536.png",
         "/raw/Course work/img/Pasted image 20241219203330.png",
-        "/raw/Course work/img/Pasted image 20241219203344.png",
         "/api/study/settings",
         "/api/annotations/Week 1 - Ethernet/subpages/Ethernet header.md",
         "/manifest.json",
         "/api/cloze/Week 1 - Ethernet/subpages/Ethernet header.md",
-        "/api/mcq/Week 1 - Ethernet/subpages/Ethernet header.md"
+        "/api/study/all-cards/Week 1 - Ethernet/subpages/Ethernet header.md",
+        "/api/srs/Week 1 - Ethernet/subpages/Ethernet header.md"
       ]
     },
     "192.168.178.27": {
@@ -53,10 +53,9 @@
     },
     "127.0.0.1": {
       "first_seen": "2026-02-20 09:19:41",
-      "last_seen": "2026-03-04 10:51:40",
-      "count": 168,
+      "last_seen": "2026-03-04 12:37:33",
+      "count": 169,
       "paths": [
-        "/view/Previous Year Exam/2025/page5_zipf_genai.jpeg",
         "/view/Previous Year Exam/2025/diagrams/cbir_flowchart.png",
         "/api/study/settings",
         "/api/annotations/Previous Year Exam/2025/IWS_Exam_2025.md",
@@ -65,111 +64,12 @@
         "/exam/page1_entropy_modeling.jpeg",
         "/exam/diagrams/exam_graph.png",
         "/exam/page2_graphs.jpeg",
-        "/api/cloze/Week 1 - Ethernet/subpages/Ethernet header.md"
+        "/api/cloze/Week 1 - Ethernet/subpages/Ethernet header.md",
+        "/"
       ]
     }
   },
   "recent": [
-    {
-      "ip": "192.168.178.34",
-      "path": "/view/Week 1 - Ethernet/subpages/Ethernet header.md",
-      "time": "2026-03-04 10:51:40"
-    },
-    {
-      "ip": "192.168.178.34",
-      "path": "/raw/Week 1 - Ethernet/img/Pasted image 20241219181633.png",
-      "time": "2026-03-04 10:51:41"
-    },
-    {
-      "ip": "192.168.178.34",
-      "path": "/raw/Week 1 - Ethernet/img/Pasted image 20241219181404.png",
-      "time": "2026-03-04 10:51:41"
-    },
-    {
-      "ip": "192.168.178.34",
-      "path": "/raw/Course work/img/Pasted image 20241219182025.png",
-      "time": "2026-03-04 10:51:41"
-    },
-    {
-      "ip": "192.168.178.34",
-      "path": "/raw/Course work/img/Pasted image 20241219182532.png",
-      "time": "2026-03-04 10:51:41"
-    },
-    {
-      "ip": "192.168.178.34",
-      "path": "/raw/Course work/img/Pasted image 20241219182926.png",
-      "time": "2026-03-04 10:51:41"
-    },
-    {
-      "ip": "192.168.178.34",
-      "path": "/raw/Course work/img/Pasted image 20241219202432.png",
-      "time": "2026-03-04 10:51:41"
-    },
-    {
-      "ip": "192.168.178.34",
-      "path": "/raw/Course work/img/Pasted image 20241219202536.png",
-      "time": "2026-03-04 10:51:41"
-    },
-    {
-      "ip": "192.168.178.34",
-      "path": "/raw/Course work/img/Pasted image 20241219203344.png",
-      "time": "2026-03-04 10:51:41"
-    },
-    {
-      "ip": "192.168.178.34",
-      "path": "/raw/Course work/img/Pasted image 20241219203330.png",
-      "time": "2026-03-04 10:51:41"
-    },
-    {
-      "ip": "192.168.178.34",
-      "path": "/view/Week 1 - Ethernet/subpages/Ethernet header.md",
-      "time": "2026-03-04 10:54:51"
-    },
-    {
-      "ip": "192.168.178.34",
-      "path": "/raw/Week 1 - Ethernet/img/Pasted image 20241219181633.png",
-      "time": "2026-03-04 10:54:51"
-    },
-    {
-      "ip": "192.168.178.34",
-      "path": "/raw/Week 1 - Ethernet/img/Pasted image 20241219181404.png",
-      "time": "2026-03-04 10:54:51"
-    },
-    {
-      "ip": "192.168.178.34",
-      "path": "/raw/Course work/img/Pasted image 20241219182025.png",
-      "time": "2026-03-04 10:54:51"
-    },
-    {
-      "ip": "192.168.178.34",
-      "path": "/raw/Course work/img/Pasted image 20241219182532.png",
-      "time": "2026-03-04 10:54:51"
-    },
-    {
-      "ip": "192.168.178.34",
-      "path": "/raw/Course work/img/Pasted image 20241219182926.png",
-      "time": "2026-03-04 10:54:51"
-    },
-    {
-      "ip": "192.168.178.34",
-      "path": "/raw/Course work/img/Pasted image 20241219202432.png",
-      "time": "2026-03-04 10:54:51"
-    },
-    {
-      "ip": "192.168.178.34",
-      "path": "/raw/Course work/img/Pasted image 20241219202536.png",
-      "time": "2026-03-04 10:54:51"
-    },
-    {
-      "ip": "192.168.178.34",
-      "path": "/raw/Course work/img/Pasted image 20241219203344.png",
-      "time": "2026-03-04 10:54:51"
-    },
-    {
-      "ip": "192.168.178.34",
-      "path": "/raw/Course work/img/Pasted image 20241219203330.png",
-      "time": "2026-03-04 10:54:51"
-    },
     {
       "ip": "192.168.178.34",
       "path": "/view/Week 1 - Ethernet/subpages/Ethernet header.md",
@@ -569,6 +469,106 @@
       "ip": "192.168.178.23",
       "path": "/api/mcq/Week 1 - Ethernet/subpages/Ethernet header.md",
       "time": "2026-03-04 12:33:54"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/",
+      "time": "2026-03-04 12:37:33"
+    },
+    {
+      "ip": "192.168.178.34",
+      "path": "/",
+      "time": "2026-03-04 12:37:46"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/view/Week 1 - Ethernet/subpages/Ethernet header.md",
+      "time": "2026-03-04 12:38:12"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/raw/Week 1 - Ethernet/img/Pasted image 20241219181633.png",
+      "time": "2026-03-04 12:38:12"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/raw/Week 1 - Ethernet/img/Pasted image 20241219181404.png",
+      "time": "2026-03-04 12:38:12"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/raw/Course work/img/Pasted image 20241219182025.png",
+      "time": "2026-03-04 12:38:12"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/raw/Course work/img/Pasted image 20241219182532.png",
+      "time": "2026-03-04 12:38:12"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/raw/Course work/img/Pasted image 20241219182926.png",
+      "time": "2026-03-04 12:38:12"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/raw/Course work/img/Pasted image 20241219202432.png",
+      "time": "2026-03-04 12:38:12"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/raw/Course work/img/Pasted image 20241219203344.png",
+      "time": "2026-03-04 12:38:12"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/raw/Course work/img/Pasted image 20241219202536.png",
+      "time": "2026-03-04 12:38:12"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/raw/Course work/img/Pasted image 20241219203330.png",
+      "time": "2026-03-04 12:38:12"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/api/study/settings",
+      "time": "2026-03-04 12:38:12"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/api/annotations/Week 1 - Ethernet/subpages/Ethernet header.md",
+      "time": "2026-03-04 12:38:13"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/manifest.json",
+      "time": "2026-03-04 12:38:13"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/api/cloze/Week 1 - Ethernet/subpages/Ethernet header.md",
+      "time": "2026-03-04 12:38:15"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/api/study/all-cards/Week 1 - Ethernet/subpages/Ethernet header.md",
+      "time": "2026-03-04 12:38:40"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/api/srs/Week 1 - Ethernet/subpages/Ethernet header.md",
+      "time": "2026-03-04 12:38:46"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/api/study/all-cards/Week 1 - Ethernet/subpages/Ethernet header.md",
+      "time": "2026-03-04 12:38:51"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/api/srs/Week 1 - Ethernet/subpages/Ethernet header.md",
+      "time": "2026-03-04 12:38:55"
     }
   ]
 }

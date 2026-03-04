@@ -4880,9 +4880,19 @@ Text with {<!-- -->{blanks}} here.</pre>
             const card = mixCards[currentMixIndex];
             rateSrs(currentMixIndex, card.type, correct ? 3 : 1);
             
+            // Show feedback and Next button instead of rating controls
             setTimeout(() => {
-                document.getElementById('flashcardRatingControls').style.display = 'flex';
-            }, 500);
+                const feedback = correct ? '✅ Correct!' : '❌ Wrong';
+                const feedbackEl = document.createElement('div');
+                feedbackEl.className = 'mcq-feedback ' + (correct ? 'correct' : 'wrong');
+                feedbackEl.innerHTML = `
+                    <span style="font-size: 1.2em; font-weight: 600;">${feedback}</span>
+                    <button class="flashcard-btn primary" onclick="nextMixCard()" style="margin-top: 16px;">
+                        ${currentMixIndex < mixCards.length - 1 ? 'Next Question →' : 'See Results'}
+                    </button>
+                `;
+                document.getElementById('mixMcqOptions').after(feedbackEl);
+            }, 300);
         }
         
         function rateMixCard(correct) {
