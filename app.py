@@ -2386,6 +2386,111 @@ HTML_TEMPLATE = '''
             white-space: nowrap;
             z-index: 10;
         }
+        
+        /* ===== DASHBOARD CHART ===== */
+        .dashboard-chart-section {
+            margin-top: 24px;
+            padding: 16px;
+            background: #f9fafb;
+            border-radius: 12px;
+        }
+        body.dark-theme .dashboard-chart-section {
+            background: #1f2937;
+        }
+        .dashboard-view-tabs {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+        }
+        .view-tab {
+            flex: 1;
+            padding: 10px 16px;
+            border: none;
+            border-radius: 8px;
+            background: #e5e7eb;
+            color: #374151;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        body.dark-theme .view-tab {
+            background: #374151;
+            color: #9ca3af;
+        }
+        .view-tab:hover {
+            background: #d1d5db;
+        }
+        body.dark-theme .view-tab:hover {
+            background: #4b5563;
+        }
+        .view-tab.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .chart-summary {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 16px;
+            font-size: 14px;
+            color: #6b7280;
+        }
+        body.dark-theme .chart-summary {
+            color: #9ca3af;
+        }
+        .chart-summary span strong {
+            color: #111827;
+        }
+        body.dark-theme .chart-summary span strong {
+            color: #f3f4f6;
+        }
+        .dashboard-chart {
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-around;
+            height: 120px;
+            gap: 8px;
+            padding: 0 8px;
+        }
+        .chart-bar-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100%;
+        }
+        .chart-bar {
+            width: 100%;
+            max-width: 40px;
+            background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+            border-radius: 6px 6px 0 0;
+            position: relative;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            transition: height 0.3s ease;
+            margin-top: auto;
+        }
+        .chart-bar-value {
+            position: absolute;
+            top: -20px;
+            font-size: 11px;
+            font-weight: 600;
+            color: #6b7280;
+        }
+        body.dark-theme .chart-bar-value {
+            color: #9ca3af;
+        }
+        .chart-bar-label {
+            margin-top: 8px;
+            font-size: 11px;
+            color: #6b7280;
+            text-align: center;
+        }
+        body.dark-theme .chart-bar-label {
+            color: #9ca3af;
+        }
 
         /* ===== SETTINGS MODAL ===== */
         .settings-modal {
@@ -4602,6 +4707,9 @@ HTTP is a ==stateless== protocol.</pre>
         }
         
         // ===== STUDY DASHBOARD =====
+        let dashboardData = null;
+        let currentDashboardView = 'daily';
+        
         async function openDashboard() {
             try {
                 const response = await fetch('/api/study/dashboard');
@@ -4612,76 +4720,131 @@ HTTP is a ==stateless== protocol.</pre>
                     return;
                 }
                 
-                const d = data.dashboard;
-                const container = document.getElementById('dashboardContainer');
-                
-                // Build heatmap
-                let heatmapHtml = '';
-                const dates = Object.keys(d.heatmap).sort().slice(-28);
-                for (const date of dates) {
-                    const count = d.heatmap[date];
-                    let level = 0;
-                    if (count > 0) level = 1;
-                    if (count >= 10) level = 2;
-                    if (count >= 25) level = 3;
-                    if (count >= 50) level = 4;
-                    heatmapHtml += `<div class="heatmap-day level-${level}" title="${date}: ${count} cards"></div>`;
-                }
-                
-                const progressPct = Math.min(100, (d.today.reviewed / d.today.goal) * 100);
-                
-                container.innerHTML = `
-                    <div class="dashboard-header">
-                        <h2>📊 Study Dashboard</h2>
-                        <button class="flashcard-close" onclick="closeDashboard()">✕</button>
-                    </div>
-                    
-                    <div class="dashboard-grid">
-                        <div class="dashboard-stat streak">
-                            <div class="dashboard-stat-value">🔥 ${d.streak}</div>
-                            <div class="dashboard-stat-label">Day Streak</div>
-                        </div>
-                        <div class="dashboard-stat due">
-                            <div class="dashboard-stat-value">${d.dueCount}</div>
-                            <div class="dashboard-stat-label">Cards Due</div>
-                        </div>
-                        <div class="dashboard-stat mastery">
-                            <div class="dashboard-stat-value">${d.masteryPercent}%</div>
-                            <div class="dashboard-stat-label">Mastery</div>
-                        </div>
-                        <div class="dashboard-stat weak">
-                            <div class="dashboard-stat-value">${d.weakCards}</div>
-                            <div class="dashboard-stat-label">Weak Cards</div>
-                        </div>
-                    </div>
-                    
-                    <div class="dashboard-progress">
-                        <h3>Today's Progress</h3>
-                        <div class="progress-bar-container">
-                            <div class="progress-bar-fill" style="width: ${progressPct}%"></div>
-                        </div>
-                        <div class="progress-label">
-                            <span>${d.today.reviewed} reviewed (${d.today.correct} ✓ / ${d.today.wrong} ✗)</span>
-                            <span>Goal: ${d.today.goal}</span>
-                        </div>
-                    </div>
-                    
-                    <div class="heatmap-container">
-                        <h3>Last 4 Weeks</h3>
-                        <div class="heatmap">${heatmapHtml}</div>
-                    </div>
-                    
-                    <div style="margin-top: 24px; display: flex; gap: 12px; justify-content: center;">
-                        <button class="flashcard-btn primary" onclick="closeDashboard(); startFocusModeReal();">
-                            🎯 Focus on Weak Cards (${d.weakCards})
-                        </button>
-                    </div>
-                `;
-                
+                dashboardData = data.dashboard;
+                renderDashboard();
                 document.getElementById('dashboardModal').classList.add('visible');
             } catch (err) {
                 console.error('Failed to load dashboard:', err);
             }
+        }
+        
+        function renderDashboard() {
+            const d = dashboardData;
+            const container = document.getElementById('dashboardContainer');
+            
+            // Build heatmap
+            let heatmapHtml = '';
+            const dates = Object.keys(d.heatmap).sort().slice(-28);
+            for (const date of dates) {
+                const count = d.heatmap[date];
+                let level = 0;
+                if (count > 0) level = 1;
+                if (count >= 10) level = 2;
+                if (count >= 25) level = 3;
+                if (count >= 50) level = 4;
+                heatmapHtml += `<div class="heatmap-day level-${level}" title="${date}: ${count} cards"></div>`;
+            }
+            
+            const progressPct = Math.min(100, (d.today.reviewed / d.today.goal) * 100);
+            
+            // Build chart for current view
+            const viewData = d[currentDashboardView] || d.daily;
+            const maxCards = Math.max(...viewData.map(v => v.cards), 1);
+            
+            let chartHtml = viewData.map(item => {
+                const height = (item.cards / maxCards) * 100;
+                const correctPct = item.cards > 0 ? Math.round((item.correct / item.cards) * 100) : 0;
+                return `
+                    <div class="chart-bar-container">
+                        <div class="chart-bar" style="height: ${Math.max(height, 2)}%;" title="${item.cards} cards (${correctPct}% correct)">
+                            <span class="chart-bar-value">${item.cards || ''}</span>
+                        </div>
+                        <div class="chart-bar-label">${item.label}</div>
+                    </div>
+                `;
+            }).join('');
+            
+            // Calculate totals for current view
+            const viewTotals = viewData.reduce((acc, item) => ({
+                cards: acc.cards + item.cards,
+                correct: acc.correct + item.correct,
+                wrong: acc.wrong + item.wrong
+            }), { cards: 0, correct: 0, wrong: 0 });
+            
+            const viewLabels = {
+                daily: 'Last 7 Days',
+                weekly: 'Last 4 Weeks',
+                monthly: 'Last 6 Months'
+            };
+            
+            container.innerHTML = `
+                <div class="dashboard-header">
+                    <h2>📊 Study Dashboard</h2>
+                    <button class="flashcard-close" onclick="closeDashboard()">✕</button>
+                </div>
+                
+                <div class="dashboard-grid">
+                    <div class="dashboard-stat streak">
+                        <div class="dashboard-stat-value">🔥 ${d.streak}</div>
+                        <div class="dashboard-stat-label">Day Streak</div>
+                    </div>
+                    <div class="dashboard-stat due">
+                        <div class="dashboard-stat-value">${d.dueCount}</div>
+                        <div class="dashboard-stat-label">Cards Due</div>
+                    </div>
+                    <div class="dashboard-stat mastery">
+                        <div class="dashboard-stat-value">${d.masteryPercent}%</div>
+                        <div class="dashboard-stat-label">Mastery</div>
+                    </div>
+                    <div class="dashboard-stat weak">
+                        <div class="dashboard-stat-value">${d.weakCards}</div>
+                        <div class="dashboard-stat-label">Weak Cards</div>
+                    </div>
+                </div>
+                
+                <div class="dashboard-progress">
+                    <h3>Today's Progress</h3>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar-fill" style="width: ${progressPct}%"></div>
+                    </div>
+                    <div class="progress-label">
+                        <span>${d.today.reviewed} reviewed (${d.today.correct} ✓ / ${d.today.wrong} ✗)</span>
+                        <span>Goal: ${d.today.goal}</span>
+                    </div>
+                </div>
+                
+                <div class="dashboard-chart-section">
+                    <div class="dashboard-view-tabs">
+                        <button class="view-tab ${currentDashboardView === 'daily' ? 'active' : ''}" onclick="switchDashboardView('daily')">📅 Daily</button>
+                        <button class="view-tab ${currentDashboardView === 'weekly' ? 'active' : ''}" onclick="switchDashboardView('weekly')">📆 Weekly</button>
+                        <button class="view-tab ${currentDashboardView === 'monthly' ? 'active' : ''}" onclick="switchDashboardView('monthly')">🗓️ Monthly</button>
+                    </div>
+                    <div class="chart-summary">
+                        <span><strong>${viewTotals.cards}</strong> cards</span>
+                        <span>✓ ${viewTotals.correct}</span>
+                        <span>✗ ${viewTotals.wrong}</span>
+                    </div>
+                    <div class="dashboard-chart">
+                        ${chartHtml}
+                    </div>
+                </div>
+                
+                <div class="heatmap-container">
+                    <h3>Activity Heatmap</h3>
+                    <div class="heatmap">${heatmapHtml}</div>
+                </div>
+                
+                <div style="margin-top: 24px; display: flex; gap: 12px; justify-content: center;">
+                    <button class="flashcard-btn primary" onclick="closeDashboard(); startFocusModeReal();">
+                        🎯 Focus on Weak Cards (${d.weakCards})
+                    </button>
+                </div>
+            `;
+        }
+        
+        function switchDashboardView(view) {
+            currentDashboardView = view;
+            renderDashboard();
         }
         
         function closeDashboard() {
@@ -10018,10 +10181,11 @@ def log_study_session(filepath, card_type, correct):
 
 @app.route('/api/study/dashboard')
 def api_study_dashboard():
-    """Get study dashboard data"""
+    """Get study dashboard data with optional time view (day/week/month)"""
     try:
         sessions = load_study_sessions()
         settings = load_study_settings()
+        view = request.args.get('view', 'day')  # day, week, month
         
         today = datetime.utcnow().strftime('%Y-%m-%d')
         today_data = sessions.get(today, {'cardsReviewed': 0, 'correct': 0, 'wrong': 0})
@@ -10070,6 +10234,79 @@ def api_study_dashboard():
             else:
                 heatmap[date] = 0
         
+        # Build time-based views
+        now = datetime.utcnow()
+        
+        # Daily view - last 7 days, cards per day
+        daily_data = []
+        for i in range(6, -1, -1):
+            date = (now - timedelta(days=i)).strftime('%Y-%m-%d')
+            day_name = (now - timedelta(days=i)).strftime('%a')
+            session = sessions.get(date, {})
+            daily_data.append({
+                'label': day_name,
+                'date': date,
+                'cards': session.get('cardsReviewed', 0),
+                'correct': session.get('correct', 0),
+                'wrong': session.get('wrong', 0),
+                'timeMs': session.get('timeSpentMs', 0)
+            })
+        
+        # Weekly view - last 4 weeks
+        weekly_data = []
+        for w in range(3, -1, -1):
+            week_start = now - timedelta(days=now.weekday() + (w * 7))
+            week_end = week_start + timedelta(days=6)
+            week_label = f"{week_start.strftime('%b %d')}"
+            
+            total_cards = 0
+            total_correct = 0
+            total_wrong = 0
+            total_time = 0
+            
+            for d in range(7):
+                date = (week_start + timedelta(days=d)).strftime('%Y-%m-%d')
+                session = sessions.get(date, {})
+                total_cards += session.get('cardsReviewed', 0)
+                total_correct += session.get('correct', 0)
+                total_wrong += session.get('wrong', 0)
+                total_time += session.get('timeSpentMs', 0)
+            
+            weekly_data.append({
+                'label': week_label,
+                'cards': total_cards,
+                'correct': total_correct,
+                'wrong': total_wrong,
+                'timeMs': total_time
+            })
+        
+        # Monthly view - last 6 months
+        monthly_data = []
+        for m in range(5, -1, -1):
+            month_date = now - timedelta(days=m * 30)
+            month_label = month_date.strftime('%b')
+            month_str = month_date.strftime('%Y-%m')
+            
+            total_cards = 0
+            total_correct = 0
+            total_wrong = 0
+            total_time = 0
+            
+            for date_str, session in sessions.items():
+                if date_str.startswith(month_str):
+                    total_cards += session.get('cardsReviewed', 0)
+                    total_correct += session.get('correct', 0)
+                    total_wrong += session.get('wrong', 0)
+                    total_time += session.get('timeSpentMs', 0)
+            
+            monthly_data.append({
+                'label': month_label,
+                'cards': total_cards,
+                'correct': total_correct,
+                'wrong': total_wrong,
+                'timeMs': total_time
+            })
+        
         return jsonify({
             'success': True,
             'dashboard': {
@@ -10085,7 +10322,10 @@ def api_study_dashboard():
                 'masteredCards': mastered_cards,
                 'weakCards': weak_cards,
                 'masteryPercent': round((mastered_cards / total_cards * 100) if total_cards > 0 else 0, 1),
-                'heatmap': heatmap
+                'heatmap': heatmap,
+                'daily': daily_data,
+                'weekly': weekly_data,
+                'monthly': monthly_data
             }
         })
     except Exception as e:
