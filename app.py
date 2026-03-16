@@ -10963,11 +10963,32 @@ def normalize_cloze(cloze):
     Normalize cloze format from JSON to frontend format.
     JSON format may have 'text' field, frontend expects 'question'.
     Also ensures 'answer' field exists for display in mix mode.
+    
+    Handles answers in multiple formats:
+    - List of strings: ["answer1", "answer2"]
+    - List of dicts: [{"answer": "answer1"}, {"answer": "answer2"}]
     """
+    # Extract answers, handling both formats
+    raw_answers = cloze.get('answers', [])
+    if raw_answers and isinstance(raw_answers[0], dict):
+        # Format: [{"answer": "text"}, ...]
+        answers = [a.get('answer', '') for a in raw_answers]
+    else:
+        # Format: ["text", ...] or empty
+        answers = raw_answers
+    
+    # Clean up cloze markers from answers (e.g., "c1::Duration" -> "Duration")
+    clean_answers = []
+    for ans in answers:
+        if '::' in str(ans):
+            clean_answers.append(ans.split('::')[-1])
+        else:
+            clean_answers.append(ans)
+    
     normalized = {
         'question': cloze.get('text', cloze.get('question', '')),
-        'answers': cloze.get('answers', []),
-        'answer': cloze.get('answer', ', '.join(cloze.get('answers', [])))
+        'answers': clean_answers,
+        'answer': cloze.get('answer', ', '.join(clean_answers))
     }
     # Preserve any other fields
     for k, v in cloze.items():
