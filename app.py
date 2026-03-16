@@ -1463,8 +1463,10 @@ HTML_TEMPLATE = '''
             background: #2a2a2a;
             border-radius: 10px;
             box-shadow: 0 4px 20px rgba(0,0,0,0.4);
-            overflow: hidden;
+            overflow-x: hidden;
+            overflow-y: auto;
             min-width: 160px;
+            max-height: calc(100vh - 100px);
             z-index: 300;
         }
         .toolbar-dropdown.show {
@@ -1503,6 +1505,10 @@ HTML_TEMPLATE = '''
                 border-radius: 10px !important;
                 min-width: 140px !important;
                 max-width: calc(100vw - 30px) !important;
+                max-height: calc(100vh - 120px) !important;
+                overflow-y: auto !important;
+                overflow-x: hidden !important;
+                box-sizing: border-box !important;
             }
             .toolbar-menu .toolbar-dropdown button,
             .toolbar-dropdown button {
@@ -1514,8 +1520,10 @@ HTML_TEMPLATE = '''
                 box-shadow: none !important;
                 display: block !important;
                 text-align: left !important;
-                white-space: nowrap !important;
+                white-space: normal !important;
                 line-height: 1.4 !important;
+                box-sizing: border-box !important;
+                width: 100% !important;
             }
             .toolbar-menu .toolbar-dropdown button:last-child {
                 border-bottom: none !important;
