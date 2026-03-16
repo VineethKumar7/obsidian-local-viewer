@@ -4998,6 +4998,7 @@ HTTP is a ==stateless== protocol.</pre>
             }), { cards: 0, correct: 0, wrong: 0 });
             
             const viewLabels = {
+                hourly: 'Today by Hour',
                 daily: 'Last 7 Days',
                 weekly: 'Last 4 Weeks',
                 monthly: 'Last 6 Months'
@@ -5041,6 +5042,7 @@ HTTP is a ==stateless== protocol.</pre>
                 
                 <div class="dashboard-chart-section">
                     <div class="dashboard-view-tabs">
+                        <button class="view-tab ${currentDashboardView === 'hourly' ? 'active' : ''}" onclick="switchDashboardView('hourly')">🕐 Hourly</button>
                         <button class="view-tab ${currentDashboardView === 'daily' ? 'active' : ''}" onclick="switchDashboardView('daily')">📅 Daily</button>
                         <button class="view-tab ${currentDashboardView === 'weekly' ? 'active' : ''}" onclick="switchDashboardView('weekly')">📆 Weekly</button>
                         <button class="view-tab ${currentDashboardView === 'monthly' ? 'active' : ''}" onclick="switchDashboardView('monthly')">🗓️ Monthly</button>
@@ -5060,9 +5062,12 @@ HTTP is a ==stateless== protocol.</pre>
                     <div class="heatmap">${heatmapHtml}</div>
                 </div>
                 
-                <div style="margin-top: 24px; display: flex; gap: 12px; justify-content: center;">
+                <div style="margin-top: 24px; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
                     <button class="flashcard-btn primary" onclick="closeDashboard(); startFocusModeReal();">
                         🎯 Focus on Weak Cards (${d.weakCards})
+                    </button>
+                    <button class="flashcard-btn secondary" onclick="closeDashboard(); startWeakCardsMixMode();" ${d.weakCards === 0 ? 'disabled style="opacity: 0.5;"' : ''}>
+                        🎲 Review Mistakes in Mix Mode
                     </button>
                 </div>
             `;
@@ -5186,6 +5191,53 @@ Text with {<!-- -->{blanks}} here.</pre>
             document.getElementById('flashcardControls').style.display = 'none';
             document.getElementById('flashcardRatingControls').style.display = 'none';
             document.querySelector('.flashcard-progress').style.display = 'none';
+        }
+        
+        // ===== WEAK CARDS MIX MODE =====
+        async function startWeakCardsMixMode() {
+            try {
+                const response = await fetch('/api/study/weak-cards-full');
+                const data = await response.json();
+                
+                if (data.success && data.cards && data.cards.length > 0) {
+                    // Shuffle weak cards
+                    mixCards = data.cards.sort(() => Math.random() - 0.5);
+                    currentMixIndex = 0;
+                    mixStats = { correct: 0, wrong: 0 };
+                    currentStudyMode = 'mix';
+                    
+                    // Show badge indicating weak cards mode
+                    const container = document.getElementById('flashcardContainer');
+                    renderMixCard();
+                    
+                    // Add weak cards indicator
+                    const counter = document.getElementById('flashcardCounter');
+                    counter.innerHTML = `<span style="color: #f59e0b;">🎯 Weak Cards</span> ${currentMixIndex + 1} / ${mixCards.length}`;
+                    
+                    document.getElementById('flashcardModal').classList.add('visible');
+                } else {
+                    // No weak cards
+                    const container = document.getElementById('flashcardContainer');
+                    container.innerHTML = `
+                        <div class="flashcard-empty">
+                            <h3>🎉 No Weak Cards!</h3>
+                            <p>Great job! You don't have any frequently missed cards.</p>
+                            <p style="margin-top: 16px; color: #6b7280;">
+                                Cards become "weak" when you miss them 2+ times.
+                            </p>
+                            <button class="flashcard-btn primary" onclick="closeFlashcards();" style="margin-top: 20px;">
+                                👍 Keep it up!
+                            </button>
+                        </div>
+                    `;
+                    document.getElementById('flashcardControls').style.display = 'none';
+                    document.getElementById('flashcardRatingControls').style.display = 'none';
+                    document.querySelector('.flashcard-progress').style.display = 'none';
+                    document.getElementById('flashcardModal').classList.add('visible');
+                }
+            } catch (err) {
+                console.error('Failed to load weak cards:', err);
+            }
         }
         
         function renderMixCard() {
@@ -10687,7 +10739,9 @@ def api_set_srs_mode(filepath):
 def log_study_session(filepath, card_type, correct):
     """Log a study event to session history"""
     sessions = load_study_sessions()
-    today = datetime.utcnow().strftime('%Y-%m-%d')
+    now = datetime.utcnow()
+    today = now.strftime('%Y-%m-%d')
+    hour = now.strftime('%H')
     
     if today not in sessions:
         sessions[today] = {
@@ -10696,14 +10750,27 @@ def log_study_session(filepath, card_type, correct):
             'wrong': 0,
             'timeSpentMs': 0,
             'files': [],
-            'byType': {'flash': 0, 'mcq': 0, 'cloze': 0}
+            'byType': {'flash': 0, 'mcq': 0, 'cloze': 0},
+            'hourly': {}  # Track by hour
         }
     
+    # Ensure hourly exists for older sessions
+    if 'hourly' not in sessions[today]:
+        sessions[today]['hourly'] = {}
+    
+    # Initialize hourly slot
+    if hour not in sessions[today]['hourly']:
+        sessions[today]['hourly'][hour] = {'cards': 0, 'correct': 0, 'wrong': 0}
+    
     sessions[today]['cardsReviewed'] += 1
+    sessions[today]['hourly'][hour]['cards'] += 1
+    
     if correct:
         sessions[today]['correct'] += 1
+        sessions[today]['hourly'][hour]['correct'] += 1
     else:
         sessions[today]['wrong'] += 1
+        sessions[today]['hourly'][hour]['wrong'] += 1
     
     sessions[today]['byType'][card_type] = sessions[today]['byType'].get(card_type, 0) + 1
     
@@ -10769,6 +10836,21 @@ def api_study_dashboard():
         
         # Build time-based views
         now = datetime.utcnow()
+        
+        # Hourly view - today's activity by hour
+        hourly_data = []
+        today_session = sessions.get(today, {})
+        hourly_breakdown = today_session.get('hourly', {})
+        for h in range(24):
+            hour_str = f'{h:02d}'
+            hour_data = hourly_breakdown.get(hour_str, {})
+            hourly_data.append({
+                'label': f'{h:02d}:00',
+                'hour': h,
+                'cards': hour_data.get('cards', 0),
+                'correct': hour_data.get('correct', 0),
+                'wrong': hour_data.get('wrong', 0)
+            })
         
         # Daily view - last 7 days, cards per day
         daily_data = []
@@ -10856,6 +10938,7 @@ def api_study_dashboard():
                 'weakCards': weak_cards,
                 'masteryPercent': round((mastered_cards / total_cards * 100) if total_cards > 0 else 0, 1),
                 'heatmap': heatmap,
+                'hourly': hourly_data,
                 'daily': daily_data,
                 'weekly': weekly_data,
                 'monthly': monthly_data
@@ -10923,6 +11006,84 @@ def api_get_weak_cards():
         })
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/study/weak-cards-full')
+def api_get_weak_cards_full():
+    """Get weak cards with full content for mix mode review"""
+    try:
+        weak_cards_full = []
+        
+        # First get weak card references
+        weak_refs = {}  # filepath -> [card_keys]
+        for srs_data in scan_all_srs_files():
+            filepath = srs_data.get('filePath', '')
+            for card_key, card_data in srs_data.get('cards', {}).items():
+                if card_data.get('lapses', 0) >= 2 or card_data.get('easeFactor', 2.5) < 2.0:
+                    if card_data.get('focusStreak', 0) < 3:
+                        if filepath not in weak_refs:
+                            weak_refs[filepath] = []
+                        weak_refs[filepath].append({
+                            'key': card_key,
+                            'lapses': card_data.get('lapses', 0),
+                            'easeFactor': card_data.get('easeFactor', 2.5)
+                        })
+        
+        # Load actual card content for each weak card
+        for filepath, card_refs in weak_refs.items():
+            study_data = load_study_json(filepath)
+            if not study_data:
+                # Try parsing from MD
+                full_path = os.path.join(VAULT_PATH, filepath)
+                if os.path.exists(full_path):
+                    with open(full_path, 'r', encoding='utf-8') as f:
+                        content = f.read()
+                    flashcards = parse_flashcards(content)
+                    mcqs = parse_mcq(content)
+                    cloze = parse_cloze(content)
+                    study_data = {'flashcards': flashcards, 'mcq': mcqs, 'cloze': cloze}
+            
+            if study_data:
+                flashcards = study_data.get('flashcards', [])
+                mcqs = [normalize_mcq(m) for m in study_data.get('mcq', [])]
+                cloze = [normalize_cloze(c) for c in study_data.get('cloze', [])]
+                
+                for ref in card_refs:
+                    key = ref['key']
+                    card_type, idx_str = key.split('-') if '-' in key else (key, '0')
+                    try:
+                        idx = int(idx_str)
+                    except:
+                        continue
+                    
+                    card = None
+                    if card_type == 'flash' and idx < len(flashcards):
+                        card = flashcards[idx].copy()
+                        card['type'] = 'flash'
+                    elif card_type == 'mcq' and idx < len(mcqs):
+                        card = mcqs[idx].copy()
+                        card['type'] = 'mcq'
+                    elif card_type == 'cloze' and idx < len(cloze):
+                        card = cloze[idx].copy()
+                        card['type'] = 'cloze'
+                    
+                    if card:
+                        card['id'] = key
+                        card['filepath'] = filepath
+                        card['lapses'] = ref['lapses']
+                        weak_cards_full.append(card)
+        
+        # Sort by lapses (most mistakes first)
+        weak_cards_full.sort(key=lambda x: x.get('lapses', 0), reverse=True)
+        
+        return jsonify({
+            'success': True,
+            'cards': weak_cards_full,
+            'count': len(weak_cards_full)
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({'success': False, 'error': str(e), 'trace': traceback.format_exc()}), 500
 
 
 # ============================================
