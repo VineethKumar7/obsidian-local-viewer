@@ -10967,7 +10967,14 @@ def normalize_cloze(cloze):
     Handles answers in multiple formats:
     - List of strings: ["answer1", "answer2"]
     - List of dicts: [{"answer": "answer1"}, {"answer": "answer2"}]
+    
+    Converts cloze markers in question to blanks:
+    - {{c1::text}} -> <span class="cloze-blank">[...]</span>
+    - {{text}} -> <span class="cloze-blank">[...]</span>
+    - {{text|hint}} -> <span class="cloze-blank">[hint]</span>
     """
+    import re
+    
     # Extract answers, handling both formats
     raw_answers = cloze.get('answers', [])
     if raw_answers and isinstance(raw_answers[0], dict):
@@ -10985,8 +10992,24 @@ def normalize_cloze(cloze):
         else:
             clean_answers.append(ans)
     
+    # Process question text to convert cloze markers to blanks
+    question_text = cloze.get('text', cloze.get('question', ''))
+    
+    # Pattern 1: {{c1::text}} or {{c1::text::hint}} - Anki style
+    def replace_anki_cloze(match):
+        hint = match.group(2) if match.group(2) else '...'
+        return f'<span class="cloze-blank">[{hint}]</span>'
+    question_text = re.sub(r'\{\{c\d+::([^}:]+)(?:::([^}]+))?\}\}', replace_anki_cloze, question_text)
+    
+    # Pattern 2: {{text}} or {{text|hint}} - simple style
+    def replace_simple_cloze(match):
+        parts = match.group(1).split('|')
+        hint = parts[1] if len(parts) > 1 else '...'
+        return f'<span class="cloze-blank">[{hint}]</span>'
+    question_text = re.sub(r'\{\{([^}]+)\}\}', replace_simple_cloze, question_text)
+    
     normalized = {
-        'question': cloze.get('text', cloze.get('question', '')),
+        'question': question_text,
         'answers': clean_answers,
         'answer': cloze.get('answer', ', '.join(clean_answers))
     }
