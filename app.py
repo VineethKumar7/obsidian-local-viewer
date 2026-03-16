@@ -245,6 +245,11 @@ def convert_obsidian_callouts(content):
             collapse_char = callout_match.group(2)  # + or - or None
             title = callout_match.group(3) or callout_type.capitalize()
             
+            # Process basic markdown in title (bold, italic, inline code)
+            title = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', title)
+            title = re.sub(r'\*(.+?)\*', r'<em>\1</em>', title)
+            title = re.sub(r'`([^`]+)`', r'<code>\1</code>', title)
+            
             # Collect callout content (subsequent lines starting with >)
             content_lines = []
             i += 1
@@ -257,10 +262,17 @@ def convert_obsidian_callouts(content):
             # Process callout content through markdown BEFORE wrapping in HTML
             # This ensures tables, code blocks, etc. inside callouts are rendered
             callout_md = '\n'.join(content_lines)
+            
+            # Protect math expressions inside callouts before markdown processing
+            callout_md, callout_math_placeholders = protect_math_expressions(callout_md)
+            
             callout_html = markdown.markdown(
                 callout_md,
                 extensions=['tables', 'fenced_code', 'sane_lists']
             )
+            
+            # Restore math expressions after markdown processing
+            callout_html = restore_math_expressions(callout_html, callout_math_placeholders)
             
             if collapse_char:
                 # Collapsible callout
@@ -283,6 +295,23 @@ def convert_obsidian_callouts(content):
     
     return '\n'.join(result)
 
+def fix_list_continuation(content):
+    """
+    Fix markdown list parsing issues where numbered items following 
+    nested bullets aren't recognized as continuing the parent list.
+    
+    Pattern: indented bullet (    - ...) followed by numbered item (N. ...)
+    without a blank line causes the numbered item to be absorbed into the bullet.
+    
+    Solution: Insert blank line before numbered items that follow indented content.
+    """
+    import re
+    # Match: line ending with content (indented list item), followed by numbered list item at column 0
+    # Pattern: (indented line with content)\n(numbered item without preceding blank line)
+    pattern = r'(^[ \t]+[-*+].*\S.*$)\n(^\d+\.\s)'
+    replacement = r'\1\n\n\2'
+    return re.sub(pattern, replacement, content, flags=re.MULTILINE)
+
 def protect_math_expressions(content):
     """Protect LaTeX math expressions from markdown processing"""
     placeholders = {}
@@ -304,9 +333,23 @@ def protect_math_expressions(content):
     return content, placeholders
 
 def restore_math_expressions(content, placeholders):
-    """Restore protected math expressions after markdown processing"""
+    """Restore protected math expressions after markdown processing.
+    
+    Wraps inline math in <span class="inline-math"> for explicit MathJax targeting.
+    This helps MathJax reliably identify short expressions like $R$.
+    """
     for placeholder, original in placeholders.items():
-        content = content.replace(placeholder, original)
+        if original.startswith('$$') and original.endswith('$$'):
+            # Display math - keep as-is, MathJax handles these well
+            content = content.replace(placeholder, original)
+        elif original.startswith('$') and original.endswith('$'):
+            # Inline math - wrap in span for reliable processing
+            # Use data attribute to store the math for JS processing
+            inner = original[1:-1]  # Remove $ delimiters
+            wrapped = f'<span class="inline-math" data-math="{inner}">\\({inner}\\)</span>'
+            content = content.replace(placeholder, wrapped)
+        else:
+            content = content.replace(placeholder, original)
     return content
 
 
@@ -822,6 +865,148 @@ HTML_TEMPLATE = '''
         .sidebar-content.tree-loading {
             visibility: hidden;
         }
+        
+        /* Search Box Styles */
+        .search-container {
+            padding: 12px 0;
+            border-bottom: 1px solid #3c3c3c;
+        }
+        .search-input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+        .search-input {
+            width: 100%;
+            padding: 8px 12px 8px 32px;
+            font-size: 13px;
+            background: #3c3c3c;
+            border: 1px solid #4a4a4a;
+            border-radius: 6px;
+            color: #e0e0e0;
+            outline: none;
+            transition: border-color 0.2s, background 0.2s;
+        }
+        .search-input::placeholder {
+            color: #888;
+        }
+        .search-input:focus {
+            border-color: #007acc;
+            background: #2d2d2d;
+        }
+        .search-icon {
+            position: absolute;
+            left: 10px;
+            color: #888;
+            font-size: 14px;
+            pointer-events: none;
+        }
+        .search-clear {
+            position: absolute;
+            right: 8px;
+            background: none;
+            border: none;
+            color: #888;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 4px;
+            display: none;
+        }
+        .search-clear:hover {
+            color: #ccc;
+        }
+        .search-input:not(:placeholder-shown) + .search-clear {
+            display: block;
+        }
+        .search-options {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+            align-items: center;
+        }
+        .search-options label {
+            font-size: 11px;
+            color: #888;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            cursor: pointer;
+        }
+        .search-options input[type="checkbox"] {
+            width: 12px;
+            height: 12px;
+            accent-color: #007acc;
+        }
+        .search-results {
+            max-height: 400px;
+            overflow-y: auto;
+            margin-top: 8px;
+            display: none;
+        }
+        .search-results.visible {
+            display: block;
+        }
+        .search-result-item {
+            padding: 8px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background 0.15s;
+            border-bottom: 1px solid #333;
+        }
+        .search-result-item:hover {
+            background: #2a2d2e;
+        }
+        .search-result-item:last-child {
+            border-bottom: none;
+        }
+        .search-result-filename {
+            font-size: 13px;
+            color: #e0e0e0;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .search-result-filename::before {
+            content: "📄";
+            font-size: 12px;
+        }
+        .search-result-path {
+            font-size: 10px;
+            color: #666;
+            margin-top: 2px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .search-result-snippet {
+            font-size: 11px;
+            color: #888;
+            margin-top: 4px;
+            line-height: 1.4;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .search-result-snippet mark {
+            background: #5a4a00;
+            color: #ffd700;
+            padding: 0 2px;
+            border-radius: 2px;
+        }
+        .search-no-results {
+            padding: 16px;
+            text-align: center;
+            color: #666;
+            font-size: 12px;
+        }
+        .search-loading {
+            padding: 16px;
+            text-align: center;
+            color: #888;
+            font-size: 12px;
+        }
+        
         .sidebar ul { list-style: none; margin: 0; padding: 0; }
         .sidebar > .sidebar-content > ul { padding: 0 8px; }
         
@@ -1303,17 +1488,21 @@ HTML_TEMPLATE = '''
             transform: none;
         }
         
-        /* Mobile: dropdown appears ABOVE the button */
+        /* Mobile: dropdown appears ABOVE the button, fixed to viewport */
         @media screen and (max-width: 768px) {
             .toolbar-dropdown {
+                position: fixed !important;
                 top: auto !important;
-                bottom: 100% !important;
+                bottom: calc(20px + 48px + 8px) !important;
+                right: 15px !important;
+                left: auto !important;
                 margin-top: 0 !important;
-                margin-bottom: 8px !important;
+                margin-bottom: 0 !important;
                 background: #1e1e1e !important;
                 border: 1px solid #444 !important;
                 border-radius: 10px !important;
                 min-width: 140px !important;
+                max-width: calc(100vw - 30px) !important;
             }
             .toolbar-menu .toolbar-dropdown button,
             .toolbar-dropdown button {
@@ -1472,6 +1661,20 @@ HTML_TEMPLATE = '''
         .content p { line-height: 1.8; margin: 15px 0; color: #444; font-size: 16px; }
         .content ul, .content ol { margin: 15px 0 15px 30px; }
         .content li { margin: 10px 0; line-height: 1.7; }
+        /* Nested lists styling */
+        .content li > ul, .content li > ol { margin: 10px 0 10px 20px; }
+        /* Ensure numbered lists inside list items reset to proper indentation */
+        .content li > ol { 
+            margin-left: -10px;  /* Pull back nested numbered lists */
+            margin-top: 15px;
+        }
+        .content li > ol > li {
+            font-weight: 600;  /* Make nested numbered items stand out */
+        }
+        /* Sub-bullet styling */
+        .content ul ul, .content ol ul {
+            list-style-type: circle;
+        }
         
         /* Code */
         .content code { 
@@ -3606,6 +3809,21 @@ HTML_TEMPLATE = '''
                 <button onclick="expandAllFolders()" style="flex:1; padding: 4px 8px; font-size: 11px; background: #3c3c3c; color: #ccc; border: none; border-radius: 3px; cursor: pointer;" title="Expand All">+ All</button>
                 <button onclick="collapseAllFolders()" style="flex:1; padding: 4px 8px; font-size: 11px; background: #3c3c3c; color: #ccc; border: none; border-radius: 3px; cursor: pointer;" title="Collapse All">− All</button>
             </div>
+            <!-- Search Box -->
+            <div class="search-container">
+                <div class="search-input-wrapper">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" class="search-input" id="searchInput" placeholder="Search files..." autocomplete="off">
+                    <button class="search-clear" id="searchClear" onclick="clearSearch()">✕</button>
+                </div>
+                <div class="search-options">
+                    <label>
+                        <input type="checkbox" id="searchContent">
+                        Search content
+                    </label>
+                </div>
+                <div class="search-results" id="searchResults"></div>
+            </div>
             <!-- Offline Download Button -->
             <div id="offlineSection" style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #3c3c3c;">
                 <button id="offlineBtn" onclick="downloadOfflineZip()" style="width: 100%; padding: 8px 12px; font-size: 12px; background: linear-gradient(135deg, #7c3aed, #5b21b6); color: white; border: none; border-radius: 6px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s;">
@@ -5699,6 +5917,173 @@ Text with {<!-- -->{blanks}} here.</pre>
             saveTreeState();
         }
         
+        // ===== SEARCH FUNCTIONALITY =====
+        let searchTimeout = null;
+        
+        function initSearch() {
+            const searchInput = document.getElementById('searchInput');
+            const searchResults = document.getElementById('searchResults');
+            const searchContentCheckbox = document.getElementById('searchContent');
+            const searchClear = document.getElementById('searchClear');
+            const sidebarTreeContent = document.getElementById('sidebarContent');
+            
+            if (!searchInput) return;
+            
+            searchInput.addEventListener('input', function() {
+                const query = this.value.trim();
+                
+                // Show/hide clear button
+                if (searchClear) {
+                    searchClear.style.display = query.length > 0 ? 'block' : 'none';
+                }
+                
+                // Clear previous timeout
+                if (searchTimeout) {
+                    clearTimeout(searchTimeout);
+                }
+                
+                if (query.length < 2) {
+                    hideSearchResults();
+                    showFileTree();
+                    return;
+                }
+                
+                // Debounce search
+                searchTimeout = setTimeout(() => {
+                    performSearch(query);
+                }, 200);
+            });
+            
+            // Handle Escape key
+            searchInput.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape') {
+                    clearSearch();
+                }
+            });
+            
+            function performSearch(query) {
+                const searchContent = searchContentCheckbox ? searchContentCheckbox.checked : false;
+                
+                // Show loading state
+                if (searchResults) {
+                    searchResults.innerHTML = '<div class="search-loading">🔍 Searching...</div>';
+                    searchResults.classList.add('visible');
+                }
+                hideFileTree();
+                
+                // Call search API
+                fetch('/api/search?q=' + encodeURIComponent(query) + '&content=' + searchContent + '&limit=30')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success && data.results.length > 0) {
+                            renderSearchResults(data.results, query);
+                        } else if (searchResults) {
+                            searchResults.innerHTML = '<div class="search-no-results">No files found</div>';
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Search error:', err);
+                        if (searchResults) {
+                            searchResults.innerHTML = '<div class="search-no-results">Search error</div>';
+                        }
+                    });
+            }
+            
+            function renderSearchResults(results, query) {
+                if (!searchResults) return;
+                const queryTerms = query.toLowerCase().split(/\s+/);
+                
+                let html = '';
+                results.forEach(result => {
+                    // Highlight query terms in filename
+                    let filename = escapeHtml(result.filename);
+                    queryTerms.forEach(term => {
+                        const regex = new RegExp('(' + escapeRegex(term) + ')', 'gi');
+                        filename = filename.replace(regex, '<mark>$1</mark>');
+                    });
+                    
+                    // Get folder path
+                    const pathParts = result.path.split('/');
+                    const folderPath = pathParts.length > 1 ? pathParts.slice(0, -1).join('/') : '';
+                    
+                    var safeUrl = result.url.replace(/'/g, "\\'");
+                    html += '<div class="search-result-item" data-url="' + escapeHtml(result.url) + '" onclick="window.location.href=this.dataset.url">';
+                    html += '<div class="search-result-filename">' + filename + '</div>';
+                    if (folderPath) {
+                        html += '<div class="search-result-path">📁 ' + escapeHtml(folderPath) + '</div>';
+                    }
+                    if (result.snippet) {
+                        html += '<div class="search-result-snippet">' + highlightSnippet(result.snippet, queryTerms) + '</div>';
+                    }
+                    html += '</div>';
+                });
+                
+                searchResults.innerHTML = html;
+            }
+            
+            function highlightSnippet(snippet, queryTerms) {
+                let highlighted = escapeHtml(snippet);
+                queryTerms.forEach(term => {
+                    const regex = new RegExp('(' + escapeRegex(term) + ')', 'gi');
+                    highlighted = highlighted.replace(regex, '<mark>$1</mark>');
+                });
+                return highlighted;
+            }
+            
+            function hideSearchResults() {
+                if (searchResults) {
+                    searchResults.classList.remove('visible');
+                    searchResults.innerHTML = '';
+                }
+            }
+            
+            function showFileTree() {
+                if (sidebarTreeContent) {
+                    sidebarTreeContent.style.display = 'block';
+                }
+            }
+            
+            function hideFileTree() {
+                if (sidebarTreeContent) {
+                    sidebarTreeContent.style.display = 'none';
+                }
+            }
+            
+            // Expose clearSearch globally
+            window.clearSearch = function() {
+                searchInput.value = '';
+                if (searchClear) searchClear.style.display = 'none';
+                hideSearchResults();
+                showFileTree();
+                searchInput.focus();
+            };
+        }
+        
+        function escapeRegex(string) {
+            return string.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Initialize search after DOM is ready
+        document.addEventListener('DOMContentLoaded', initSearch);
+        
+        // Keyboard shortcut: Ctrl/Cmd + K to focus search
+        document.addEventListener('keydown', function(e) {
+            if ((e.ctrlKey || e.metaKey) && e.key === 'k') {
+                e.preventDefault();
+                const searchInput = document.getElementById('searchInput');
+                if (searchInput) {
+                    searchInput.focus();
+                    searchInput.select();
+                }
+            }
+        });
+        
         function downloadPDF() {
             const currentPath = window.location.pathname;
             if (currentPath.startsWith('/view/')) {
@@ -5933,9 +6318,39 @@ Text with {<!-- -->{blanks}} here.</pre>
             
             // Re-typeset MathJax after content is loaded
             if (typeof MathJax !== 'undefined' && MathJax.typesetPromise) {
-                MathJax.typesetPromise().catch(function(err) {
+                MathJax.typesetPromise().then(function() {
+                    // Process inline-math spans after initial typeset completes
+                    processInlineMath();
+                }).catch(function(err) {
                     console.log('MathJax typeset failed: ' + err.message);
                 });
+            }
+            
+            function processInlineMath() {
+                var inlineMaths = document.querySelectorAll('.inline-math');
+                if (inlineMaths.length === 0) return;
+                
+                inlineMaths.forEach(function(el) {
+                    // Check if already processed by MathJax
+                    if (!el.querySelector('mjx-container')) {
+                        var mathContent = el.getAttribute('data-math');
+                        if (mathContent && MathJax.tex2chtml) {
+                            try {
+                                var node = MathJax.tex2chtml(mathContent, {display: false});
+                                el.innerHTML = '';
+                                el.appendChild(node);
+                            } catch(e) {
+                                console.log('Inline math error:', e);
+                            }
+                        }
+                    }
+                });
+                
+                // Trigger MathJax to update styles for the new nodes
+                if (MathJax.startup && MathJax.startup.document) {
+                    MathJax.startup.document.clear();
+                    MathJax.startup.document.updateDocument();
+                }
             }
             
             // Check for existing annotations and show indicator
@@ -6988,6 +7403,9 @@ def view_file(filepath):
         
         # Convert Obsidian callouts before markdown processing
         md_content = convert_obsidian_callouts(md_content)
+        
+        # Fix list continuation (numbered items after nested bullets)
+        md_content = fix_list_continuation(md_content)
         
         # Protect math expressions before markdown processing
         md_content, math_placeholders = protect_math_expressions(md_content)
@@ -9163,6 +9581,9 @@ def api_download_offline_zip():
                 # Process callouts
                 md_content = convert_obsidian_callouts(md_content)
                 
+                # Fix list continuation (numbered items after nested bullets)
+                md_content = fix_list_continuation(md_content)
+                
                 # Protect math expressions
                 md_content, math_placeholders = protect_math_expressions(md_content)
                 
@@ -9577,6 +9998,9 @@ def api_download_topic_zip(filepath):
             # Process through callouts first
             md_content = convert_obsidian_callouts(md_content)
             
+            # Fix list continuation (numbered items after nested bullets)
+            md_content = fix_list_continuation(md_content)
+            
             # Protect math expressions
             md_content, math_placeholders = protect_math_expressions(md_content)
             
@@ -9781,6 +10205,107 @@ def api_sync_metadata():
 
 
 # ============================================
+# SEARCH API
+# ============================================
+
+@app.route('/api/search')
+def api_search():
+    """Search for files and content in the vault"""
+    query = request.args.get('q', '').strip().lower()
+    search_content = request.args.get('content', 'false').lower() == 'true'
+    limit = int(request.args.get('limit', 50))
+    
+    if not query or len(query) < 2:
+        return jsonify({'success': False, 'error': 'Query too short', 'results': []})
+    
+    results = []
+    query_terms = query.split()
+    
+    for root, dirs, filenames in os.walk(VAULT_PATH):
+        # Skip hidden directories
+        dirs[:] = [d for d in dirs if not d.startswith('.')]
+        
+        for filename in filenames:
+            if filename.startswith('.'):
+                continue
+            
+            full_path = os.path.join(root, filename)
+            rel_path = os.path.relpath(full_path, VAULT_PATH)
+            ext = filename.rsplit('.', 1)[-1].lower() if '.' in filename else ''
+            
+            # Only search viewable files
+            if ext not in ['md', 'pdf', 'txt']:
+                continue
+            
+            filename_lower = filename.lower()
+            path_lower = rel_path.lower()
+            
+            # Calculate filename match score
+            filename_score = 0
+            for term in query_terms:
+                if term in filename_lower:
+                    filename_score += 10
+                    if filename_lower.startswith(term):
+                        filename_score += 5
+                if term in path_lower:
+                    filename_score += 2
+            
+            # Search content for .md files if requested
+            content_match = None
+            content_score = 0
+            if search_content and ext == 'md' and filename_score == 0:
+                try:
+                    with open(full_path, 'r', encoding='utf-8', errors='ignore') as f:
+                        content = f.read(50000)  # Read first 50KB
+                        content_lower = content.lower()
+                        
+                        for term in query_terms:
+                            if term in content_lower:
+                                content_score += 1
+                                # Find snippet
+                                idx = content_lower.find(term)
+                                if idx >= 0 and not content_match:
+                                    start = max(0, idx - 40)
+                                    end = min(len(content), idx + len(term) + 60)
+                                    snippet = content[start:end].strip()
+                                    # Clean up snippet
+                                    snippet = ' '.join(snippet.split())
+                                    if start > 0:
+                                        snippet = '...' + snippet
+                                    if end < len(content):
+                                        snippet = snippet + '...'
+                                    content_match = snippet
+                except:
+                    pass
+            
+            total_score = filename_score + content_score
+            
+            if total_score > 0:
+                result = {
+                    'path': rel_path,
+                    'filename': filename,
+                    'type': ext,
+                    'score': total_score,
+                    'url': f'/view/{rel_path}'
+                }
+                if content_match:
+                    result['snippet'] = content_match
+                results.append(result)
+            
+            if len(results) >= limit * 2:  # Get more than needed for sorting
+                break
+    
+    # Sort by score (highest first) and limit
+    results.sort(key=lambda x: (-x['score'], x['filename'].lower()))
+    results = results[:limit]
+    
+    return jsonify({
+        'success': True,
+        'query': query,
+        'results': results,
+        'total': len(results)
+    })
+
 # PWA / OFFLINE SUPPORT
 # ============================================
 
