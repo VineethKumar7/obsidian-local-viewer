@@ -10958,6 +10958,24 @@ def normalize_mcq(mcq):
     return normalized
 
 
+def normalize_cloze(cloze):
+    """
+    Normalize cloze format from JSON to frontend format.
+    JSON format may have 'text' field, frontend expects 'question'.
+    Also ensures 'answer' field exists for display in mix mode.
+    """
+    normalized = {
+        'question': cloze.get('text', cloze.get('question', '')),
+        'answers': cloze.get('answers', []),
+        'answer': cloze.get('answer', ', '.join(cloze.get('answers', [])))
+    }
+    # Preserve any other fields
+    for k, v in cloze.items():
+        if k not in ('text', 'question', 'answers', 'answer'):
+            normalized[k] = v
+    return normalized
+
+
 @app.route('/api/study/all-cards/<path:filepath>')
 def api_get_all_study_cards(filepath):
     """Get all study cards (flashcards + MCQ + cloze) for a file - JSON first, then MD"""
@@ -10972,7 +10990,7 @@ def api_get_all_study_cards(filepath):
         if study_data:
             flashcards = study_data.get('flashcards', [])
             mcqs = [normalize_mcq(m) for m in study_data.get('mcq', [])]
-            cloze = study_data.get('cloze', [])
+            cloze = [normalize_cloze(c) for c in study_data.get('cloze', [])]
             source = 'json'
         else:
             # Fallback: parse from MD file
