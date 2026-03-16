@@ -4908,9 +4908,14 @@ HTTP is a ==stateless== protocol.</pre>
         let currentSrsMode = 'srs';
         let srsFilePath = '{{ file_path|default("") }}';
         
-        async function rateSrs(cardId, cardType, rating) {
+        async function rateSrs(cardId, cardType, rating, filepath = null) {
             try {
-                const response = await fetch('/api/srs/' + encodeURIComponent(srsFilePath), {
+                const targetPath = filepath || srsFilePath;
+                if (!targetPath) {
+                    console.warn('No SRS path available');
+                    return;
+                }
+                const response = await fetch('/api/srs/' + encodeURIComponent(targetPath), {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ cardId, cardType, rating })
@@ -4923,6 +4928,9 @@ HTTP is a ==stateless== protocol.</pre>
                 console.error('Failed to update SRS:', err);
             }
         }
+        
+        // Track wrong cards in current session for review
+        let sessionWrongCards = [];
         
         function formatInterval(days) {
             if (days < 0.01) return '< 10m';
@@ -5193,6 +5201,27 @@ Text with {<!-- -->{blanks}} here.</pre>
             document.querySelector('.flashcard-progress').style.display = 'none';
         }
         
+        // ===== SESSION WRONG CARDS REVIEW =====
+        function reviewSessionWrongCards() {
+            if (sessionWrongCards.length === 0) {
+                alert('No wrong cards to review!');
+                return;
+            }
+            
+            // Shuffle and restart mix mode with just the wrong cards
+            mixCards = [...sessionWrongCards].sort(() => Math.random() - 0.5);
+            currentMixIndex = 0;
+            mixStats = { correct: 0, wrong: 0 };
+            sessionWrongCards = []; // Clear for this new session
+            currentStudyMode = 'mix';
+            
+            renderMixCard();
+            
+            // Update counter to show review mode
+            const counter = document.getElementById('flashcardCounter');
+            counter.innerHTML = `<span style="color: #ef4444;">🔄 Reviewing Mistakes</span> ${currentMixIndex + 1} / ${mixCards.length}`;
+        }
+        
         // ===== WEAK CARDS MIX MODE =====
         async function startWeakCardsMixMode() {
             try {
@@ -5319,7 +5348,13 @@ Text with {<!-- -->{blanks}} here.</pre>
             else mixStats.wrong++;
             
             const card = mixCards[currentMixIndex];
-            rateSrs(currentMixIndex, card.type, correct ? 3 : 1);
+            const cardId = card.id || `${card.type}-${currentMixIndex}`;
+            rateSrs(cardId, card.type, correct ? 3 : 1, card.filepath);
+            
+            // Track wrong cards for session review
+            if (!correct && !sessionWrongCards.find(c => c.id === card.id && c.filepath === card.filepath)) {
+                sessionWrongCards.push({...card});
+            }
             
             // Show feedback and Next button instead of rating controls
             setTimeout(() => {
@@ -5341,7 +5376,13 @@ Text with {<!-- -->{blanks}} here.</pre>
             else mixStats.wrong++;
             
             const card = mixCards[currentMixIndex];
-            rateSrs(currentMixIndex, card.type, correct ? 3 : 1);
+            const cardId = card.id || `${card.type}-${currentMixIndex}`;
+            rateSrs(cardId, card.type, correct ? 3 : 1, card.filepath);
+            
+            // Track wrong cards for session review
+            if (!correct && !sessionWrongCards.find(c => c.id === card.id && c.filepath === card.filepath)) {
+                sessionWrongCards.push({...card});
+            }
             
             nextMixCard();
         }
@@ -5359,6 +5400,12 @@ Text with {<!-- -->{blanks}} here.</pre>
             const container = document.getElementById('flashcardContainer');
             const total = mixStats.correct + mixStats.wrong;
             const pct = total > 0 ? Math.round((mixStats.correct / total) * 100) : 0;
+            
+            const reviewBtn = sessionWrongCards.length > 0 
+                ? `<button class="flashcard-btn secondary" onclick="reviewSessionWrongCards();" style="margin-top: 12px;">
+                        🔄 Review ${sessionWrongCards.length} Wrong Cards
+                   </button>`
+                : '';
             
             container.innerHTML = `
                 <div class="flashcard-empty">
@@ -5380,6 +5427,7 @@ Text with {<!-- -->{blanks}} here.</pre>
                     <button class="flashcard-btn primary" onclick="closeFlashcards(); openDashboard();">
                         📊 View Dashboard
                     </button>
+                    ${reviewBtn}
                 </div>
             `;
             document.getElementById('flashcardControls').style.display = 'none';
@@ -10821,8 +10869,8 @@ def api_study_dashboard():
                     if card_data.get('box', 1) >= 4 or card_data.get('interval', 0) >= 7:
                         mastered_cards += 1
                     
-                    # Check if weak
-                    if card_data.get('lapses', 0) >= 2 or card_data.get('easeFactor', 2.5) < 2.0:
+                    # Check if weak (lapses >= 1 for immediate feedback)
+                    if card_data.get('lapses', 0) >= 1 or card_data.get('easeFactor', 2.5) < 2.0:
                         weak_cards += 1
         
         # Build heatmap (last 30 days)
@@ -10989,9 +11037,9 @@ def api_get_weak_cards():
         for srs_data in scan_all_srs_files():
             filepath = srs_data.get('filePath', '')
             for card_key, card_data in srs_data.get('cards', {}).items():
-                # Card is weak if: lapses >= 2 OR easeFactor < 2.0 OR focusStreak < 3 after lapses
-                if card_data.get('lapses', 0) >= 2 or card_data.get('easeFactor', 2.5) < 2.0:
-                    # Only include if not yet graduated from focus mode
+                # Card is weak if: lapses >= 1 OR easeFactor < 2.0 (lowered threshold for better tracking)
+                if card_data.get('lapses', 0) >= 1 or card_data.get('easeFactor', 2.5) < 2.0:
+                    # Only include if not yet graduated from focus mode (need 3 correct in a row)
                     if card_data.get('focusStreak', 0) < 3:
                         weak_cards.append({
                             'filepath': filepath,
@@ -11019,7 +11067,8 @@ def api_get_weak_cards_full():
         for srs_data in scan_all_srs_files():
             filepath = srs_data.get('filePath', '')
             for card_key, card_data in srs_data.get('cards', {}).items():
-                if card_data.get('lapses', 0) >= 2 or card_data.get('easeFactor', 2.5) < 2.0:
+                # Card is weak if: lapses >= 1 OR easeFactor < 2.0 (lowered threshold)
+                if card_data.get('lapses', 0) >= 1 or card_data.get('easeFactor', 2.5) < 2.0:
                     if card_data.get('focusStreak', 0) < 3:
                         if filepath not in weak_refs:
                             weak_refs[filepath] = []
