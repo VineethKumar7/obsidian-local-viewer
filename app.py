@@ -754,10 +754,64 @@ def parse_summary(content):
     return summary if summary['sections'] or summary['keyTerms'] else None
 
 
+def find_backlinks(filepath):
+    """
+    Find all MD files that link to the given file (backlinks).
+    Searches for [[filename]] or [[path/to/filename]] patterns.
+    """
+    current_filename = os.path.basename(filepath)
+    current_name = current_filename.replace('.md', '')
+    backlinks = []
+    
+    # Patterns to search for
+    # [[filename]] or [[filename|alias]] or [[path/filename]]
+    search_patterns = [
+        f'[[{current_name}]]',
+        f'[[{current_name}|',
+        f'[[{current_name}#',
+        f'/{current_name}]]',
+        f'/{current_name}|',
+        f'/{current_name}#',
+    ]
+    
+    # Walk through all MD files in vault
+    for root, dirs, files in os.walk(VAULT_PATH):
+        # Skip hidden directories
+        dirs[:] = [d for d in dirs if not d.startswith('.')]
+        
+        for filename in files:
+            if not filename.endswith('.md'):
+                continue
+            
+            file_path = os.path.join(root, filename)
+            rel_path = os.path.relpath(file_path, VAULT_PATH)
+            
+            # Don't include self
+            if rel_path == filepath:
+                continue
+            
+            try:
+                with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    content = f.read()
+                
+                # Check if any pattern matches
+                for pattern in search_patterns:
+                    if pattern in content:
+                        backlinks.append({
+                            'name': filename.replace('.md', ''),
+                            'path': rel_path
+                        })
+                        break  # Found a match, no need to check other patterns
+            except Exception:
+                pass
+    
+    return backlinks
+
+
 def get_page_navigation(filepath):
     """
     Get navigation links for a page:
-    - parent: The parent folder (one level up)
+    - parents: MD files that link TO this page (backlinks)
     - siblings: Other MD files in the same folder
     - children: MD files in a 'subpages' subfolder or any immediate subfolder
     """
@@ -767,21 +821,13 @@ def get_page_navigation(filepath):
     current_name = current_filename.replace('.md', '')
     
     nav = {
-        'parent': None,
+        'parents': [],  # Changed from 'parent' to 'parents' (multiple backlinks)
         'siblings': [],
         'children': []
     }
     
-    # Get parent (go up one directory level)
-    parent_dir = os.path.dirname(current_dir)
-    if parent_dir and os.path.abspath(parent_dir).startswith(os.path.abspath(VAULT_PATH)):
-        parent_rel = os.path.relpath(parent_dir, VAULT_PATH)
-        parent_name = os.path.basename(parent_dir)
-        if parent_rel != '.':
-            nav['parent'] = {
-                'name': parent_name,
-                'path': parent_rel
-            }
+    # Get parents (backlinks - files that reference this page)
+    nav['parents'] = find_backlinks(filepath)
     
     # Get siblings (other MD files in the same directory)
     try:
@@ -830,24 +876,24 @@ def get_page_navigation(filepath):
 
 def render_page_navigation(nav, current_dir):
     """Render the navigation HTML"""
-    if not nav['parent'] and not nav['siblings'] and not nav['children']:
+    if not nav['parents'] and not nav['siblings'] and not nav['children']:
         return ''
     
     html_parts = ['<div class="page-navigation">']
     html_parts.append('<h3>📍 Navigation</h3>')
     
-    # Parent link
-    if nav['parent']:
-        # Link to folder view or first file in parent
-        parent_path = nav['parent']['path']
-        html_parts.append(f'''
-        <div class="nav-section">
-            <h4>⬆️ Parent</h4>
-            <ul>
-                <li><a href="/view/{parent_path}" class="nav-link parent-link">📁 {nav['parent']['name']}</a></li>
-            </ul>
-        </div>
-        ''')
+    # Parent links (backlinks - pages that reference this page)
+    if nav['parents']:
+        html_parts.append('<div class="nav-section">')
+        count = len(nav['parents'])
+        html_parts.append(f'<h4>⬆️ Referenced By ({count} {"page" if count == 1 else "pages"})</h4>')
+        html_parts.append('<ul class="parents-list">')
+        for parent in nav['parents'][:10]:  # Limit to 10
+            html_parts.append(f'<li><a href="/view/{parent["path"]}" class="nav-link parent-link">📄 {parent["name"]}</a></li>')
+        if len(nav['parents']) > 10:
+            html_parts.append(f'<li class="more-items">+{len(nav["parents"]) - 10} more...</li>')
+        html_parts.append('</ul>')
+        html_parts.append('</div>')
     
     # Siblings (Related pages)
     if nav['siblings']:
