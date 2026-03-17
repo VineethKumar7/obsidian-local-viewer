@@ -754,6 +754,129 @@ def parse_summary(content):
     return summary if summary['sections'] or summary['keyTerms'] else None
 
 
+def get_page_navigation(filepath):
+    """
+    Get navigation links for a page:
+    - parent: The parent folder (one level up)
+    - siblings: Other MD files in the same folder
+    - children: MD files in a 'subpages' subfolder or any immediate subfolder
+    """
+    full_path = os.path.join(VAULT_PATH, filepath)
+    current_dir = os.path.dirname(full_path)
+    current_filename = os.path.basename(filepath)
+    current_name = current_filename.replace('.md', '')
+    
+    nav = {
+        'parent': None,
+        'siblings': [],
+        'children': []
+    }
+    
+    # Get parent (go up one directory level)
+    parent_dir = os.path.dirname(current_dir)
+    if parent_dir and os.path.abspath(parent_dir).startswith(os.path.abspath(VAULT_PATH)):
+        parent_rel = os.path.relpath(parent_dir, VAULT_PATH)
+        parent_name = os.path.basename(parent_dir)
+        if parent_rel != '.':
+            nav['parent'] = {
+                'name': parent_name,
+                'path': parent_rel
+            }
+    
+    # Get siblings (other MD files in the same directory)
+    try:
+        for entry in sorted(os.listdir(current_dir)):
+            if entry.endswith('.md') and entry != current_filename:
+                entry_path = os.path.relpath(os.path.join(current_dir, entry), VAULT_PATH)
+                nav['siblings'].append({
+                    'name': entry.replace('.md', ''),
+                    'path': entry_path
+                })
+    except Exception:
+        pass
+    
+    # Get children (MD files in 'subpages' subfolder or any subfolder)
+    subpages_dir = os.path.join(current_dir, 'subpages')
+    if os.path.isdir(subpages_dir):
+        try:
+            for entry in sorted(os.listdir(subpages_dir)):
+                if entry.endswith('.md'):
+                    entry_path = os.path.relpath(os.path.join(subpages_dir, entry), VAULT_PATH)
+                    nav['children'].append({
+                        'name': entry.replace('.md', ''),
+                        'path': entry_path
+                    })
+        except Exception:
+            pass
+    
+    # Also check for a subfolder with the same name as the current file
+    same_name_dir = os.path.join(current_dir, current_name)
+    if os.path.isdir(same_name_dir):
+        try:
+            for entry in sorted(os.listdir(same_name_dir)):
+                if entry.endswith('.md'):
+                    entry_path = os.path.relpath(os.path.join(same_name_dir, entry), VAULT_PATH)
+                    # Avoid duplicates
+                    if not any(c['path'] == entry_path for c in nav['children']):
+                        nav['children'].append({
+                            'name': entry.replace('.md', ''),
+                            'path': entry_path
+                        })
+        except Exception:
+            pass
+    
+    return nav
+
+
+def render_page_navigation(nav, current_dir):
+    """Render the navigation HTML"""
+    if not nav['parent'] and not nav['siblings'] and not nav['children']:
+        return ''
+    
+    html_parts = ['<div class="page-navigation">']
+    html_parts.append('<h3>📍 Navigation</h3>')
+    
+    # Parent link
+    if nav['parent']:
+        # Link to folder view or first file in parent
+        parent_path = nav['parent']['path']
+        html_parts.append(f'''
+        <div class="nav-section">
+            <h4>⬆️ Parent</h4>
+            <ul>
+                <li><a href="/view/{parent_path}" class="nav-link parent-link">📁 {nav['parent']['name']}</a></li>
+            </ul>
+        </div>
+        ''')
+    
+    # Siblings (Related pages)
+    if nav['siblings']:
+        html_parts.append('<div class="nav-section">')
+        html_parts.append(f'<h4>📄 Related ({len(nav["siblings"])} siblings)</h4>')
+        html_parts.append('<ul class="siblings-list">')
+        for sibling in nav['siblings'][:15]:  # Limit to 15
+            html_parts.append(f'<li><a href="/view/{sibling["path"]}" class="nav-link sibling-link">{sibling["name"]}</a></li>')
+        if len(nav['siblings']) > 15:
+            html_parts.append(f'<li class="more-items">+{len(nav["siblings"]) - 15} more...</li>')
+        html_parts.append('</ul>')
+        html_parts.append('</div>')
+    
+    # Children (Subpages)
+    if nav['children']:
+        html_parts.append('<div class="nav-section">')
+        html_parts.append(f'<h4>📂 Subpages ({len(nav["children"])})</h4>')
+        html_parts.append('<ul class="children-list">')
+        for child in nav['children'][:20]:  # Limit to 20
+            html_parts.append(f'<li><a href="/view/{child["path"]}" class="nav-link child-link">{child["name"]}</a></li>')
+        if len(nav['children']) > 20:
+            html_parts.append(f'<li class="more-items">+{len(nav["children"]) - 20} more...</li>')
+        html_parts.append('</ul>')
+        html_parts.append('</div>')
+    
+    html_parts.append('</div>')
+    return '\n'.join(html_parts)
+
+
 HTML_TEMPLATE = '''
 <!DOCTYPE html>
 <html>
@@ -1857,6 +1980,141 @@ HTML_TEMPLATE = '''
         }
         .content strong { color: #1a1a1a; }
         .content hr { border: none; border-top: 2px solid #eee; margin: 30px 0; }
+        
+        /* Page Navigation Section */
+        .page-navigation {
+            margin-top: 60px;
+            padding-top: 30px;
+            border-top: 2px solid #e5e7eb;
+            background: linear-gradient(to bottom, #f9fafb, #ffffff);
+            border-radius: 12px;
+            padding: 24px;
+        }
+        .page-navigation h3 {
+            font-size: 18px;
+            font-weight: 600;
+            color: #374151;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .page-navigation .nav-section {
+            margin-bottom: 20px;
+        }
+        .page-navigation .nav-section:last-child {
+            margin-bottom: 0;
+        }
+        .page-navigation h4 {
+            font-size: 14px;
+            font-weight: 600;
+            color: #6b7280;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .page-navigation ul {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .page-navigation .nav-link {
+            display: inline-block;
+            padding: 6px 12px;
+            background: #f3f4f6;
+            border-radius: 6px;
+            color: #374151;
+            text-decoration: none;
+            font-size: 13px;
+            transition: all 0.2s ease;
+            border: 1px solid transparent;
+        }
+        .page-navigation .nav-link:hover {
+            background: #e5e7eb;
+            border-color: #d1d5db;
+            text-decoration: none;
+        }
+        .page-navigation .parent-link {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        .page-navigation .parent-link:hover {
+            background: #bfdbfe;
+            border-color: #93c5fd;
+        }
+        .page-navigation .sibling-link {
+            background: #f3e8ff;
+            color: #6b21a8;
+        }
+        .page-navigation .sibling-link:hover {
+            background: #e9d5ff;
+            border-color: #d8b4fe;
+        }
+        .page-navigation .child-link {
+            background: #dcfce7;
+            color: #166534;
+        }
+        .page-navigation .child-link:hover {
+            background: #bbf7d0;
+            border-color: #86efac;
+        }
+        .page-navigation .more-items {
+            color: #9ca3af;
+            font-size: 12px;
+            padding: 6px 12px;
+            font-style: italic;
+        }
+        .page-navigation .siblings-list,
+        .page-navigation .children-list {
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        /* Dark theme for navigation */
+        body.dark-theme .page-navigation {
+            background: linear-gradient(to bottom, #1f2937, #111827);
+            border-top-color: #374151;
+        }
+        body.dark-theme .page-navigation h3 {
+            color: #e5e7eb;
+            border-bottom-color: #374151;
+        }
+        body.dark-theme .page-navigation h4 {
+            color: #9ca3af;
+        }
+        body.dark-theme .page-navigation .nav-link {
+            background: #374151;
+            color: #e5e7eb;
+        }
+        body.dark-theme .page-navigation .nav-link:hover {
+            background: #4b5563;
+            border-color: #6b7280;
+        }
+        body.dark-theme .page-navigation .parent-link {
+            background: #1e3a5f;
+            color: #93c5fd;
+        }
+        body.dark-theme .page-navigation .parent-link:hover {
+            background: #1e40af;
+        }
+        body.dark-theme .page-navigation .sibling-link {
+            background: #3b0764;
+            color: #d8b4fe;
+        }
+        body.dark-theme .page-navigation .sibling-link:hover {
+            background: #581c87;
+        }
+        body.dark-theme .page-navigation .child-link {
+            background: #14532d;
+            color: #86efac;
+        }
+        body.dark-theme .page-navigation .child-link:hover {
+            background: #166534;
+        }
+        body.dark-theme .page-navigation .more-items {
+            color: #6b7280;
+        }
         
         /* Nested folders - legacy, now using folder-children */
         .nested { display: none; }
@@ -4023,7 +4281,7 @@ HTML_TEMPLATE = '''
         // ============================================
         // METADATA FUNCTIONS
         // ============================================
-        const metadataFilePath = '{{ file_path|default("") }}';
+        const metadataFilePath = '{{ file_path|default("")|safe }}';
         
         function openMetadataModal() {
             const modal = document.getElementById('metadataModal');
@@ -4185,7 +4443,7 @@ HTML_TEMPLATE = '''
         let flashcardStats = { correct: 0, wrong: 0 };
         
         async function openFlashcards() {
-            const filePath = '{{ file_path|default("") }}';
+            const filePath = '{{ file_path|default("")|safe }}';
             if (!filePath) {
                 alert('No file loaded');
                 return;
@@ -4451,7 +4709,7 @@ A: LITA - Link, Internet, Transport, Application</pre>
         let mcqPreviousScore = null;
         
         async function openMcq() {
-            const filepath = '{{ file_path|default("") }}';
+            const filepath = '{{ file_path|default("")|safe }}';
             if (!filepath) {
                 showMcqError('No file selected', 'Open a markdown file first to access MCQs.');
                 document.getElementById('mcqModal').classList.add('visible');
@@ -4614,7 +4872,7 @@ Q: Which port does HTTP use?
             const percentage = Math.round((mcqScore.correct / total) * 100);
             
             // Save score
-            const filepath = '{{ file_path|default("") }}';
+            const filepath = '{{ file_path|default("")|safe }}';
             try {
                 await fetch('/api/mcq-score/' + encodeURIComponent(filepath), {
                     method: 'POST',
@@ -4718,7 +4976,7 @@ Q: Which port does HTTP use?
         let currentStudyMode = 'flashcard'; // 'flashcard', 'cloze', 'mix'
         
         async function openCloze() {
-            const filePath = '{{ file_path|default("") }}';
+            const filePath = '{{ file_path|default("")|safe }}';
             if (!filePath) {
                 alert('No file loaded');
                 return;
@@ -4906,7 +5164,7 @@ HTTP is a ==stateless== protocol.</pre>
         
         // ===== SRS RATING SYSTEM =====
         let currentSrsMode = 'srs';
-        let srsFilePath = '{{ file_path|default("") }}';
+        let srsFilePath = '{{ file_path|default("")|safe }}';
         
         async function rateSrs(cardId, cardType, rating, filepath = null) {
             try {
@@ -5150,7 +5408,7 @@ HTTP is a ==stateless== protocol.</pre>
         let mixStats = { correct: 0, wrong: 0 };
         
         async function openMixMode() {
-            const filePath = '{{ file_path|default("") }}';
+            const filePath = '{{ file_path|default("")|safe }}';
             if (!filePath) {
                 alert('No file loaded');
                 return;
@@ -5729,7 +5987,7 @@ Text with {<!-- -->{blanks}} here.</pre>
         
         // ===== SUMMARY VIEW =====
         async function openSummary() {
-            const filePath = '{{ file_path|default("") }}';
+            const filePath = '{{ file_path|default("")|safe }}';
             if (!filePath) return;
             
             try {
@@ -5788,7 +6046,7 @@ Text with {<!-- -->{blanks}} here.</pre>
 
         // ===== EXAM MODE =====
         function openExamMode() {
-            const filePath = '{{ file_path|default("") }}';
+            const filePath = '{{ file_path|default("")|safe }}';
             if (!filePath) return;
             
             // Navigate to exam simulation page
@@ -7536,11 +7794,15 @@ def view_file(filepath):
         revision_badge = f'<span class="meta-badge revision" title="Revision count">🔄 Rev {display_meta["revision_count"]}</span>' if display_meta['revision_count'] > 0 else ''
         title_html = f'<div class="title-with-meta"><h1>{filename.replace(".md", "")}</h1><div class="meta-badges">{completed_badge}{revision_badge}</div></div>'
         
+        # Generate page navigation (parent, siblings, children)
+        nav_data = get_page_navigation(filepath)
+        nav_html = render_page_navigation(nav_data, current_dir)
+        
         return render_template_string(
             HTML_TEMPLATE, 
             title=filename, 
             tree=tree, 
-            content=title_html + html_content,
+            content=title_html + html_content + nav_html,
             vault_name=get_vault_name(),
             is_markdown=True,
             file_path=filepath,
