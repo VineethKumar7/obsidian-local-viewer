@@ -4021,7 +4021,6 @@ HTML_TEMPLATE = '''
     </button>
     
     <div class="toolbar">
-        <button class="secondary" id="calloutToggle" onclick="toggleAllCallouts()" title="Collapse/Expand All Callouts">📂</button>
         <button class="secondary theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle Dark/Light Theme">🌙</button>
         <button class="secondary" onclick="toggleFullscreen()" title="Toggle Fullscreen">⛶</button>
         <div class="toolbar-menu">
@@ -4046,6 +4045,7 @@ HTML_TEMPLATE = '''
                 {% endif %}
                 <button onclick="openMetadataModal(); closeToolbarMenu();" title="File Metadata">ℹ️ Info</button>
                 <button onclick="syncMetadata(); closeToolbarMenu();" title="Sync metadata to index tables">🔄 Sync</button>
+                <button id="calloutToggle" onclick="toggleAllCallouts(); closeToolbarMenu();" title="Collapse/Expand All Callouts">📂 Collapse All</button>
             </div>
         </div>
     </div>
@@ -6322,13 +6322,17 @@ Text with {<!-- -->{blanks}} here.</pre>
             if (calloutsExpanded) {
                 // Collapse all
                 details.forEach(d => d.removeAttribute('open'));
-                btn.textContent = '📁';
-                btn.title = 'Expand All Callouts';
+                if (btn) {
+                    btn.innerHTML = '📁 Expand All';
+                    btn.title = 'Expand All Callouts';
+                }
             } else {
                 // Expand all
                 details.forEach(d => d.setAttribute('open', ''));
-                btn.textContent = '📂';
-                btn.title = 'Collapse All Callouts';
+                if (btn) {
+                    btn.innerHTML = '📂 Collapse All';
+                    btn.title = 'Collapse All Callouts';
+                }
             }
             calloutsExpanded = !calloutsExpanded;
         }
