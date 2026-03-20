@@ -263,6 +263,15 @@ def convert_obsidian_callouts(content):
             # This ensures tables, code blocks, etc. inside callouts are rendered
             callout_md = '\n'.join(content_lines)
             
+            # Fix lists that follow paragraphs without blank lines
+            callout_md = fix_lists_after_paragraphs(callout_md)
+            
+            # Preserve line breaks for equation continuations (lines starting with =)
+            callout_md = fix_equation_line_breaks(callout_md)
+            
+            # Convert common math notations like e^(...) to LaTeX
+            callout_md = convert_inline_math_notation(callout_md)
+            
             # Protect math expressions inside callouts before markdown processing
             callout_md, callout_math_placeholders = protect_math_expressions(callout_md)
             
@@ -290,10 +299,77 @@ def convert_obsidian_callouts(content):
             
             result.append('')  # Add blank line after callout
         else:
-            result.append(line)
+            # Convert horizontal rules and headings to HTML directly
+            # (markdown parser struggles with these after HTML blocks)
+            if re.match(r'^-{3,}$', line.strip()):
+                result.append('<hr class="section-divider">')
+            elif re.match(r'^#{1,6}\s+', line):
+                heading_match = re.match(r'^(#{1,6})\s+(.+)$', line)
+                if heading_match:
+                    level = len(heading_match.group(1))
+                    text = process_inline_markdown(heading_match.group(2))
+                    result.append(f'<h{level}>{text}</h{level}>')
+                else:
+                    result.append(line)
+            # Handle tables (markdown parser struggles with tables after HTML)
+            elif line.strip().startswith('|') and '|' in line[1:]:
+                # Collect all table lines
+                table_lines = [line]
+                i += 1
+                while i < len(lines) and lines[i].strip().startswith('|'):
+                    table_lines.append(lines[i])
+                    i += 1
+                # Convert table to HTML
+                table_html = convert_markdown_table(table_lines)
+                result.append(table_html)
+                continue  # Skip the i += 1 at end since we already incremented
+            else:
+                # Process inline markdown (bold, italic, code) on regular lines
+                result.append(process_inline_markdown(line))
             i += 1
     
     return '\n'.join(result)
+
+
+def process_inline_markdown(text):
+    """Process inline markdown: bold, italic, code, links."""
+    # Code (must be before bold/italic to avoid conflicts)
+    text = re.sub(r'`([^`]+)`', r'<code>\1</code>', text)
+    # Bold
+    text = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', text)
+    # Italic
+    text = re.sub(r'\*(.+?)\*', r'<em>\1</em>', text)
+    return text
+
+
+def convert_markdown_table(lines):
+    """Convert markdown table lines to HTML table."""
+    if len(lines) < 2:
+        return '\n'.join(lines)
+    
+    html = ['<table>']
+    
+    # First line is header
+    header_cells = [cell.strip() for cell in lines[0].split('|')[1:-1]]
+    html.append('<thead><tr>')
+    for cell in header_cells:
+        html.append(f'<th>{process_inline_markdown(cell)}</th>')
+    html.append('</tr></thead>')
+    
+    # Skip separator line (line with |---|---|)
+    # Process data rows
+    html.append('<tbody>')
+    for line in lines[2:]:  # Skip header and separator
+        if line.strip():
+            cells = [cell.strip() for cell in line.split('|')[1:-1]]
+            html.append('<tr>')
+            for cell in cells:
+                html.append(f'<td>{process_inline_markdown(cell)}</td>')
+            html.append('</tr>')
+    html.append('</tbody>')
+    html.append('</table>')
+    
+    return '\n'.join(html)
 
 def fix_list_continuation(content):
     """
@@ -312,8 +388,61 @@ def fix_list_continuation(content):
     replacement = r'\1\n\n\2'
     return re.sub(pattern, replacement, content, flags=re.MULTILINE)
 
+def fix_lists_after_paragraphs(content):
+    """
+    Fix markdown list parsing by adding blank lines before lists that follow paragraphs.
+    
+    Markdown requires a blank line before lists for proper parsing.
+    This adds a blank line when a list item (- or * or + or 1.) directly follows
+    a line of text that doesn't end with a colon followed by newline.
+    """
+    import re
+    # Pattern: non-empty line (not a list item) followed directly by a list item
+    # (?![-*+\d]) ensures the previous line isn't already a list item
+    # This handles: "some text:\n- item" -> "some text:\n\n- item"
+    pattern = r'(^[^\n]*[^\s])\n([-*+] |\d+\. )'
+    replacement = r'\1\n\n\2'
+    return re.sub(pattern, replacement, content, flags=re.MULTILINE)
+
+def fix_equation_line_breaks(content):
+    """
+    Preserve line breaks for equation-like content.
+    
+    Lines starting with = or mathematical operators that follow other content
+    should have <br> tags to preserve the multi-line formatting.
+    This handles step-by-step equation solutions.
+    """
+    import re
+    # Add two trailing spaces (markdown line break) before lines starting with =
+    # Pattern: end of line followed by line starting with = (equation continuation)
+    pattern = r'(\S)\n(= )'
+    replacement = r'\1  \n\2'
+    return re.sub(pattern, replacement, content, flags=re.MULTILINE)
+
+def convert_inline_math_notation(content):
+    """
+    Convert common mathematical notations to LaTeX for MathJax rendering.
+    
+    Patterns converted:
+    - e^(...) -> $e^{...}$  (exponential)
+    - e^-... -> $e^{-...}$  (negative exponential without parens)
+    """
+    import re
+    # Convert e^(...) to $e^{...}$
+    # Handles e^(-0.542), e^(x), e^(-S_KL), etc.
+    content = re.sub(r'\be\^[\(]([^\)]+)[\)]', r'$e^{\1}$', content)
+    
+    # Convert e^-number (without parens) to $e^{-number}$
+    # Handles e^-0.542, e^-x, etc.
+    content = re.sub(r'\be\^(-?[\d\.]+)\b', r'$e^{\1}$', content)
+    
+    return content
+
 def protect_math_expressions(content):
     """Protect LaTeX math expressions from markdown processing"""
+    # First, convert common math notations like e^(...) to LaTeX
+    content = convert_inline_math_notation(content)
+    
     placeholders = {}
     counter = [0]  # Use list to allow modification in nested function
     
@@ -345,11 +474,9 @@ def restore_math_expressions(content, placeholders):
             # Display math - keep as-is, MathJax handles these well
             content = content.replace(placeholder, original)
         elif original.startswith('$') and original.endswith('$'):
-            # Inline math - wrap in span for reliable processing
-            # Use data attribute to store the math for JS processing
-            inner = original[1:-1]  # Remove $ delimiters
-            wrapped = f'<span class="inline-math" data-math="{inner}">\\({inner}\\)</span>'
-            content = content.replace(placeholder, wrapped)
+            # Inline math - keep original $...$ format for MathJax to process
+            # MathJax natively handles $...$ delimiters
+            content = content.replace(placeholder, original)
         else:
             content = content.replace(placeholder, original)
     return content
@@ -3894,6 +4021,7 @@ HTML_TEMPLATE = '''
     </button>
     
     <div class="toolbar">
+        <button class="secondary" id="calloutToggle" onclick="toggleAllCallouts()" title="Collapse/Expand All Callouts">📂</button>
         <button class="secondary theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle Dark/Light Theme">🌙</button>
         <button class="secondary" onclick="toggleFullscreen()" title="Toggle Fullscreen">⛶</button>
         <div class="toolbar-menu">
@@ -6184,6 +6312,27 @@ Text with {<!-- -->{blanks}} here.</pre>
             }
         }
         
+        // ===== CALLOUT TOGGLE =====
+        let calloutsExpanded = true;  // Track state
+        
+        function toggleAllCallouts() {
+            const details = document.querySelectorAll('details.callout');
+            const btn = document.getElementById('calloutToggle');
+            
+            if (calloutsExpanded) {
+                // Collapse all
+                details.forEach(d => d.removeAttribute('open'));
+                btn.textContent = '📁';
+                btn.title = 'Expand All Callouts';
+            } else {
+                // Expand all
+                details.forEach(d => d.setAttribute('open', ''));
+                btn.textContent = '📂';
+                btn.title = 'Collapse All Callouts';
+            }
+            calloutsExpanded = !calloutsExpanded;
+        }
+        
         // ===== THEME TOGGLE =====
         function toggleTheme() {
             const body = document.body;
@@ -6744,26 +6893,23 @@ Text with {<!-- -->{blanks}} here.</pre>
                 var inlineMaths = document.querySelectorAll('.inline-math');
                 if (inlineMaths.length === 0) return;
                 
+                // Convert inline-math spans to proper MathJax-processable format
                 inlineMaths.forEach(function(el) {
                     // Check if already processed by MathJax
                     if (!el.querySelector('mjx-container')) {
                         var mathContent = el.getAttribute('data-math');
-                        if (mathContent && MathJax.tex2chtml) {
-                            try {
-                                var node = MathJax.tex2chtml(mathContent, {display: false});
-                                el.innerHTML = '';
-                                el.appendChild(node);
-                            } catch(e) {
-                                console.log('Inline math error:', e);
-                            }
+                        if (mathContent) {
+                            // Set text content with delimiters for MathJax to process
+                            el.textContent = '\\(' + mathContent + '\\)';
                         }
                     }
                 });
                 
-                // Trigger MathJax to update styles for the new nodes
-                if (MathJax.startup && MathJax.startup.document) {
-                    MathJax.startup.document.clear();
-                    MathJax.startup.document.updateDocument();
+                // Re-typeset the inline math elements
+                if (typeof MathJax !== 'undefined' && MathJax.typesetPromise) {
+                    MathJax.typesetPromise(Array.from(inlineMaths)).catch(function(e) {
+                        console.log('Inline math typeset error:', e);
+                    });
                 }
             }
             
