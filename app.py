@@ -327,8 +327,10 @@ def protect_math_expressions(content):
     content = re.sub(r'\$\$[\s\S]*?\$\$', replace_math, content)
     
     # Protect inline math ($...$) - but not double dollars
-    # Match $ followed by non-space, content, non-space, $
-    content = re.sub(r'(?<!\$)\$(?!\$)(?!\s)(.+?)(?<!\s)(?<!\$)\$(?!\$)', replace_math, content)
+    # More permissive regex to handle math inside tables and complex expressions
+    # Match $ followed by content (can start/end with backslash for LaTeX), $
+    # Allow expressions like $\tilde{P}_{D_i}(w)$ inside tables
+    content = re.sub(r'(?<!\$)\$(?!\$)([^\$\n]+?)(?<!\$)\$(?!\$)', replace_math, content)
     
     return content, placeholders
 
