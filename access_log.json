@@ -19,53 +19,53 @@
     },
     "192.168.178.23": {
       "first_seen": "2026-02-17 16:26:18",
-      "last_seen": "2026-03-17 10:32:39",
-      "count": 2261,
+      "last_seen": "2026-03-22 18:48:41",
+      "count": 4573,
       "paths": [
-        "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-13.png",
-        "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-14.png",
-        "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-15.png",
-        "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-16.png",
-        "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-17.png",
-        "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-18.png",
-        "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-19.png",
-        "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-20.png",
-        "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-21.png",
-        "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-22.png"
+        "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-07.png",
+        "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-08.png",
+        "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-09.png",
+        "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-10.png",
+        "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-11.png",
+        "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-12.png",
+        "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-13.png",
+        "/raw/7 Week  - Generative Models & Graph/img/Pasted image 20250126192350.png",
+        "/api/study/settings",
+        "/manifest.json"
       ]
     },
     "192.168.178.27": {
       "first_seen": "2026-02-18 07:58:29",
-      "last_seen": "2026-03-16 19:06:55",
-      "count": 538,
+      "last_seen": "2026-03-17 13:15:19",
+      "count": 677,
       "paths": [
-        "/raw/Course work/img/Pasted image 20241219202536.png",
-        "/raw/Course work/img/Pasted image 20241219203330.png",
-        "/raw/Course work/img/Pasted image 20241219182025.png",
-        "/raw/Course work/img/Pasted image 20241219203344.png",
-        "/raw/Course work/img/Pasted image 20241219182926.png",
-        "/raw/Course work/img/Pasted image 20241219182532.png",
-        "/raw/Course work/img/Pasted image 20241219202432.png",
-        "/api/study/settings",
-        "/api/annotations/Week 1 - Ethernet/subpages/Ethernet header.md",
-        "/manifest.json"
+        "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Probabilistic_Simulated_Generative_Modeling/02-learning-objectives.jpg",
+        "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Probabilistic_Simulated_Generative_Modeling/12-histogram-p0192.jpg",
+        "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Probabilistic_Simulated_Generative_Modeling/13-histogram-p0193.jpg",
+        "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Probabilistic_Simulated_Generative_Modeling/11-parameter-table.jpg",
+        "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Probabilistic_Simulated_Generative_Modeling/03-goal-explain-size.jpg",
+        "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Probabilistic_Simulated_Generative_Modeling/16-seven-steps.jpg",
+        "/api/annotations/5 Week  - Size of Web & Descriptive/subpages/An unrealistic, simplistic generative model.md",
+        "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Probabilistic_Simulated_Generative_Modeling/14-100-runs-curve.jpg",
+        "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Probabilistic_Simulated_Generative_Modeling/01-title.jpg",
+        "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Probabilistic_Simulated_Generative_Modeling/15-conclusions.jpg"
       ]
     },
     "127.0.0.1": {
       "first_seen": "2026-02-20 09:19:41",
-      "last_seen": "2026-03-17 10:05:38",
-      "count": 1741,
+      "last_seen": "2026-03-22 21:10:25",
+      "count": 5542,
       "paths": [
-        "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/3_ways_to_look_at_the_World_Wide_Web/slide-06.png",
+        "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-06.png",
         "/api/study/settings",
-        "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/3_ways_to_look_at_the_World_Wide_Web/slide-07.png",
-        "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/3_ways_to_look_at_the_World_Wide_Web/slide-08.png",
-        "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/3_ways_to_look_at_the_World_Wide_Web/slide-09.png",
-        "/raw/7 Week  - Generative Models & Graph/img/Pasted image 20250126101859.png",
-        "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/3_ways_to_look_at_the_World_Wide_Web/slide-10.png",
-        "/raw/7 Week  - Generative Models & Graph/img/Pasted image 20250126101915.png",
-        "/api/annotations/5 Week  - Size of Web & Descriptive/subpages/3 ways to study the Web.md",
-        "/"
+        "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-07.png",
+        "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-08.png",
+        "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-09.png",
+        "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-10.png",
+        "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-11.png",
+        "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-12.png",
+        "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-13.png",
+        "/raw/7 Week  - Generative Models & Graph/img/Pasted image 20250126192350.png"
       ]
     },
     "192.168.0.40": {
@@ -82,508 +82,521 @@
         "/raw/Week 7 Modeling Similari/img/Pasted image 20250125182130.png",
         "/api/annotations/Week 5 - Dynamic Web Content - Size of Web/subpages/Basics of server side web programming.md"
       ]
+    },
+    "192.168.178.37": {
+      "first_seen": "2026-03-17 19:31:28",
+      "last_seen": "2026-03-17 19:31:40",
+      "count": 8,
+      "paths": [
+        "/",
+        "/api/study/settings",
+        "/view/07-Celery-Jobs.md",
+        "/api/annotations/07-Celery-Jobs.md",
+        "/view/00-BEGINNER-GUIDE.md",
+        "/api/annotations/00-BEGINNER-GUIDE.md"
+      ]
     }
   },
   "recent": [
     {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-23.png",
-      "time": "2026-03-17 08:14:30"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-24.png",
-      "time": "2026-03-17 08:14:30"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-25.png",
-      "time": "2026-03-17 08:14:30"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-26.png",
-      "time": "2026-03-17 08:14:30"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-27.png",
-      "time": "2026-03-17 08:14:30"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-28.png",
-      "time": "2026-03-17 08:14:30"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-29.png",
-      "time": "2026-03-17 08:14:30"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/raw/7 Week  - Generative Models & Graph/img/Pasted image 20250126103515.png",
-      "time": "2026-03-17 08:14:30"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/api/annotations/5 Week  - Size of Web & Descriptive/subpages/A simplistic descriptive model.md",
-      "time": "2026-03-17 08:14:30"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/manifest.json",
-      "time": "2026-03-17 08:14:30"
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-10.png",
+      "time": "2026-03-22 17:22:18"
     },
     {
       "ip": "127.0.0.1",
-      "path": "/",
-      "time": "2026-03-17 10:05:38"
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-11.png",
+      "time": "2026-03-22 17:22:18"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-12.png",
+      "time": "2026-03-22 17:22:18"
     },
     {
       "ip": "127.0.0.1",
       "path": "/api/study/settings",
-      "time": "2026-03-17 10:05:38"
+      "time": "2026-03-22 17:22:18"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/",
-      "time": "2026-03-17 10:08:07"
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-13.png",
+      "time": "2026-03-22 17:22:18"
     },
     {
-      "ip": "192.168.178.23",
+      "ip": "127.0.0.1",
+      "path": "/api/annotations/7 Week  - Generative Models & Graph/subpages/Pittfalls when increasing the number of model parameters.md",
+      "time": "2026-03-22 17:22:19"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/subpages/Pittfalls when increasing the number of model parameters.md",
+      "time": "2026-03-22 17:53:22"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-01.png",
+      "time": "2026-03-22 17:53:22"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-02.png",
+      "time": "2026-03-22 17:53:22"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-06.png",
+      "time": "2026-03-22 17:53:22"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-04.png",
+      "time": "2026-03-22 17:53:22"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-05.png",
+      "time": "2026-03-22 17:53:22"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-03.png",
+      "time": "2026-03-22 17:53:22"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-07.png",
+      "time": "2026-03-22 17:53:22"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-08.png",
+      "time": "2026-03-22 17:53:22"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-09.png",
+      "time": "2026-03-22 17:53:22"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-10.png",
+      "time": "2026-03-22 17:53:22"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-11.png",
+      "time": "2026-03-22 17:53:22"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-12.png",
+      "time": "2026-03-22 17:53:22"
+    },
+    {
+      "ip": "127.0.0.1",
       "path": "/api/study/settings",
-      "time": "2026-03-17 10:08:07"
+      "time": "2026-03-22 17:53:22"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-13.png",
+      "time": "2026-03-22 17:53:22"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/annotations/7 Week  - Generative Models & Graph/subpages/Pittfalls when increasing the number of model parameters.md",
+      "time": "2026-03-22 17:53:23"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/subpages/Introduction to generative modelling.md",
+      "time": "2026-03-22 17:53:34"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Introduction-to-generative-modelling/slide-01.png",
+      "time": "2026-03-22 17:53:34"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Introduction-to-generative-modelling/slide-02.png",
+      "time": "2026-03-22 17:53:34"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Introduction-to-generative-modelling/slide-03.png",
+      "time": "2026-03-22 17:53:34"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Introduction-to-generative-modelling/slide-04.png",
+      "time": "2026-03-22 17:53:34"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Introduction-to-generative-modelling/slide-05.png",
+      "time": "2026-03-22 17:53:34"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Introduction-to-generative-modelling/slide-06.png",
+      "time": "2026-03-22 17:53:34"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/settings",
+      "time": "2026-03-22 17:53:34"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Introduction-to-generative-modelling/slide-07.png",
+      "time": "2026-03-22 17:53:34"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Introduction-to-generative-modelling/slide-08.png",
+      "time": "2026-03-22 17:53:34"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Introduction-to-generative-modelling/slide-09.png",
+      "time": "2026-03-22 17:53:34"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Introduction-to-generative-modelling/slide-10.png",
+      "time": "2026-03-22 17:53:34"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Introduction-to-generative-modelling/slide-11.png",
+      "time": "2026-03-22 17:53:34"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/raw/7 Week  - Generative Models & Graph/img/Pasted image 20250126174737.png",
+      "time": "2026-03-22 17:53:34"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/annotations/7 Week  - Generative Models & Graph/subpages/Introduction to generative modelling.md",
+      "time": "2026-03-22 17:53:35"
     },
     {
       "ip": "192.168.178.23",
       "path": "/manifest.json",
-      "time": "2026-03-17 10:08:07"
+      "time": "2026-03-22 18:44:25"
     },
     {
       "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/How big is the Web_.md",
-      "time": "2026-03-17 10:08:13"
+      "path": "/view/7 Week  - Generative Models & Graph/subpages/Topology of the web graph.md",
+      "time": "2026-03-22 18:44:34"
     },
     {
       "ip": "192.168.178.23",
       "path": "/api/study/settings",
-      "time": "2026-03-17 10:08:14"
+      "time": "2026-03-22 18:44:35"
+    },
+    {
+      "ip": "192.168.178.23",
+      "path": "/api/annotations/7 Week  - Generative Models & Graph/subpages/Topology of the web graph.md",
+      "time": "2026-03-22 18:44:36"
     },
     {
       "ip": "192.168.178.23",
       "path": "/manifest.json",
-      "time": "2026-03-17 10:08:14"
+      "time": "2026-03-22 18:44:36"
     },
     {
       "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/subpages/An unrealistic, simplistic generative model.md",
-      "time": "2026-03-17 10:08:22"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_Generative_Models_of_the_World_Wide_Web/slide-01.png",
-      "time": "2026-03-17 10:08:22"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_Generative_Models_of_the_World_Wide_Web/slide-02.png",
-      "time": "2026-03-17 10:08:22"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_Generative_Models_of_the_World_Wide_Web/slide-03.png",
-      "time": "2026-03-17 10:08:22"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_Generative_Models_of_the_World_Wide_Web/slide-04.png",
-      "time": "2026-03-17 10:08:22"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_Generative_Models_of_the_World_Wide_Web/slide-05.png",
-      "time": "2026-03-17 10:08:22"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_Generative_Models_of_the_World_Wide_Web/slide-06.png",
-      "time": "2026-03-17 10:08:22"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_Generative_Models_of_the_World_Wide_Web/slide-07.png",
-      "time": "2026-03-17 10:08:22"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_Generative_Models_of_the_World_Wide_Web/slide-08.png",
-      "time": "2026-03-17 10:08:22"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_Generative_Models_of_the_World_Wide_Web/slide-09.png",
-      "time": "2026-03-17 10:08:22"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_Generative_Models_of_the_World_Wide_Web/slide-10.png",
-      "time": "2026-03-17 10:08:22"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_Generative_Models_of_the_World_Wide_Web/slide-11.png",
-      "time": "2026-03-17 10:08:22"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_Generative_Models_of_the_World_Wide_Web/slide-12.png",
-      "time": "2026-03-17 10:08:22"
+      "path": "/view/7 Week  - Generative Models & Graph/Generative Models for the Web.md",
+      "time": "2026-03-22 18:44:43"
     },
     {
       "ip": "192.168.178.23",
       "path": "/api/study/settings",
-      "time": "2026-03-17 10:08:23"
+      "time": "2026-03-22 18:44:44"
     },
     {
       "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_Generative_Models_of_the_World_Wide_Web/slide-13.png",
-      "time": "2026-03-17 10:08:23"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_Generative_Models_of_the_World_Wide_Web/slide-14.png",
-      "time": "2026-03-17 10:08:23"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_Generative_Models_of_the_World_Wide_Web/slide-15.png",
-      "time": "2026-03-17 10:08:23"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_Generative_Models_of_the_World_Wide_Web/slide-16.png",
-      "time": "2026-03-17 10:08:23"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/raw/7 Week  - Generative Models & Graph/img/Pasted image 20250126104504.png",
-      "time": "2026-03-17 10:08:23"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/api/annotations/5 Week  - Size of Web & Descriptive/subpages/An unrealistic, simplistic generative model.md",
-      "time": "2026-03-17 10:08:23"
+      "path": "/api/annotations/7 Week  - Generative Models & Graph/Generative Models for the Web.md",
+      "time": "2026-03-22 18:44:44"
     },
     {
       "ip": "192.168.178.23",
       "path": "/manifest.json",
-      "time": "2026-03-17 10:08:23"
+      "time": "2026-03-22 18:44:44"
     },
     {
       "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/subpages/Evaluating a generative model.md",
-      "time": "2026-03-17 10:30:33"
+      "path": "/view/7 Week  - Generative Models & Graph/subpages/Sampling from a probability distribution.md",
+      "time": "2026-03-22 18:48:39"
     },
     {
       "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-01.png",
-      "time": "2026-03-17 10:30:34"
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-01.png",
+      "time": "2026-03-22 18:48:39"
     },
     {
       "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-03.png",
-      "time": "2026-03-17 10:30:34"
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-02.png",
+      "time": "2026-03-22 18:48:39"
     },
     {
       "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-02.png",
-      "time": "2026-03-17 10:30:34"
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-03.png",
+      "time": "2026-03-22 18:48:39"
     },
     {
       "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-04.png",
-      "time": "2026-03-17 10:30:34"
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-04.png",
+      "time": "2026-03-22 18:48:39"
     },
     {
       "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-05.png",
-      "time": "2026-03-17 10:30:34"
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-05.png",
+      "time": "2026-03-22 18:48:39"
     },
     {
       "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-06.png",
-      "time": "2026-03-17 10:30:34"
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-06.png",
+      "time": "2026-03-22 18:48:39"
     },
     {
       "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-07.png",
-      "time": "2026-03-17 10:30:34"
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-07.png",
+      "time": "2026-03-22 18:48:39"
     },
     {
       "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-08.png",
-      "time": "2026-03-17 10:30:34"
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-08.png",
+      "time": "2026-03-22 18:48:39"
     },
     {
       "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-09.png",
-      "time": "2026-03-17 10:30:34"
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-09.png",
+      "time": "2026-03-22 18:48:39"
     },
     {
       "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-10.png",
-      "time": "2026-03-17 10:30:34"
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-10.png",
+      "time": "2026-03-22 18:48:39"
     },
     {
       "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-11.png",
-      "time": "2026-03-17 10:30:34"
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-11.png",
+      "time": "2026-03-22 18:48:39"
     },
     {
       "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-12.png",
-      "time": "2026-03-17 10:30:34"
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-12.png",
+      "time": "2026-03-22 18:48:39"
     },
     {
       "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-13.png",
-      "time": "2026-03-17 10:30:34"
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-13.png",
+      "time": "2026-03-22 18:48:39"
     },
     {
       "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-14.png",
-      "time": "2026-03-17 10:30:34"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-15.png",
-      "time": "2026-03-17 10:30:34"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-16.png",
-      "time": "2026-03-17 10:30:34"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-17.png",
-      "time": "2026-03-17 10:30:34"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-18.png",
-      "time": "2026-03-17 10:30:34"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-19.png",
-      "time": "2026-03-17 10:30:34"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-20.png",
-      "time": "2026-03-17 10:30:34"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-21.png",
-      "time": "2026-03-17 10:30:34"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-22.png",
-      "time": "2026-03-17 10:30:34"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-23.png",
-      "time": "2026-03-17 10:30:34"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-24.png",
-      "time": "2026-03-17 10:30:34"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-25.png",
-      "time": "2026-03-17 10:30:34"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-28.png",
-      "time": "2026-03-17 10:30:34"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-29.png",
-      "time": "2026-03-17 10:30:34"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-27.png",
-      "time": "2026-03-17 10:30:34"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-26.png",
-      "time": "2026-03-17 10:30:34"
+      "path": "/raw/7 Week  - Generative Models & Graph/img/Pasted image 20250126192350.png",
+      "time": "2026-03-22 18:48:39"
     },
     {
       "ip": "192.168.178.23",
       "path": "/api/study/settings",
-      "time": "2026-03-17 10:30:34"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/api/annotations/5 Week  - Size of Web & Descriptive/subpages/Evaluating a generative model.md",
-      "time": "2026-03-17 10:30:35"
+      "time": "2026-03-22 18:48:40"
     },
     {
       "ip": "192.168.178.23",
       "path": "/manifest.json",
-      "time": "2026-03-17 10:30:35"
+      "time": "2026-03-22 18:48:41"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive",
-      "time": "2026-03-17 10:30:59"
+      "ip": "127.0.0.1",
+      "path": "/api/annotations/7 Week  - Generative Models & Graph/Generative Models for the Web.md",
+      "time": "2026-03-22 21:07:06"
     },
     {
-      "ip": "192.168.178.23",
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Generative Models for the Web.md",
+      "time": "2026-03-22 21:07:09"
+    },
+    {
+      "ip": "127.0.0.1",
       "path": "/api/study/settings",
-      "time": "2026-03-17 10:30:59"
+      "time": "2026-03-22 21:07:09"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/api/annotations/5 Week  - Size of Web & Descriptive",
-      "time": "2026-03-17 10:31:00"
+      "ip": "127.0.0.1",
+      "path": "/api/annotations/7 Week  - Generative Models & Graph/Generative Models for the Web.md",
+      "time": "2026-03-22 21:07:09"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/manifest.json",
-      "time": "2026-03-17 10:31:00"
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/subpages/Sampling from a probability distribution.md",
+      "time": "2026-03-22 21:07:59"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/subpages/Evaluating a generative model.md",
-      "time": "2026-03-17 10:32:38"
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-01.png",
+      "time": "2026-03-22 21:07:59"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-01.png",
-      "time": "2026-03-17 10:32:38"
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-02.png",
+      "time": "2026-03-22 21:07:59"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-02.png",
-      "time": "2026-03-17 10:32:38"
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-03.png",
+      "time": "2026-03-22 21:07:59"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-03.png",
-      "time": "2026-03-17 10:32:38"
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-04.png",
+      "time": "2026-03-22 21:07:59"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-04.png",
-      "time": "2026-03-17 10:32:38"
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-05.png",
+      "time": "2026-03-22 21:07:59"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-05.png",
-      "time": "2026-03-17 10:32:38"
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-06.png",
+      "time": "2026-03-22 21:07:59"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-06.png",
-      "time": "2026-03-17 10:32:38"
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-07.png",
+      "time": "2026-03-22 21:07:59"
     },
     {
-      "ip": "192.168.178.23",
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-08.png",
+      "time": "2026-03-22 21:07:59"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-09.png",
+      "time": "2026-03-22 21:07:59"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-10.png",
+      "time": "2026-03-22 21:07:59"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-11.png",
+      "time": "2026-03-22 21:07:59"
+    },
+    {
+      "ip": "127.0.0.1",
       "path": "/api/study/settings",
-      "time": "2026-03-17 10:32:39"
+      "time": "2026-03-22 21:07:59"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-08.png",
-      "time": "2026-03-17 10:32:39"
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-12.png",
+      "time": "2026-03-22 21:07:59"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-07.png",
-      "time": "2026-03-17 10:32:39"
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-13.png",
+      "time": "2026-03-22 21:07:59"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-10.png",
-      "time": "2026-03-17 10:32:39"
+      "ip": "127.0.0.1",
+      "path": "/raw/7 Week  - Generative Models & Graph/img/Pasted image 20250126192350.png",
+      "time": "2026-03-22 21:07:59"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-09.png",
-      "time": "2026-03-17 10:32:39"
+      "ip": "127.0.0.1",
+      "path": "/api/annotations/7 Week  - Generative Models & Graph/subpages/Sampling from a probability distribution.md",
+      "time": "2026-03-22 21:07:59"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-11.png",
-      "time": "2026-03-17 10:32:39"
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/subpages/Sampling from a probability distribution.md",
+      "time": "2026-03-22 21:10:24"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-12.png",
-      "time": "2026-03-17 10:32:39"
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-01.png",
+      "time": "2026-03-22 21:10:25"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-13.png",
-      "time": "2026-03-17 10:32:39"
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-02.png",
+      "time": "2026-03-22 21:10:25"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-14.png",
-      "time": "2026-03-17 10:32:39"
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-03.png",
+      "time": "2026-03-22 21:10:25"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-15.png",
-      "time": "2026-03-17 10:32:39"
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-04.png",
+      "time": "2026-03-22 21:10:25"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-16.png",
-      "time": "2026-03-17 10:32:39"
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-05.png",
+      "time": "2026-03-22 21:10:25"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-17.png",
-      "time": "2026-03-17 10:32:39"
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-06.png",
+      "time": "2026-03-22 21:10:25"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-18.png",
-      "time": "2026-03-17 10:32:39"
+      "ip": "127.0.0.1",
+      "path": "/api/study/settings",
+      "time": "2026-03-22 21:10:25"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-19.png",
-      "time": "2026-03-17 10:32:39"
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-07.png",
+      "time": "2026-03-22 21:10:25"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-20.png",
-      "time": "2026-03-17 10:32:39"
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-08.png",
+      "time": "2026-03-22 21:10:25"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-21.png",
-      "time": "2026-03-17 10:32:39"
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-09.png",
+      "time": "2026-03-22 21:10:25"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/view/5 Week  - Size of Web & Descriptive/Slides/How big is the Web/Introduction_to_descriptive_modelling_of_the_World_Wide_Web/slide-22.png",
-      "time": "2026-03-17 10:32:39"
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-10.png",
+      "time": "2026-03-22 21:10:25"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-11.png",
+      "time": "2026-03-22 21:10:25"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-12.png",
+      "time": "2026-03-22 21:10:25"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-13.png",
+      "time": "2026-03-22 21:10:25"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/raw/7 Week  - Generative Models & Graph/img/Pasted image 20250126192350.png",
+      "time": "2026-03-22 21:10:25"
     }
   ]
 }

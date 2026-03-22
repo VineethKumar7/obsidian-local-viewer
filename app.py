@@ -426,6 +426,8 @@ def convert_inline_math_notation(content):
     Patterns converted:
     - e^(...) -> $e^{...}$  (exponential)
     - e^-... -> $e^{-...}$  (negative exponential without parens)
+    - x ∈ [a, b] -> $x \in [a, b]$  (element of interval)
+    - [0, 1] -> $[0, 1]$  (interval notation)
     """
     import re
     # Convert e^(...) to $e^{...}$
@@ -435,6 +437,31 @@ def convert_inline_math_notation(content):
     # Convert e^-number (without parens) to $e^{-number}$
     # Handles e^-0.542, e^-x, etc.
     content = re.sub(r'\be\^(-?[\d\.]+)\b', r'$e^{\1}$', content)
+    
+    # Convert standalone interval notation [a, b] to math mode FIRST
+    # Handles: [0, 1], [a, b], [-1, 1], [0.0, 1.0], etc.
+    # Only match if it looks like an interval (has comma, numbers/variables)
+    # Negative lookbehind to avoid already-in-math or links
+    content = re.sub(
+        r'(?<!\$)\[(-?[\d\w\.]+),\s*(-?[\d\w\.]+)\](?!\()',
+        r'$[\1, \2]$',
+        content
+    )
+    
+    # Convert "x ∈ $[a, b]$" to "$x \in [a, b]$" (merge with already-converted interval)
+    # Handles: r ∈ [0, 1], x ∈ [a, b], etc.
+    content = re.sub(
+        r'(\w+)\s*∈\s*\$\[([^\]]+)\]\$',
+        r'$\1 \\in [\2]$',
+        content
+    )
+    
+    # Also handle case where interval wasn't converted (fallback)
+    content = re.sub(
+        r'(\w+)\s*∈\s*\[([^\]]+)\](?!\$)',
+        r'$\1 \\in [\2]$',
+        content
+    )
     
     return content
 
