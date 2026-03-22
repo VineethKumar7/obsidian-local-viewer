@@ -441,9 +441,10 @@ def convert_inline_math_notation(content):
     # Convert standalone interval notation [a, b] to math mode FIRST
     # Handles: [0, 1], [a, b], [-1, 1], [0.0, 1.0], etc.
     # Only match if it looks like an interval (has comma, numbers/variables)
-    # Negative lookbehind to avoid already-in-math or links
+    # Negative lookbehind/lookahead to avoid already-in-math, links, or double-conversion
+    # (?!\$) at end prevents matching [0,1]$ which would be inside existing $...$
     content = re.sub(
-        r'(?<!\$)\[(-?[\d\w\.]+),\s*(-?[\d\w\.]+)\](?!\()',
+        r'(?<!\$)\[(-?[\d\w\.]+),\s*(-?[\d\w\.]+)\](?!\()(?!\$)',
         r'$[\1, \2]$',
         content
     )
