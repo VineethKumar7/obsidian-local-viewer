@@ -8514,11 +8514,41 @@ def index():
             border-radius: 4px;
             background: #252526;
             transition: background 0.2s;
+            cursor: pointer;
+            position: relative;
+        }}
+        .study-heatmap-day:hover {{
+            transform: scale(1.1);
+            z-index: 10;
         }}
         .study-heatmap-day.level-1 {{ background: #22c55e30; }}
         .study-heatmap-day.level-2 {{ background: #22c55e60; }}
         .study-heatmap-day.level-3 {{ background: #22c55e90; }}
         .study-heatmap-day.level-4 {{ background: #22c55e; }}
+        .heatmap-tooltip {{
+            position: fixed;
+            background: #1e1e1e;
+            border: 1px solid #7c3aed;
+            color: #e0e0e0;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.85em;
+            pointer-events: none;
+            z-index: 1000;
+            white-space: nowrap;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            display: none;
+        }}
+        .heatmap-tooltip.visible {{
+            display: block;
+        }}
+        .heatmap-tooltip .date {{
+            color: #7c3aed;
+            font-weight: 600;
+        }}
+        .heatmap-tooltip .count {{
+            color: #22c55e;
+        }}
         .study-loading {{
             text-align: center;
             padding: 40px;
@@ -8628,6 +8658,7 @@ def index():
                 if (data.success) {{
                     studyData = data.dashboard;
                     renderStudyDashboard();
+                    setupHeatmapTooltips();
                 }} else {{
                     document.getElementById('studyDashboard').innerHTML = '<div class="study-loading">No study data available</div>';
                 }}
@@ -8651,7 +8682,7 @@ def index():
                 if (count >= 10) level = 2;
                 if (count >= 25) level = 3;
                 if (count >= 50) level = 4;
-                heatmapHtml += `<div class="study-heatmap-day level-${{level}}" title="${{date}}: ${{count}} cards"></div>`;
+                heatmapHtml += `<div class="study-heatmap-day level-${{level}}" data-date="${{date}}" data-count="${{count}}"></div>`;
             }}
             
             const progressPct = Math.min(100, (d.today.reviewed / d.today.goal) * 100);
@@ -8732,6 +8763,8 @@ def index():
                     <div class="study-heatmap">${{heatmapHtml}}</div>
                 </div>
                 
+                <div id="heatmapTooltip" class="heatmap-tooltip"></div>
+                
                 <div class="study-actions">
                     <button class="study-btn primary" onclick="startVaultReview('due')" ${{d.dueCount === 0 ? 'disabled' : ''}}>
                         📚 Review Due Cards (${{d.dueCount}})
@@ -8746,6 +8779,58 @@ def index():
         function switchStudyView(view) {{
             currentStudyView = view;
             renderStudyDashboard();
+        }}
+        
+        function setupHeatmapTooltips() {{
+            const tooltip = document.getElementById('heatmapTooltip');
+            const heatmapDays = document.querySelectorAll('.study-heatmap-day');
+            
+            heatmapDays.forEach(day => {{
+                const date = day.dataset.date;
+                const count = day.dataset.count;
+                
+                // Format date nicely
+                const dateObj = new Date(date);
+                const formatted = dateObj.toLocaleDateString('en-US', {{ 
+                    weekday: 'short', 
+                    month: 'short', 
+                    day: 'numeric' 
+                }});
+                
+                const showTooltip = (e) => {{
+                    tooltip.innerHTML = `<span class="date">${{formatted}}</span><br><span class="count">${{count}} cards</span>`;
+                    tooltip.classList.add('visible');
+                    
+                    // Position tooltip
+                    const rect = day.getBoundingClientRect();
+                    let left = rect.left + rect.width / 2;
+                    let top = rect.top - 50;
+                    
+                    // Keep tooltip in viewport
+                    if (left < 100) left = 100;
+                    if (left > window.innerWidth - 100) left = window.innerWidth - 100;
+                    if (top < 10) top = rect.bottom + 10;
+                    
+                    tooltip.style.left = left + 'px';
+                    tooltip.style.top = top + 'px';
+                    tooltip.style.transform = 'translateX(-50%)';
+                }};
+                
+                const hideTooltip = () => {{
+                    tooltip.classList.remove('visible');
+                }};
+                
+                // Desktop hover
+                day.addEventListener('mouseenter', showTooltip);
+                day.addEventListener('mouseleave', hideTooltip);
+                
+                // Mobile touch
+                day.addEventListener('touchstart', (e) => {{
+                    e.preventDefault();
+                    showTooltip(e);
+                    setTimeout(hideTooltip, 2000);
+                }});
+            }});
         }}
         
         function startVaultReview(mode) {{
