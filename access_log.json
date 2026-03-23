@@ -53,19 +53,19 @@
     },
     "127.0.0.1": {
       "first_seen": "2026-02-20 09:19:41",
-      "last_seen": "2026-03-23 13:25:20",
-      "count": 6191,
+      "last_seen": "2026-03-23 13:30:57",
+      "count": 6221,
       "paths": [
-        "/api/annotations/1 Week  - Introduction/subpages",
-        "/view/6 Week  - Advanced Stats & Similarity",
-        "/api/annotations/6 Week  - Advanced Stats & Similarity",
-        "/view/6 Week  - Advanced Stats & Similarity/subpages",
+        "/view/Study Materials",
         "/api/study/settings",
-        "/api/annotations/6 Week  - Advanced Stats & Similarity/subpages",
-        "/view/7 Week  - Generative Models & Graph",
-        "/api/annotations/7 Week  - Generative Models & Graph",
-        "/view/7 Week  - Generative Models & Graph/subpages",
-        "/api/annotations/7 Week  - Generative Models & Graph/subpages"
+        "/api/annotations/Study Materials",
+        "/view/Study Materials/Flashcards.md",
+        "/api/annotations/Study Materials/Flashcards.md",
+        "/view/Study Materials/MCQs.md",
+        "/api/annotations/Study Materials/MCQs.md",
+        "/view/Module outline",
+        "/api/annotations/Module outline",
+        "/api/study/dashboard"
       ]
     },
     "192.168.0.40": {
@@ -98,156 +98,6 @@
     }
   },
   "recent": [
-    {
-      "ip": "127.0.0.1",
-      "path": "/",
-      "time": "2026-03-23 13:03:04"
-    },
-    {
-      "ip": "127.0.0.1",
-      "path": "/api/study/settings",
-      "time": "2026-03-23 13:03:04"
-    },
-    {
-      "ip": "127.0.0.1",
-      "path": "/view/7 Week  - Generative Models & Graph/subpages/Pittfalls when increasing the number of model parameters.md",
-      "time": "2026-03-23 13:03:07"
-    },
-    {
-      "ip": "127.0.0.1",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-01.png",
-      "time": "2026-03-23 13:03:07"
-    },
-    {
-      "ip": "127.0.0.1",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-02.png",
-      "time": "2026-03-23 13:03:07"
-    },
-    {
-      "ip": "127.0.0.1",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-03.png",
-      "time": "2026-03-23 13:03:07"
-    },
-    {
-      "ip": "127.0.0.1",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-04.png",
-      "time": "2026-03-23 13:03:07"
-    },
-    {
-      "ip": "127.0.0.1",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-05.png",
-      "time": "2026-03-23 13:03:07"
-    },
-    {
-      "ip": "127.0.0.1",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-06.png",
-      "time": "2026-03-23 13:03:07"
-    },
-    {
-      "ip": "127.0.0.1",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-07.png",
-      "time": "2026-03-23 13:03:07"
-    },
-    {
-      "ip": "127.0.0.1",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-08.png",
-      "time": "2026-03-23 13:03:07"
-    },
-    {
-      "ip": "127.0.0.1",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-09.png",
-      "time": "2026-03-23 13:03:07"
-    },
-    {
-      "ip": "127.0.0.1",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-10.png",
-      "time": "2026-03-23 13:03:07"
-    },
-    {
-      "ip": "127.0.0.1",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-11.png",
-      "time": "2026-03-23 13:03:07"
-    },
-    {
-      "ip": "127.0.0.1",
-      "path": "/api/study/settings",
-      "time": "2026-03-23 13:03:07"
-    },
-    {
-      "ip": "127.0.0.1",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-12.png",
-      "time": "2026-03-23 13:03:07"
-    },
-    {
-      "ip": "127.0.0.1",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-13.png",
-      "time": "2026-03-23 13:03:07"
-    },
-    {
-      "ip": "127.0.0.1",
-      "path": "/api/annotations/7 Week  - Generative Models & Graph/subpages/Pittfalls when increasing the number of model parameters.md",
-      "time": "2026-03-23 13:03:07"
-    },
-    {
-      "ip": "127.0.0.1",
-      "path": "/api/study/dashboard",
-      "time": "2026-03-23 13:03:10"
-    },
-    {
-      "ip": "127.0.0.1",
-      "path": "/view/7 Week  - Generative Models & Graph/subpages/Pittfalls when increasing the number of model parameters.md",
-      "time": "2026-03-23 13:11:38"
-    },
-    {
-      "ip": "127.0.0.1",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-01.png",
-      "time": "2026-03-23 13:11:39"
-    },
-    {
-      "ip": "127.0.0.1",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-02.png",
-      "time": "2026-03-23 13:11:39"
-    },
-    {
-      "ip": "127.0.0.1",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-03.png",
-      "time": "2026-03-23 13:11:39"
-    },
-    {
-      "ip": "127.0.0.1",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-04.png",
-      "time": "2026-03-23 13:11:39"
-    },
-    {
-      "ip": "127.0.0.1",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-05.png",
-      "time": "2026-03-23 13:11:39"
-    },
-    {
-      "ip": "127.0.0.1",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-06.png",
-      "time": "2026-03-23 13:11:39"
-    },
-    {
-      "ip": "127.0.0.1",
-      "path": "/api/study/settings",
-      "time": "2026-03-23 13:11:39"
-    },
-    {
-      "ip": "127.0.0.1",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-07.png",
-      "time": "2026-03-23 13:11:39"
-    },
-    {
-      "ip": "127.0.0.1",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-08.png",
-      "time": "2026-03-23 13:11:39"
-    },
-    {
-      "ip": "127.0.0.1",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-09.png",
-      "time": "2026-03-23 13:11:39"
-    },
     {
       "ip": "127.0.0.1",
       "path": "/",
@@ -597,6 +447,156 @@
       "ip": "127.0.0.1",
       "path": "/api/annotations/7 Week  - Generative Models & Graph/subpages",
       "time": "2026-03-23 13:25:20"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/",
+      "time": "2026-03-23 13:29:09"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/settings",
+      "time": "2026-03-23 13:29:10"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/5 Week  - Size of Web & Descriptive",
+      "time": "2026-03-23 13:29:12"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/settings",
+      "time": "2026-03-23 13:29:12"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/annotations/5 Week  - Size of Web & Descriptive",
+      "time": "2026-03-23 13:29:12"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/5 Week  - Size of Web & Descriptive/subpages",
+      "time": "2026-03-23 13:29:15"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/settings",
+      "time": "2026-03-23 13:29:15"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/annotations/5 Week  - Size of Web & Descriptive/subpages",
+      "time": "2026-03-23 13:29:15"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/Study Materials",
+      "time": "2026-03-23 13:29:30"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/settings",
+      "time": "2026-03-23 13:29:31"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/annotations/Study Materials",
+      "time": "2026-03-23 13:29:31"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/Study Materials/Flashcards.md",
+      "time": "2026-03-23 13:29:33"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/settings",
+      "time": "2026-03-23 13:29:33"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/annotations/Study Materials/Flashcards.md",
+      "time": "2026-03-23 13:29:34"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/Study Materials",
+      "time": "2026-03-23 13:29:41"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/settings",
+      "time": "2026-03-23 13:29:41"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/annotations/Study Materials",
+      "time": "2026-03-23 13:29:41"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/Study Materials/MCQs.md",
+      "time": "2026-03-23 13:29:42"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/settings",
+      "time": "2026-03-23 13:29:42"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/annotations/Study Materials/MCQs.md",
+      "time": "2026-03-23 13:29:42"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/Module outline",
+      "time": "2026-03-23 13:30:05"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/settings",
+      "time": "2026-03-23 13:30:05"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/annotations/Module outline",
+      "time": "2026-03-23 13:30:05"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/Study Materials",
+      "time": "2026-03-23 13:30:24"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/settings",
+      "time": "2026-03-23 13:30:24"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/annotations/Study Materials",
+      "time": "2026-03-23 13:30:24"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/Study Materials/MCQs.md",
+      "time": "2026-03-23 13:30:26"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/settings",
+      "time": "2026-03-23 13:30:26"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/annotations/Study Materials/MCQs.md",
+      "time": "2026-03-23 13:30:27"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/dashboard",
+      "time": "2026-03-23 13:30:57"
     }
   ]
 }

@@ -8332,6 +8332,194 @@ def index():
             border-radius: 4px;
             font-family: monospace;
         }}
+        /* Study Dashboard Styles */
+        .study-dashboard {{
+            background: #1e1e1e;
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 30px;
+            border: 1px solid #3c3c3c;
+        }}
+        .study-dashboard-header {{
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }}
+        .study-dashboard-header h2 {{
+            font-size: 1.4em;
+            color: #e0e0e0;
+            margin: 0;
+        }}
+        .study-stats-grid {{
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 24px;
+        }}
+        .study-stat-card {{
+            background: #252526;
+            border-radius: 12px;
+            padding: 16px;
+            text-align: center;
+            border: 1px solid #3c3c3c;
+        }}
+        .study-stat-card.streak {{
+            border-color: #f97316;
+            background: linear-gradient(135deg, #f9731610, #252526);
+        }}
+        .study-stat-card.due {{
+            border-color: #3b82f6;
+            background: linear-gradient(135deg, #3b82f610, #252526);
+        }}
+        .study-stat-card.mastery {{
+            border-color: #22c55e;
+            background: linear-gradient(135deg, #22c55e10, #252526);
+        }}
+        .study-stat-card.weak {{
+            border-color: #ef4444;
+            background: linear-gradient(135deg, #ef444410, #252526);
+        }}
+        .study-stat-value {{
+            font-size: 2em;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }}
+        .study-stat-card.streak .study-stat-value {{ color: #f97316; }}
+        .study-stat-card.due .study-stat-value {{ color: #3b82f6; }}
+        .study-stat-card.mastery .study-stat-value {{ color: #22c55e; }}
+        .study-stat-card.weak .study-stat-value {{ color: #ef4444; }}
+        .study-stat-label {{
+            font-size: 0.85em;
+            color: #888;
+        }}
+        .study-progress-section {{
+            margin-bottom: 24px;
+        }}
+        .study-progress-section h3 {{
+            font-size: 1em;
+            color: #e0e0e0;
+            margin: 0 0 12px 0;
+        }}
+        .study-progress-bar {{
+            height: 10px;
+            background: #252526;
+            border-radius: 5px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }}
+        .study-progress-fill {{
+            height: 100%;
+            background: linear-gradient(90deg, #22c55e, #3b82f6);
+            border-radius: 5px;
+            transition: width 0.5s ease;
+        }}
+        .study-progress-label {{
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85em;
+            color: #888;
+        }}
+        .study-tabs {{
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            background: #252526;
+            padding: 6px;
+            border-radius: 10px;
+        }}
+        .study-tab {{
+            flex: 1;
+            padding: 10px 16px;
+            border: none;
+            background: transparent;
+            color: #888;
+            cursor: pointer;
+            border-radius: 8px;
+            font-size: 0.9em;
+            transition: all 0.2s;
+        }}
+        .study-tab:hover {{
+            background: #3c3c3c;
+            color: #e0e0e0;
+        }}
+        .study-tab.active {{
+            background: #7c3aed;
+            color: white;
+        }}
+        .study-chart-summary {{
+            text-align: center;
+            margin-bottom: 16px;
+            color: #aaa;
+            font-size: 0.9em;
+        }}
+        .study-chart-summary strong {{
+            color: #e0e0e0;
+        }}
+        .study-chart {{
+            display: flex;
+            align-items: flex-end;
+            justify-content: space-between;
+            height: 120px;
+            padding: 0 10px;
+            gap: 8px;
+        }}
+        .study-chart-bar-container {{
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100%;
+        }}
+        .study-chart-bar {{
+            width: 100%;
+            max-width: 50px;
+            background: linear-gradient(180deg, #7c3aed, #5b21b6);
+            border-radius: 4px 4px 0 0;
+            transition: height 0.3s ease;
+            position: relative;
+        }}
+        .study-chart-bar-label {{
+            font-size: 0.75em;
+            color: #666;
+            margin-top: 8px;
+        }}
+        .study-heatmap-section {{
+            margin-top: 24px;
+        }}
+        .study-heatmap-section h3 {{
+            font-size: 1em;
+            color: #e0e0e0;
+            margin: 0 0 12px 0;
+        }}
+        .study-heatmap {{
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 6px;
+        }}
+        .study-heatmap-day {{
+            aspect-ratio: 1;
+            border-radius: 4px;
+            background: #252526;
+            transition: background 0.2s;
+        }}
+        .study-heatmap-day.level-1 {{ background: #22c55e30; }}
+        .study-heatmap-day.level-2 {{ background: #22c55e60; }}
+        .study-heatmap-day.level-3 {{ background: #22c55e90; }}
+        .study-heatmap-day.level-4 {{ background: #22c55e; }}
+        .study-loading {{
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }}
+        @media (max-width: 768px) {{
+            .study-stats-grid {{
+                grid-template-columns: repeat(2, 1fr);
+            }}
+            .study-chart {{
+                height: 80px;
+            }}
+        }}
     </style>
     
     <div class="dashboard">
@@ -8355,6 +8543,11 @@ def index():
             </div>
         </div>
         
+        <!-- Study Dashboard Section -->
+        <div class="study-dashboard" id="studyDashboard">
+            <div class="study-loading">Loading study stats...</div>
+        </div>
+        
         <div class="folder-grid">
             {''.join(folder_cards)}
         </div>
@@ -8367,6 +8560,133 @@ def index():
             <kbd>Esc</kbd> Show sidebar
         </div>
     </div>
+    
+    <script>
+        let currentStudyView = 'daily';
+        let studyData = null;
+        
+        async function loadStudyDashboard() {{
+            try {{
+                const response = await fetch('/api/study/dashboard');
+                const data = await response.json();
+                
+                if (data.success) {{
+                    studyData = data.dashboard;
+                    renderStudyDashboard();
+                }} else {{
+                    document.getElementById('studyDashboard').innerHTML = '<div class="study-loading">No study data available</div>';
+                }}
+            }} catch (err) {{
+                console.error('Failed to load study dashboard:', err);
+                document.getElementById('studyDashboard').innerHTML = '<div class="study-loading">Failed to load study stats</div>';
+            }}
+        }}
+        
+        function renderStudyDashboard() {{
+            const d = studyData;
+            const container = document.getElementById('studyDashboard');
+            
+            // Build heatmap (last 28 days in 4 rows of 7)
+            let heatmapHtml = '';
+            const dates = Object.keys(d.heatmap).sort().slice(-28);
+            for (const date of dates) {{
+                const count = d.heatmap[date];
+                let level = 0;
+                if (count > 0) level = 1;
+                if (count >= 10) level = 2;
+                if (count >= 25) level = 3;
+                if (count >= 50) level = 4;
+                heatmapHtml += `<div class="study-heatmap-day level-${{level}}" title="${{date}}: ${{count}} cards"></div>`;
+            }}
+            
+            const progressPct = Math.min(100, (d.today.reviewed / d.today.goal) * 100);
+            
+            // Build chart for current view
+            const viewData = d[currentStudyView] || d.daily;
+            const maxCards = Math.max(...viewData.map(v => v.cards), 1);
+            
+            let chartHtml = viewData.map(item => {{
+                const height = (item.cards / maxCards) * 100;
+                return `
+                    <div class="study-chart-bar-container">
+                        <div class="study-chart-bar" style="height: ${{Math.max(height, 2)}}%;" title="${{item.cards}} cards"></div>
+                        <div class="study-chart-bar-label">${{item.label}}</div>
+                    </div>
+                `;
+            }}).join('');
+            
+            // Calculate totals for current view
+            const viewTotals = viewData.reduce((acc, item) => ({{
+                cards: acc.cards + item.cards,
+                correct: acc.correct + item.correct,
+                wrong: acc.wrong + item.wrong
+            }}), {{ cards: 0, correct: 0, wrong: 0 }});
+            
+            container.innerHTML = `
+                <div class="study-dashboard-header">
+                    <h2>📊 Study Dashboard</h2>
+                </div>
+                
+                <div class="study-stats-grid">
+                    <div class="study-stat-card streak">
+                        <div class="study-stat-value">🔥 ${{d.streak}}</div>
+                        <div class="study-stat-label">Day Streak</div>
+                    </div>
+                    <div class="study-stat-card due">
+                        <div class="study-stat-value">${{d.dueCount}}</div>
+                        <div class="study-stat-label">Cards Due</div>
+                    </div>
+                    <div class="study-stat-card mastery">
+                        <div class="study-stat-value">${{d.masteryPercent}}%</div>
+                        <div class="study-stat-label">Mastery</div>
+                    </div>
+                    <div class="study-stat-card weak">
+                        <div class="study-stat-value">${{d.weakCards}}</div>
+                        <div class="study-stat-label">Weak Cards</div>
+                    </div>
+                </div>
+                
+                <div class="study-progress-section">
+                    <h3>Today's Progress</h3>
+                    <div class="study-progress-bar">
+                        <div class="study-progress-fill" style="width: ${{progressPct}}%"></div>
+                    </div>
+                    <div class="study-progress-label">
+                        <span>${{d.today.reviewed}} reviewed (${{d.today.correct}} ✓ / ${{d.today.wrong}} ✗)</span>
+                        <span>Goal: ${{d.today.goal}}</span>
+                    </div>
+                </div>
+                
+                <div class="study-tabs">
+                    <button class="study-tab ${{currentStudyView === 'hourly' ? 'active' : ''}}" onclick="switchStudyView('hourly')">⏰ Hourly</button>
+                    <button class="study-tab ${{currentStudyView === 'daily' ? 'active' : ''}}" onclick="switchStudyView('daily')">📅 Daily</button>
+                    <button class="study-tab ${{currentStudyView === 'weekly' ? 'active' : ''}}" onclick="switchStudyView('weekly')">📆 Weekly</button>
+                    <button class="study-tab ${{currentStudyView === 'monthly' ? 'active' : ''}}" onclick="switchStudyView('monthly')">🗓️ Monthly</button>
+                </div>
+                
+                <div class="study-chart-summary">
+                    <strong>${{viewTotals.cards}}</strong> cards &nbsp;•&nbsp; ✓ ${{viewTotals.correct}} &nbsp;•&nbsp; ✗ ${{viewTotals.wrong}}
+                </div>
+                
+                <div class="study-chart">
+                    ${{chartHtml}}
+                </div>
+                
+                <div class="study-heatmap-section">
+                    <h3>Activity Heatmap</h3>
+                    <div class="study-heatmap">${{heatmapHtml}}</div>
+                </div>
+            `;
+        }}
+        
+        function switchStudyView(view) {{
+            currentStudyView = view;
+            renderStudyDashboard();
+        }}
+        
+        // Load on page load
+        document.addEventListener('DOMContentLoaded', loadStudyDashboard);
+    </script>
     '''
     return render_template_string(HTML_TEMPLATE, title="Home", tree=tree, content=content, vault_name=vault_name, is_markdown=False)
 
