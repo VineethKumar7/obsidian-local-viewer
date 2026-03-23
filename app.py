@@ -599,10 +599,20 @@ def get_srs_filepath(filepath):
     # Store as Ethernet.md.srs.json in same directory
     return full_path + '.srs.json'
 
-def scan_all_srs_files():
-    """Scan vault for all .srs.json files and return their data"""
+def scan_all_srs_files(folder_path=None):
+    """Scan vault for all .srs.json files and return their data
+    
+    Args:
+        folder_path: Optional relative path to filter by folder (e.g., "1 Week - Introduction")
+    """
     srs_files = []
-    for root, dirs, files in os.walk(VAULT_PATH):
+    search_path = VAULT_PATH
+    if folder_path:
+        search_path = os.path.join(VAULT_PATH, folder_path)
+        if not os.path.exists(search_path):
+            return []
+    
+    for root, dirs, files in os.walk(search_path):
         # Skip hidden directories
         dirs[:] = [d for d in dirs if not d.startswith('.')]
         for file in files:
@@ -611,6 +621,8 @@ def scan_all_srs_files():
                 try:
                     with open(srs_path, 'r', encoding='utf-8') as f:
                         data = json.load(f)
+                        # Add relative path for context
+                        data['_relativePath'] = os.path.relpath(srs_path, VAULT_PATH)
                         srs_files.append(data)
                 except (json.JSONDecodeError, IOError):
                     pass
@@ -8512,12 +8524,55 @@ def index():
             padding: 40px;
             color: #666;
         }}
+        .study-actions {{
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-top: 24px;
+            flex-wrap: wrap;
+        }}
+        .study-btn {{
+            padding: 12px 24px;
+            border: none;
+            border-radius: 10px;
+            font-size: 0.95em;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+        }}
+        .study-btn:disabled {{
+            opacity: 0.5;
+            cursor: not-allowed;
+        }}
+        .study-btn.primary {{
+            background: linear-gradient(135deg, #7c3aed, #5b21b6);
+            color: white;
+        }}
+        .study-btn.primary:hover:not(:disabled) {{
+            background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+            transform: translateY(-2px);
+        }}
+        .study-btn.secondary {{
+            background: #252526;
+            color: #e0e0e0;
+            border: 1px solid #3c3c3c;
+        }}
+        .study-btn.secondary:hover:not(:disabled) {{
+            background: #3c3c3c;
+            border-color: #7c3aed;
+        }}
         @media (max-width: 768px) {{
             .study-stats-grid {{
                 grid-template-columns: repeat(2, 1fr);
             }}
             .study-chart {{
                 height: 80px;
+            }}
+            .study-actions {{
+                flex-direction: column;
+            }}
+            .study-btn {{
+                width: 100%;
             }}
         }}
     </style>
@@ -8676,12 +8731,26 @@ def index():
                     <h3>Activity Heatmap</h3>
                     <div class="study-heatmap">${{heatmapHtml}}</div>
                 </div>
+                
+                <div class="study-actions">
+                    <button class="study-btn primary" onclick="startVaultReview('due')" ${{d.dueCount === 0 ? 'disabled' : ''}}>
+                        📚 Review Due Cards (${{d.dueCount}})
+                    </button>
+                    <button class="study-btn secondary" onclick="startVaultReview('weak')" ${{d.weakCards === 0 ? 'disabled' : ''}}>
+                        🎯 Review Mistakes (${{d.weakCards}})
+                    </button>
+                </div>
             `;
         }}
         
         function switchStudyView(view) {{
             currentStudyView = view;
             renderStudyDashboard();
+        }}
+        
+        function startVaultReview(mode) {{
+            // Redirect to first note with flashcards for vault-wide review
+            window.location.href = '/review?scope=vault&mode=' + mode;
         }}
         
         // Load on page load
@@ -8977,6 +9046,95 @@ def view_folder(filepath, full_path):
             background: #22c55e;
             border-color: #22c55e;
         }}
+        /* Folder Study Dashboard Styles */
+        .folder-study-dashboard {{
+            background: #1e1e1e;
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 24px;
+            border: 1px solid #3c3c3c;
+        }}
+        .folder-study-dashboard h2 {{
+            font-size: 1.3em;
+            color: #e0e0e0;
+            margin: 0 0 20px 0;
+        }}
+        .folder-study-stats {{
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }}
+        .folder-study-stat {{
+            background: #252526;
+            border-radius: 10px;
+            padding: 14px;
+            text-align: center;
+            border: 1px solid #3c3c3c;
+        }}
+        .folder-study-stat.due {{ border-color: #3b82f6; }}
+        .folder-study-stat.mastery {{ border-color: #22c55e; }}
+        .folder-study-stat.weak {{ border-color: #ef4444; }}
+        .folder-study-stat.total {{ border-color: #7c3aed; }}
+        .folder-study-stat-value {{
+            font-size: 1.8em;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }}
+        .folder-study-stat.due .folder-study-stat-value {{ color: #3b82f6; }}
+        .folder-study-stat.mastery .folder-study-stat-value {{ color: #22c55e; }}
+        .folder-study-stat.weak .folder-study-stat-value {{ color: #ef4444; }}
+        .folder-study-stat.total .folder-study-stat-value {{ color: #7c3aed; }}
+        .folder-study-stat-label {{
+            font-size: 0.8em;
+            color: #888;
+        }}
+        .folder-study-actions {{
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }}
+        .folder-study-btn {{
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.9em;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+        }}
+        .folder-study-btn:disabled {{
+            opacity: 0.5;
+            cursor: not-allowed;
+        }}
+        .folder-study-btn.primary {{
+            background: linear-gradient(135deg, #7c3aed, #5b21b6);
+            color: white;
+        }}
+        .folder-study-btn.primary:hover:not(:disabled) {{
+            background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+            transform: translateY(-2px);
+        }}
+        .folder-study-btn.secondary {{
+            background: #252526;
+            color: #e0e0e0;
+            border: 1px solid #3c3c3c;
+        }}
+        .folder-study-btn.secondary:hover:not(:disabled) {{
+            background: #3c3c3c;
+            border-color: #7c3aed;
+        }}
+        .folder-study-loading {{
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }}
+        @media (max-width: 768px) {{
+            .folder-study-stats {{
+                grid-template-columns: repeat(2, 1fr);
+            }}
+        }}
     </style>
     
     <div class="folder-dashboard">
@@ -8995,14 +9153,469 @@ def view_folder(filepath, full_path):
             </div>
         </div>
         
+        <!-- Folder Study Dashboard -->
+        <div class="folder-study-dashboard" id="folderStudyDashboard">
+            <div class="folder-study-loading">Loading study stats...</div>
+        </div>
+        
         {"<div class='subfolders-section'><h3>📁 Subfolders</h3><div class='subfolders-grid'>" + ''.join(subfolder_cards) + "</div></div>" if subfolders else ""}
         
         {md_files_html}
         {other_files_html}
     </div>
+    
+    <script>
+        const folderPath = '{filepath}';
+        
+        async function loadFolderStudyDashboard() {{
+            try {{
+                const response = await fetch('/api/study/dashboard/' + encodeURIComponent(folderPath));
+                const data = await response.json();
+                
+                if (data.success) {{
+                    renderFolderStudyDashboard(data.dashboard);
+                }} else {{
+                    document.getElementById('folderStudyDashboard').innerHTML = '<div class="folder-study-loading">No study data for this folder</div>';
+                }}
+            }} catch (err) {{
+                console.error('Failed to load folder study dashboard:', err);
+                document.getElementById('folderStudyDashboard').innerHTML = '<div class="folder-study-loading">Failed to load study stats</div>';
+            }}
+        }}
+        
+        function renderFolderStudyDashboard(d) {{
+            const container = document.getElementById('folderStudyDashboard');
+            
+            if (d.totalCards === 0) {{
+                container.innerHTML = `
+                    <h2>📊 Study Dashboard</h2>
+                    <div class="folder-study-loading">No flashcards in this folder yet</div>
+                `;
+                return;
+            }}
+            
+            container.innerHTML = `
+                <h2>📊 Study Dashboard</h2>
+                
+                <div class="folder-study-stats">
+                    <div class="folder-study-stat total">
+                        <div class="folder-study-stat-value">${{d.totalCards}}</div>
+                        <div class="folder-study-stat-label">Total Cards</div>
+                    </div>
+                    <div class="folder-study-stat due">
+                        <div class="folder-study-stat-value">${{d.dueCount}}</div>
+                        <div class="folder-study-stat-label">Cards Due</div>
+                    </div>
+                    <div class="folder-study-stat mastery">
+                        <div class="folder-study-stat-value">${{d.masteryPercent}}%</div>
+                        <div class="folder-study-stat-label">Mastery</div>
+                    </div>
+                    <div class="folder-study-stat weak">
+                        <div class="folder-study-stat-value">${{d.weakCards}}</div>
+                        <div class="folder-study-stat-label">Weak Cards</div>
+                    </div>
+                </div>
+                
+                <div class="folder-study-actions">
+                    <button class="folder-study-btn primary" onclick="startFolderReview('due')" ${{d.dueCount === 0 ? 'disabled' : ''}}>
+                        📚 Review Due Cards (${{d.dueCount}})
+                    </button>
+                    <button class="folder-study-btn secondary" onclick="startFolderReview('weak')" ${{d.weakCards === 0 ? 'disabled' : ''}}>
+                        🎯 Review Mistakes (${{d.weakCards}})
+                    </button>
+                </div>
+            `;
+        }}
+        
+        function startFolderReview(mode) {{
+            window.location.href = '/review?scope=folder&folder=' + encodeURIComponent(folderPath) + '&mode=' + mode;
+        }}
+        
+        document.addEventListener('DOMContentLoaded', loadFolderStudyDashboard);
+    </script>
     '''
     
     return render_template_string(HTML_TEMPLATE, title=folder_name, tree=tree, content=content, vault_name=get_vault_name(), is_markdown=False)
+
+
+@app.route('/review')
+def review_page():
+    """Review page for vault-wide or folder-specific flashcard review"""
+    scope = request.args.get('scope', 'vault')  # 'vault' or 'folder'
+    folder_path = request.args.get('folder', '')
+    mode = request.args.get('mode', 'due')  # 'due' or 'weak'
+    
+    tree = f'<ul>{get_file_tree(VAULT_PATH, VAULT_PATH)}</ul>'
+    vault_name = get_vault_name()
+    
+    # Determine title and scope text
+    if scope == 'folder' and folder_path:
+        folder_name = os.path.basename(folder_path)
+        title = f"Review - {folder_name}"
+        scope_text = folder_name
+        back_url = f"/view/{folder_path}"
+    else:
+        title = "Review - Entire Vault"
+        scope_text = "Entire Vault"
+        folder_path = ""
+        back_url = "/"
+    
+    mode_text = "Due Cards" if mode == 'due' else "Weak Cards (Mistakes)"
+    
+    content = f'''
+    <style>
+        .review-page {{
+            padding: 20px;
+            max-width: 900px;
+            margin: 0 auto;
+        }}
+        .review-header {{
+            text-align: center;
+            margin-bottom: 30px;
+        }}
+        .review-header h1 {{
+            font-size: 1.8em;
+            color: #e0e0e0;
+            margin-bottom: 10px;
+        }}
+        .review-scope {{
+            color: #888;
+            font-size: 0.95em;
+        }}
+        .review-scope strong {{
+            color: #7c3aed;
+        }}
+        .review-container {{
+            background: #1e1e1e;
+            border-radius: 16px;
+            padding: 30px;
+            border: 1px solid #3c3c3c;
+            min-height: 400px;
+        }}
+        .review-loading {{
+            text-align: center;
+            padding: 60px;
+            color: #888;
+        }}
+        .review-loading .spinner {{
+            font-size: 2em;
+            margin-bottom: 20px;
+            animation: spin 1s linear infinite;
+        }}
+        @keyframes spin {{
+            from {{ transform: rotate(0deg); }}
+            to {{ transform: rotate(360deg); }}
+        }}
+        .review-empty {{
+            text-align: center;
+            padding: 60px;
+        }}
+        .review-empty h2 {{
+            color: #22c55e;
+            font-size: 1.5em;
+            margin-bottom: 15px;
+        }}
+        .review-empty p {{
+            color: #888;
+            margin-bottom: 20px;
+        }}
+        .review-card {{
+            background: #252526;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 20px;
+            border: 1px solid #3c3c3c;
+        }}
+        .review-card-source {{
+            font-size: 0.8em;
+            color: #666;
+            margin-bottom: 15px;
+        }}
+        .review-card-question {{
+            font-size: 1.2em;
+            color: #e0e0e0;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }}
+        .review-card-answer {{
+            background: #1e1e1e;
+            padding: 20px;
+            border-radius: 8px;
+            color: #e0e0e0;
+            display: none;
+            line-height: 1.6;
+        }}
+        .review-card-answer.visible {{
+            display: block;
+        }}
+        .review-actions {{
+            display: flex;
+            gap: 12px;
+            justify-content: center;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }}
+        .review-btn {{
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95em;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: 500;
+        }}
+        .review-btn.show {{
+            background: #7c3aed;
+            color: white;
+        }}
+        .review-btn.show:hover {{
+            background: #8b5cf6;
+        }}
+        .review-btn.wrong {{
+            background: #ef4444;
+            color: white;
+        }}
+        .review-btn.wrong:hover {{
+            background: #dc2626;
+        }}
+        .review-btn.hard {{
+            background: #f59e0b;
+            color: white;
+        }}
+        .review-btn.hard:hover {{
+            background: #d97706;
+        }}
+        .review-btn.good {{
+            background: #22c55e;
+            color: white;
+        }}
+        .review-btn.good:hover {{
+            background: #16a34a;
+        }}
+        .review-btn.easy {{
+            background: #3b82f6;
+            color: white;
+        }}
+        .review-btn.easy:hover {{
+            background: #2563eb;
+        }}
+        .review-btn.back {{
+            background: #3c3c3c;
+            color: #e0e0e0;
+        }}
+        .review-btn.back:hover {{
+            background: #4c4c4c;
+        }}
+        .review-progress {{
+            margin-bottom: 20px;
+        }}
+        .review-progress-bar {{
+            height: 8px;
+            background: #252526;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }}
+        .review-progress-fill {{
+            height: 100%;
+            background: linear-gradient(90deg, #7c3aed, #22c55e);
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }}
+        .review-progress-text {{
+            font-size: 0.85em;
+            color: #888;
+            text-align: center;
+        }}
+        .review-stats {{
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 20px;
+            font-size: 0.9em;
+        }}
+        .review-stats span {{
+            color: #888;
+        }}
+        .review-stats .correct {{
+            color: #22c55e;
+        }}
+        .review-stats .wrong {{
+            color: #ef4444;
+        }}
+    </style>
+    
+    <div class="review-page">
+        <div class="review-header">
+            <h1>📚 {mode_text}</h1>
+            <p class="review-scope">Scope: <strong>{scope_text}</strong></p>
+        </div>
+        
+        <div class="review-container" id="reviewContainer">
+            <div class="review-loading">
+                <div class="spinner">⏳</div>
+                <p>Loading cards...</p>
+            </div>
+        </div>
+        
+        <div style="text-align: center; margin-top: 20px;">
+            <a href="{back_url}" class="review-btn back">← Back</a>
+        </div>
+    </div>
+    
+    <script>
+        const reviewScope = '{scope}';
+        const reviewFolder = '{folder_path}';
+        const reviewMode = '{mode}';
+        
+        let allCards = [];
+        let currentCardIndex = 0;
+        let stats = {{ correct: 0, wrong: 0 }};
+        let answerShown = false;
+        
+        async function loadReviewCards() {{
+            try {{
+                let url = '/api/study/review-cards?mode=' + reviewMode;
+                if (reviewScope === 'folder' && reviewFolder) {{
+                    url += '&folder=' + encodeURIComponent(reviewFolder);
+                }}
+                
+                const response = await fetch(url);
+                const data = await response.json();
+                
+                if (data.success && data.cards.length > 0) {{
+                    allCards = data.cards;
+                    currentCardIndex = 0;
+                    renderCard();
+                }} else {{
+                    showEmpty();
+                }}
+            }} catch (err) {{
+                console.error('Failed to load cards:', err);
+                document.getElementById('reviewContainer').innerHTML = `
+                    <div class="review-empty">
+                        <h2>❌ Error</h2>
+                        <p>Failed to load review cards. Please try again.</p>
+                    </div>
+                `;
+            }}
+        }}
+        
+        function showEmpty() {{
+            const mode_msg = reviewMode === 'weak' ? 'No weak cards' : 'No cards due';
+            document.getElementById('reviewContainer').innerHTML = `
+                <div class="review-empty">
+                    <h2>🎉 ${{mode_msg}}!</h2>
+                    <p>Great job! You're all caught up.</p>
+                    <a href="${{reviewScope === 'folder' ? '/view/' + reviewFolder : '/'}}" class="review-btn show">
+                        ← Back to ${{reviewScope === 'folder' ? 'Folder' : 'Home'}}
+                    </a>
+                </div>
+            `;
+        }}
+        
+        function renderCard() {{
+            if (currentCardIndex >= allCards.length) {{
+                showComplete();
+                return;
+            }}
+            
+            const card = allCards[currentCardIndex];
+            const progress = Math.round((currentCardIndex / allCards.length) * 100);
+            
+            answerShown = false;
+            
+            document.getElementById('reviewContainer').innerHTML = `
+                <div class="review-progress">
+                    <div class="review-progress-bar">
+                        <div class="review-progress-fill" style="width: ${{progress}}%"></div>
+                    </div>
+                    <p class="review-progress-text">${{currentCardIndex + 1}} / ${{allCards.length}}</p>
+                </div>
+                
+                <div class="review-card">
+                    <p class="review-card-source">📄 ${{card.source}}</p>
+                    <div class="review-card-question">${{card.question}}</div>
+                    <div class="review-card-answer" id="cardAnswer">${{card.answer}}</div>
+                </div>
+                
+                <div class="review-actions" id="reviewActions">
+                    <button class="review-btn show" onclick="showAnswer()">Show Answer</button>
+                </div>
+                
+                <div class="review-stats">
+                    <span class="correct">✓ ${{stats.correct}}</span>
+                    <span class="wrong">✗ ${{stats.wrong}}</span>
+                </div>
+            `;
+        }}
+        
+        function showAnswer() {{
+            document.getElementById('cardAnswer').classList.add('visible');
+            answerShown = true;
+            
+            document.getElementById('reviewActions').innerHTML = `
+                <button class="review-btn wrong" onclick="rateCard(1)">✗ Wrong</button>
+                <button class="review-btn hard" onclick="rateCard(2)">Hard</button>
+                <button class="review-btn good" onclick="rateCard(3)">Good</button>
+                <button class="review-btn easy" onclick="rateCard(4)">Easy</button>
+            `;
+        }}
+        
+        async function rateCard(rating) {{
+            const card = allCards[currentCardIndex];
+            
+            // Track stats
+            if (rating === 1) {{
+                stats.wrong++;
+            }} else {{
+                stats.correct++;
+            }}
+            
+            // Submit rating to API
+            try {{
+                await fetch('/api/study/rate-card', {{
+                    method: 'POST',
+                    headers: {{ 'Content-Type': 'application/json' }},
+                    body: JSON.stringify({{
+                        filepath: card.filepath,
+                        cardKey: card.cardKey,
+                        rating: rating
+                    }})
+                }});
+            }} catch (err) {{
+                console.error('Failed to submit rating:', err);
+            }}
+            
+            currentCardIndex++;
+            renderCard();
+        }}
+        
+        function showComplete() {{
+            const total = stats.correct + stats.wrong;
+            const pct = total > 0 ? Math.round((stats.correct / total) * 100) : 0;
+            
+            document.getElementById('reviewContainer').innerHTML = `
+                <div class="review-empty">
+                    <h2>🎉 Session Complete!</h2>
+                    <p>You reviewed <strong>${{total}}</strong> cards.</p>
+                    <div class="review-stats" style="margin: 20px 0;">
+                        <span class="correct">✓ ${{stats.correct}} correct</span>
+                        <span class="wrong">✗ ${{stats.wrong}} wrong</span>
+                        <span>(${{pct}}% accuracy)</span>
+                    </div>
+                    <a href="${{reviewScope === 'folder' ? '/view/' + reviewFolder : '/'}}" class="review-btn show">
+                        ← Back to ${{reviewScope === 'folder' ? 'Folder' : 'Home'}}
+                    </a>
+                </div>
+            `;
+        }}
+        
+        document.addEventListener('DOMContentLoaded', loadReviewCards);
+    </script>
+    '''
+    
+    return render_template_string(HTML_TEMPLATE, title=title, tree=tree, content=content, vault_name=vault_name, is_markdown=False)
 
 
 @app.route('/view/<path:filepath>')
@@ -12383,8 +12996,13 @@ def log_study_session(filepath, card_type, correct):
     save_study_sessions(sessions)
 
 @app.route('/api/study/dashboard')
-def api_study_dashboard():
-    """Get study dashboard data with optional time view (day/week/month)"""
+@app.route('/api/study/dashboard/<path:folder_path>')
+def api_study_dashboard(folder_path=None):
+    """Get study dashboard data with optional time view and folder filter
+    
+    Args:
+        folder_path: Optional URL path parameter to filter stats by folder
+    """
     try:
         sessions = load_study_sessions()
         settings = load_study_settings()
@@ -12393,7 +13011,7 @@ def api_study_dashboard():
         today = datetime.utcnow().strftime('%Y-%m-%d')
         today_data = sessions.get(today, {'cardsReviewed': 0, 'correct': 0, 'wrong': 0})
         
-        # Calculate streak
+        # Calculate streak (vault-wide, not folder-specific)
         streak = 0
         check_date = datetime.utcnow()
         while True:
@@ -12404,14 +13022,14 @@ def api_study_dashboard():
             else:
                 break
         
-        # Count due cards
+        # Count due cards (filtered by folder if specified)
         due_count = 0
         total_cards = 0
         mastered_cards = 0
         weak_cards = 0
         now = datetime.utcnow().isoformat() + 'Z'
         
-        for srs_data in scan_all_srs_files():
+        for srs_data in scan_all_srs_files(folder_path):
             for card_key, card_data in srs_data.get('cards', {}).items():
                 total_cards += 1
                 
@@ -12419,14 +13037,14 @@ def api_study_dashboard():
                 next_review = card_data.get('nextReview', '')
                 if next_review and next_review <= now:
                     due_count += 1
-                    
-                    # Check if mastered (box 4-5 or interval > 7 days)
-                    if card_data.get('box', 1) >= 4 or card_data.get('interval', 0) >= 7:
-                        mastered_cards += 1
-                    
-                    # Check if weak (lapses >= 1 for immediate feedback)
-                    if card_data.get('lapses', 0) >= 1 or card_data.get('easeFactor', 2.5) < 2.0:
-                        weak_cards += 1
+                
+                # Check if mastered (box 4-5 or interval > 7 days)
+                if card_data.get('box', 1) >= 4 or card_data.get('interval', 0) >= 7:
+                    mastered_cards += 1
+                
+                # Check if weak (lapses >= 1 for immediate feedback)
+                if card_data.get('lapses', 0) >= 1 or card_data.get('easeFactor', 2.5) < 2.0:
+                    weak_cards += 1
         
         # Build heatmap (last 30 days)
         heatmap = {}
@@ -12527,6 +13145,7 @@ def api_study_dashboard():
         
         return jsonify({
             'success': True,
+            'folderPath': folder_path,
             'dashboard': {
                 'today': {
                     'reviewed': today_data.get('cardsReviewed', 0),
@@ -12582,6 +13201,107 @@ def api_set_study_settings():
         return jsonify({'success': True, 'settings': settings})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/study/review-cards')
+def api_get_review_cards():
+    """Get cards to review for the review page
+    
+    Query params:
+        mode: 'due' (default) or 'weak'
+        folder: optional folder path to filter cards
+    """
+    try:
+        mode = request.args.get('mode', 'due')
+        folder_path = request.args.get('folder', None)
+        
+        cards = []
+        now = datetime.utcnow().isoformat() + 'Z'
+        
+        for srs_data in scan_all_srs_files(folder_path):
+            filepath = srs_data.get('filePath', '')
+            
+            # Get the study.json for this file to get flashcard questions/answers
+            study_data = load_study_json(filepath)
+            flashcards = study_data.get('flashcards', []) if study_data else []
+            
+            for card_key, card_data in srs_data.get('cards', {}).items():
+                include = False
+                
+                if mode == 'due':
+                    # Include if card is due for review
+                    next_review = card_data.get('nextReview', '')
+                    if next_review and next_review <= now:
+                        include = True
+                elif mode == 'weak':
+                    # Include if card is weak (lapses >= 1 or low ease factor)
+                    if card_data.get('lapses', 0) >= 1 or card_data.get('easeFactor', 2.5) < 2.0:
+                        if card_data.get('focusStreak', 0) < 3:  # Not yet graduated
+                            include = True
+                
+                if include:
+                    # Find the flashcard content
+                    question = ''
+                    answer = ''
+                    
+                    # Parse card_key to find the flashcard
+                    # Format is usually like 'flashcard_0' or 'fc_0'
+                    for i, fc in enumerate(flashcards):
+                        fc_key = f'flashcard_{i}'
+                        if card_key == fc_key or card_key == f'fc_{i}':
+                            question = fc.get('front', fc.get('question', 'Question not found'))
+                            answer = fc.get('back', fc.get('answer', 'Answer not found'))
+                            break
+                    
+                    if not question:
+                        # Try MCQ or cloze
+                        mcqs = study_data.get('mcq', []) if study_data else []
+                        for i, mcq in enumerate(mcqs):
+                            if card_key == f'mcq_{i}':
+                                question = mcq.get('question', 'Question not found')
+                                options = mcq.get('options', [])
+                                correct = mcq.get('correctIndex', 0)
+                                answer = options[correct] if correct < len(options) else 'Answer not found'
+                                break
+                        
+                        clozes = study_data.get('cloze', []) if study_data else []
+                        for i, cloze in enumerate(clozes):
+                            if card_key == f'cloze_{i}':
+                                question = cloze.get('text', '').replace('{{c1::', '[___]').replace('}}', '')
+                                # Extract cloze answer
+                                import re
+                                match = re.search(r'\{\{c1::([^}]+)\}\}', cloze.get('text', ''))
+                                answer = match.group(1) if match else 'Answer not found'
+                                break
+                    
+                    if question:
+                        # Get readable source name
+                        source = os.path.basename(filepath).replace('.md', '') if filepath else 'Unknown'
+                        
+                        cards.append({
+                            'filepath': filepath,
+                            'cardKey': card_key,
+                            'source': source,
+                            'question': question,
+                            'answer': answer,
+                            'data': card_data
+                        })
+        
+        # Shuffle cards for variety
+        import random
+        random.shuffle(cards)
+        
+        return jsonify({
+            'success': True,
+            'cards': cards,
+            'count': len(cards),
+            'mode': mode,
+            'folder': folder_path
+        })
+    except Exception as e:
+        import traceback
+        return jsonify({'success': False, 'error': str(e), 'trace': traceback.format_exc()}), 500
+
 
 @app.route('/api/study/weak-cards')
 def api_get_weak_cards():

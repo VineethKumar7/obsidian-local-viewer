@@ -53,19 +53,19 @@
     },
     "127.0.0.1": {
       "first_seen": "2026-02-20 09:19:41",
-      "last_seen": "2026-03-23 13:30:57",
-      "count": 6221,
+      "last_seen": "2026-03-23 13:39:04",
+      "count": 6231,
       "paths": [
-        "/view/Study Materials",
-        "/api/study/settings",
-        "/api/annotations/Study Materials",
-        "/view/Study Materials/Flashcards.md",
-        "/api/annotations/Study Materials/Flashcards.md",
-        "/view/Study Materials/MCQs.md",
         "/api/annotations/Study Materials/MCQs.md",
         "/view/Module outline",
         "/api/annotations/Module outline",
-        "/api/study/dashboard"
+        "/api/study/dashboard",
+        "/api/metadata/7 Week  - Generative Models & Graph/subpages/Pittfalls when increasing the number of model parameters.md",
+        "/",
+        "/api/study/settings",
+        "/view/1 Week  - Introduction",
+        "/api/annotations/1 Week  - Introduction",
+        "/api/annotations/7 Week  - Generative Models & Graph/Generative Models for the Web.md"
       ]
     },
     "192.168.0.40": {
@@ -98,56 +98,6 @@
     }
   },
   "recent": [
-    {
-      "ip": "127.0.0.1",
-      "path": "/",
-      "time": "2026-03-23 13:11:51"
-    },
-    {
-      "ip": "127.0.0.1",
-      "path": "/api/study/settings",
-      "time": "2026-03-23 13:11:52"
-    },
-    {
-      "ip": "127.0.0.1",
-      "path": "/view/7 Week  - Generative Models & Graph/subpages/Pittfalls when increasing the number of model parameters.md",
-      "time": "2026-03-23 13:12:04"
-    },
-    {
-      "ip": "127.0.0.1",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-01.png",
-      "time": "2026-03-23 13:12:04"
-    },
-    {
-      "ip": "127.0.0.1",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-02.png",
-      "time": "2026-03-23 13:12:04"
-    },
-    {
-      "ip": "127.0.0.1",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-03.png",
-      "time": "2026-03-23 13:12:04"
-    },
-    {
-      "ip": "127.0.0.1",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-04.png",
-      "time": "2026-03-23 13:12:04"
-    },
-    {
-      "ip": "127.0.0.1",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-05.png",
-      "time": "2026-03-23 13:12:04"
-    },
-    {
-      "ip": "127.0.0.1",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-06.png",
-      "time": "2026-03-23 13:12:04"
-    },
-    {
-      "ip": "127.0.0.1",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-07.png",
-      "time": "2026-03-23 13:12:05"
-    },
     {
       "ip": "127.0.0.1",
       "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-08.png",
@@ -597,6 +547,56 @@
       "ip": "127.0.0.1",
       "path": "/api/study/dashboard",
       "time": "2026-03-23 13:30:57"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/metadata/7 Week  - Generative Models & Graph/subpages/Pittfalls when increasing the number of model parameters.md",
+      "time": "2026-03-23 13:35:29"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/metadata/7 Week  - Generative Models & Graph/subpages/Pittfalls when increasing the number of model parameters.md",
+      "time": "2026-03-23 13:35:31"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/",
+      "time": "2026-03-23 13:35:36"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/dashboard",
+      "time": "2026-03-23 13:35:37"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/settings",
+      "time": "2026-03-23 13:35:37"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/1 Week  - Introduction",
+      "time": "2026-03-23 13:35:43"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/settings",
+      "time": "2026-03-23 13:35:43"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/annotations/1 Week  - Introduction",
+      "time": "2026-03-23 13:35:43"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/metadata/7 Week  - Generative Models & Graph/subpages/Pittfalls when increasing the number of model parameters.md",
+      "time": "2026-03-23 13:39:00"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/annotations/7 Week  - Generative Models & Graph/Generative Models for the Web.md",
+      "time": "2026-03-23 13:39:04"
     }
   ]
 }
