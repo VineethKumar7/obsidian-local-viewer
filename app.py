@@ -245,6 +245,10 @@ def convert_obsidian_callouts(content):
             collapse_char = callout_match.group(2)  # + or - or None
             title = callout_match.group(3) or callout_type.capitalize()
             
+            # HTML-escape special characters in title first (before markdown processing)
+            # This prevents & from being interpreted as HTML entity start
+            title = title.replace('&', '&amp;').replace('<', '&lt;').replace('>', '&gt;')
+            
             # Process basic markdown in title (bold, italic, inline code)
             title = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', title)
             title = re.sub(r'\*(.+?)\*', r'<em>\1</em>', title)
@@ -265,6 +269,9 @@ def convert_obsidian_callouts(content):
             
             # Fix lists that follow paragraphs without blank lines
             callout_md = fix_lists_after_paragraphs(callout_md)
+            
+            # Convert task lists (- [ ] and - [x]) to checkboxes
+            callout_md = convert_task_lists(callout_md)
             
             # Preserve line breaks for equation continuations (lines starting with =)
             callout_md = fix_equation_line_breaks(callout_md)
@@ -418,6 +425,32 @@ def fix_equation_line_breaks(content):
     pattern = r'(\S)\n(= )'
     replacement = r'\1  \n\2'
     return re.sub(pattern, replacement, content, flags=re.MULTILINE)
+
+def convert_task_lists(content):
+    """
+    Convert GitHub-style task lists to HTML checkboxes.
+    
+    Patterns:
+    - [ ] unchecked item -> checkbox unchecked
+    - [x] checked item -> checkbox checked
+    """
+    # Convert unchecked: - [ ] text
+    # Add no-mathjax class to prevent MathJax from processing task text
+    content = re.sub(
+        r'^(\s*)- \[ \] (.+)$',
+        r'\1<label class="task-item no-mathjax"><input type="checkbox" disabled> <span class="no-mathjax">\2</span></label>',
+        content,
+        flags=re.MULTILINE
+    )
+    # Convert checked: - [x] text or - [X] text
+    content = re.sub(
+        r'^(\s*)- \[[xX]\] (.+)$',
+        r'\1<label class="task-item task-done no-mathjax"><input type="checkbox" checked disabled> <span class="no-mathjax">\2</span></label>',
+        content,
+        flags=re.MULTILINE
+    )
+    return content
+
 
 def convert_inline_math_notation(content):
     """
@@ -1995,6 +2028,24 @@ HTML_TEMPLATE = '''
         .content p { line-height: 1.8; margin: 15px 0; color: #444; font-size: 16px; }
         .content ul, .content ol { margin: 15px 0 15px 30px; }
         .content li { margin: 10px 0; line-height: 1.7; }
+        /* Task list (checkbox) styling */
+        .task-item { 
+            display: flex; 
+            align-items: flex-start; 
+            gap: 8px; 
+            margin: 8px 0;
+            cursor: default;
+        }
+        .task-item input[type="checkbox"] { 
+            margin-top: 4px;
+            width: 16px;
+            height: 16px;
+            accent-color: #4CAF50;
+        }
+        .task-done { 
+            text-decoration: line-through; 
+            opacity: 0.7; 
+        }
         /* Nested lists styling */
         .content li > ul, .content li > ol { margin: 10px 0 10px 20px; }
         /* Ensure numbered lists inside list items reset to proper indentation */
@@ -3989,7 +4040,8 @@ HTML_TEMPLATE = '''
                 processEnvironments: true
             },
             options: {
-                skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code']
+                skipHtmlTags: ['script', 'noscript', 'style', 'textarea', 'pre', 'code'],
+                ignoreHtmlClass: 'callout-title|no-mathjax'
             },
             startup: {
                 pageReady: () => {
@@ -4570,7 +4622,10 @@ HTML_TEMPLATE = '''
                 // Trigger download via hidden link
                 const link = document.createElement('a');
                 link.href = '/api/download-offline-zip';
-                link.download = 'EWADIS_Offline.zip';
+                // Use vault name from sidebar header for filename
+                const vaultName = document.querySelector('.sidebar-header h2')?.textContent?.trim() || 'Vault';
+                const safeVaultName = vaultName.replace(/[^a-zA-Z0-9]/g, '_');
+                link.download = `${safeVaultName}_Offline.zip`;
                 document.body.appendChild(link);
                 link.click();
                 document.body.removeChild(link);
@@ -5536,8 +5591,13 @@ HTTP is a ==stateless== protocol.</pre>
                     <button class="flashcard-btn primary" onclick="closeDashboard(); startFocusModeReal();">
                         🎯 Focus on Weak Cards (${d.weakCards})
                     </button>
-                    <button class="flashcard-btn secondary" onclick="closeDashboard(); startWeakCardsMixMode();" ${d.weakCards === 0 ? 'disabled style="opacity: 0.5;"' : ''}>
-                        🎲 Review Mistakes in Mix Mode
+                </div>
+                <div style="margin-top: 12px; display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+                    <button class="flashcard-btn secondary" onclick="closeDashboard(); startWeakCardsMixMode(true);" ${d.weakCards === 0 ? 'disabled style="opacity: 0.5;"' : ''} title="Review weak cards from this file only">
+                        📄 Mistakes (This File)
+                    </button>
+                    <button class="flashcard-btn secondary" onclick="closeDashboard(); startWeakCardsMixMode(false);" ${d.weakCards === 0 ? 'disabled style="opacity: 0.5;"' : ''} title="Review weak cards from all files">
+                        📚 Mistakes (Whole Vault)
                     </button>
                 </div>
             `;
@@ -5685,10 +5745,23 @@ Text with {<!-- -->{blanks}} here.</pre>
         }
         
         // ===== WEAK CARDS MIX MODE =====
-        async function startWeakCardsMixMode() {
+        async function startWeakCardsMixMode(currentFileOnly = false) {
             try {
-                const response = await fetch('/api/study/weak-cards-full');
+                // Build API URL with optional filepath filter
+                let url = '/api/study/weak-cards-full';
+                if (currentFileOnly) {
+                    // Extract relative filepath from URL (remove /view/ prefix)
+                    const urlPath = window.location.pathname;
+                    if (urlPath.startsWith('/view/')) {
+                        const filepath = decodeURIComponent(urlPath.replace('/view/', ''));
+                        url += '?filepath=' + encodeURIComponent(filepath);
+                    }
+                }
+                
+                const response = await fetch(url);
                 const data = await response.json();
+                
+                const scopeLabel = currentFileOnly ? '📄 This File' : '📚 All Files';
                 
                 if (data.success && data.cards && data.cards.length > 0) {
                     // Shuffle weak cards
@@ -5701,22 +5774,24 @@ Text with {<!-- -->{blanks}} here.</pre>
                     const container = document.getElementById('flashcardContainer');
                     renderMixCard();
                     
-                    // Add weak cards indicator
+                    // Add weak cards indicator with scope
                     const counter = document.getElementById('flashcardCounter');
-                    counter.innerHTML = `<span style="color: #f59e0b;">🎯 Weak Cards</span> ${currentMixIndex + 1} / ${mixCards.length}`;
+                    counter.innerHTML = `<span style="color: #f59e0b;">🎯 Weak Cards (${scopeLabel})</span> ${currentMixIndex + 1} / ${mixCards.length}`;
                     
                     document.getElementById('flashcardModal').classList.add('visible');
                 } else {
                     // No weak cards
                     const container = document.getElementById('flashcardContainer');
+                    const scopeText = currentFileOnly ? 'in this file' : 'in the vault';
                     container.innerHTML = `
                         <div class="flashcard-empty">
                             <h3>🎉 No Weak Cards!</h3>
-                            <p>Great job! You don't have any frequently missed cards.</p>
+                            <p>Great job! You don't have any frequently missed cards ${scopeText}.</p>
                             <p style="margin-top: 16px; color: #6b7280;">
                                 Cards become "weak" when you miss them 2+ times.
                             </p>
-                            <button class="flashcard-btn primary" onclick="closeFlashcards();" style="margin-top: 20px;">
+                            ${currentFileOnly ? '<button class="flashcard-btn secondary" onclick="closeFlashcards(); startWeakCardsMixMode(false);" style="margin-top: 12px;">Try Whole Vault Instead</button>' : ''}
+                            <button class="flashcard-btn primary" onclick="closeFlashcards();" style="margin-top: 12px;">
                                 👍 Keep it up!
                             </button>
                         </div>
@@ -7888,11 +7963,31 @@ Text with {<!-- -->{blanks}} here.</pre>
 </html>
 '''
 
+def natural_sort_key(s):
+    """
+    Natural sorting key that handles numbers properly.
+    '1 Week' < '2 Week' < '10 Week' (not '1' < '10' < '2')
+    Numbers come before letters, then alphabetical.
+    """
+    import re
+    # Split string into numeric and non-numeric parts
+    parts = re.split(r'(\d+)', s.lower())
+    # Convert numeric parts to integers for proper comparison
+    result = []
+    for part in parts:
+        if part.isdigit():
+            result.append((0, int(part)))  # 0 = number (comes first)
+        elif part:
+            result.append((1, part))  # 1 = text (comes after numbers)
+    return result
+
+
 def get_file_tree(path, base_path, current_file="", depth=0):
     """Recursively build HTML file tree with collapsible folders"""
     items = []
     try:
-        entries = sorted(os.listdir(path), key=lambda x: (not os.path.isdir(os.path.join(path, x)), x.lower()))
+        # Sort: folders first, then natural sort (numbers in correct order)
+        entries = sorted(os.listdir(path), key=lambda x: (not os.path.isdir(os.path.join(path, x)), natural_sort_key(x)))
         
         for entry in entries:
             if entry.startswith('.'):
@@ -7933,25 +8028,666 @@ def get_vault_name():
 
 @app.route('/')
 def index():
-    """Home page"""
+    """Home page with dashboard showing vault structure"""
     tree = f'<ul>{get_file_tree(VAULT_PATH, VAULT_PATH)}</ul>'
+    
+    # Build dashboard content
+    vault_name = get_vault_name()
+    
+    # Load all metadata once for completion tracking
+    all_metadata = load_all_metadata()
+    
+    # Get folder structure for dashboard
+    folders = []
+    files_in_root = []
+    total_md_files = 0
+    total_folders = 0
+    total_completed = 0
+    
+    try:
+        for entry in sorted(os.listdir(VAULT_PATH), key=natural_sort_key):
+            entry_path = os.path.join(VAULT_PATH, entry)
+            rel_path = entry
+            
+            # Skip hidden files/folders
+            if entry.startswith('.'):
+                continue
+                
+            if os.path.isdir(entry_path):
+                total_folders += 1
+                # Count md files and completed files in this folder
+                md_count = 0
+                completed_count = 0
+                subfolders = []
+                for root, dirs, files in os.walk(entry_path):
+                    # Skip hidden folders
+                    dirs[:] = [d for d in dirs if not d.startswith('.')]
+                    for f in files:
+                        if f.endswith('.md'):
+                            md_count += 1
+                            # Check completion status
+                            file_rel_path = os.path.relpath(os.path.join(root, f), VAULT_PATH)
+                            if all_metadata.get(file_rel_path, {}).get('completed', False):
+                                completed_count += 1
+                    # Get immediate subfolders
+                    if root == entry_path:
+                        subfolders = [d for d in sorted(dirs, key=natural_sort_key) if not d.startswith('.')][:5]  # Max 5 subfolders shown
+                
+                total_md_files += md_count
+                total_completed += completed_count
+                folders.append({
+                    'name': entry,
+                    'path': rel_path,
+                    'md_count': md_count,
+                    'completed_count': completed_count,
+                    'subfolders': subfolders
+                })
+            elif entry.endswith('.md'):
+                total_md_files += 1
+                is_completed = all_metadata.get(rel_path, {}).get('completed', False)
+                if is_completed:
+                    total_completed += 1
+                files_in_root.append({
+                    'name': entry[:-3],  # Remove .md
+                    'path': rel_path,
+                    'completed': is_completed
+                })
+    except Exception as e:
+        pass
+    
+    # Build folder cards HTML
+    folder_cards = []
+    for folder in folders:
+        subfolder_links = ''
+        if folder['subfolders']:
+            subfolder_items = []
+            for sf in folder['subfolders']:
+                sf_path = f"{folder['path']}/{sf}"
+                subfolder_items.append(f'<a href="/view/{sf_path}" class="subfolder-link">📁 {sf}</a>')
+            if len(folder['subfolders']) == 5:
+                subfolder_items.append('<span class="more-indicator">...</span>')
+            subfolder_links = '<div class="subfolder-list">' + ''.join(subfolder_items) + '</div>'
+        
+        # Calculate completion percentage
+        md_count = folder['md_count']
+        completed = folder['completed_count']
+        pct = int((completed / md_count * 100)) if md_count > 0 else 0
+        
+        # Determine completion color
+        if pct == 100:
+            pct_color = '#22c55e'  # Green
+            status_icon = '✅'
+        elif pct >= 50:
+            pct_color = '#f59e0b'  # Yellow/Orange
+            status_icon = '📊'
+        else:
+            pct_color = '#6b7280'  # Gray
+            status_icon = '📊'
+        
+        completion_html = f'''
+            <div class="completion-bar">
+                <div class="completion-fill" style="width: {pct}%; background: {pct_color};"></div>
+            </div>
+            <span class="completion-text">{status_icon} {completed}/{md_count} ({pct}%)</span>
+        ''' if md_count > 0 else ''
+        
+        folder_cards.append(f'''
+            <div class="folder-card" onclick="window.location='/view/{folder['path']}'">
+                <div class="folder-card-header">
+                    <span class="folder-icon">📂</span>
+                    <span class="folder-title">{folder['name']}</span>
+                </div>
+                <div class="folder-card-stats">
+                    <span class="stat-badge">📝 {folder['md_count']} notes</span>
+                </div>
+                <div class="folder-completion">
+                    {completion_html}
+                </div>
+                {subfolder_links}
+            </div>
+        ''')
+    
+    # Build root files list if any
+    root_files_html = ''
+    if files_in_root:
+        file_items = []
+        for f in files_in_root[:10]:
+            status = '✅' if f.get('completed') else '📄'
+            file_items.append(f'<a href="/view/{f["path"]}" class="root-file-link">{status} {f["name"]}</a>')
+        root_files_html = f'''
+            <div class="root-files-section">
+                <h3>📄 Files in Root</h3>
+                <div class="root-files-list">{''.join(file_items)}</div>
+            </div>
+        '''
+    
     content = f'''
-    <div class="welcome">
-        <h1>Welcome to {get_vault_name()}</h1>
-        <p>Select a file from the sidebar to view it. Markdown files will be beautifully rendered, and PDFs/images will display directly.</p>
-        <p style="margin-top: 20px; font-size: 14px; color: #888;">
-            <strong>Keyboard shortcuts:</strong><br>
-            Ctrl+B — Toggle sidebar<br>
-            F11 — Fullscreen<br>
-            Esc — Show sidebar
-        </p>
+    <style>
+        .dashboard {{
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }}
+        .dashboard-header {{
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #3c3c3c;
+        }}
+        .dashboard-header h1 {{
+            font-size: 2em;
+            margin-bottom: 10px;
+            color: #e0e0e0;
+        }}
+        .dashboard-stats {{
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            margin-top: 15px;
+        }}
+        .dashboard-stat {{
+            background: #2d2d2d;
+            padding: 10px 20px;
+            border-radius: 8px;
+            text-align: center;
+        }}
+        .dashboard-stat-value {{
+            font-size: 1.5em;
+            font-weight: bold;
+            color: #7c3aed;
+        }}
+        .dashboard-stat-label {{
+            font-size: 0.85em;
+            color: #888;
+        }}
+        .folder-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 16px;
+            margin-top: 20px;
+        }}
+        .folder-card {{
+            background: #252526;
+            border: 1px solid #3c3c3c;
+            border-radius: 12px;
+            padding: 16px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }}
+        .folder-card:hover {{
+            border-color: #7c3aed;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(124, 58, 237, 0.2);
+        }}
+        .folder-card-header {{
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }}
+        .folder-icon {{
+            font-size: 1.5em;
+        }}
+        .folder-title {{
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #e0e0e0;
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }}
+        .folder-card-stats {{
+            margin-bottom: 10px;
+        }}
+        .stat-badge {{
+            background: #3c3c3c;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            color: #aaa;
+        }}
+        .folder-completion {{
+            margin: 10px 0;
+        }}
+        .completion-bar {{
+            height: 6px;
+            background: #1e1e1e;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-bottom: 6px;
+        }}
+        .completion-fill {{
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }}
+        .completion-text {{
+            font-size: 0.75em;
+            color: #888;
+        }}
+        .subfolder-list {{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #3c3c3c;
+        }}
+        .subfolder-link {{
+            background: #1e1e1e;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 0.75em;
+            color: #888;
+            text-decoration: none;
+            transition: all 0.15s;
+        }}
+        .subfolder-link:hover {{
+            background: #7c3aed;
+            color: white;
+        }}
+        .more-indicator {{
+            color: #666;
+            padding: 4px;
+        }}
+        .root-files-section {{
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #3c3c3c;
+        }}
+        .root-files-section h3 {{
+            margin-bottom: 15px;
+            color: #e0e0e0;
+        }}
+        .root-files-list {{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }}
+        .root-file-link {{
+            background: #2d2d2d;
+            padding: 8px 14px;
+            border-radius: 8px;
+            color: #aaa;
+            text-decoration: none;
+            transition: all 0.15s;
+        }}
+        .root-file-link:hover {{
+            background: #7c3aed;
+            color: white;
+        }}
+        .keyboard-hints {{
+            margin-top: 30px;
+            padding: 15px;
+            background: #1e1e1e;
+            border-radius: 8px;
+            font-size: 0.85em;
+            color: #666;
+            text-align: center;
+        }}
+        .keyboard-hints kbd {{
+            background: #3c3c3c;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: monospace;
+        }}
+    </style>
+    
+    <div class="dashboard">
+        <div class="dashboard-header">
+            <h1>📚 {vault_name}</h1>
+            <div class="dashboard-stats">
+                <div class="dashboard-stat">
+                    <div class="dashboard-stat-value">{total_folders}</div>
+                    <div class="dashboard-stat-label">Folders</div>
+                </div>
+                <div class="dashboard-stat">
+                    <div class="dashboard-stat-value">{total_md_files}</div>
+                    <div class="dashboard-stat-label">Notes</div>
+                </div>
+                <div class="dashboard-stat" style="background: {'#22c55e20' if total_completed == total_md_files and total_md_files > 0 else '#2d2d2d'};">
+                    <div class="dashboard-stat-value" style="color: {'#22c55e' if total_completed == total_md_files and total_md_files > 0 else '#7c3aed'};">
+                        {total_completed}/{total_md_files}
+                    </div>
+                    <div class="dashboard-stat-label">✅ Completed</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="folder-grid">
+            {''.join(folder_cards)}
+        </div>
+        
+        {root_files_html}
+        
+        <div class="keyboard-hints">
+            <kbd>Ctrl+B</kbd> Toggle sidebar &nbsp;•&nbsp;
+            <kbd>F11</kbd> Fullscreen &nbsp;•&nbsp;
+            <kbd>Esc</kbd> Show sidebar
+        </div>
     </div>
     '''
-    return render_template_string(HTML_TEMPLATE, title="Home", tree=tree, content=content, vault_name=get_vault_name(), is_markdown=False)
+    return render_template_string(HTML_TEMPLATE, title="Home", tree=tree, content=content, vault_name=vault_name, is_markdown=False)
+
+
+def view_folder(filepath, full_path):
+    """View a folder as a dashboard with its contents"""
+    tree = f'<ul>{get_file_tree(VAULT_PATH, VAULT_PATH, filepath)}</ul>'
+    folder_name = os.path.basename(filepath)
+    
+    # Load all metadata for completion tracking
+    all_metadata = load_all_metadata()
+    
+    # Get folder contents
+    subfolders = []
+    md_files = []
+    other_files = []
+    total_completed = 0
+    
+    try:
+        for entry in sorted(os.listdir(full_path), key=natural_sort_key):
+            if entry.startswith('.'):
+                continue
+            
+            entry_path = os.path.join(full_path, entry)
+            rel_path = f"{filepath}/{entry}"
+            
+            if os.path.isdir(entry_path):
+                # Count contents and completion in subfolder
+                md_count = 0
+                completed_count = 0
+                for root, dirs, files in os.walk(entry_path):
+                    dirs[:] = [d for d in dirs if not d.startswith('.')]
+                    for f in files:
+                        if f.endswith('.md'):
+                            md_count += 1
+                            file_rel = os.path.relpath(os.path.join(root, f), VAULT_PATH)
+                            if all_metadata.get(file_rel, {}).get('completed', False):
+                                completed_count += 1
+                
+                subfolders.append({
+                    'name': entry,
+                    'path': rel_path,
+                    'md_count': md_count,
+                    'completed_count': completed_count
+                })
+            elif entry.endswith('.md'):
+                is_completed = all_metadata.get(rel_path, {}).get('completed', False)
+                if is_completed:
+                    total_completed += 1
+                md_files.append({
+                    'name': entry[:-3],
+                    'path': rel_path,
+                    'completed': is_completed
+                })
+            else:
+                ext = entry.rsplit('.', 1)[-1].lower() if '.' in entry else ''
+                if ext in ['pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp']:
+                    other_files.append({
+                        'name': entry,
+                        'path': rel_path,
+                        'type': 'pdf' if ext == 'pdf' else 'image'
+                    })
+    except Exception as e:
+        pass
+    
+    # Calculate total completion across all subfolders + direct files
+    all_md_count = len(md_files) + sum(sf['md_count'] for sf in subfolders)
+    all_completed_count = total_completed + sum(sf['completed_count'] for sf in subfolders)
+    completion_pct = int((all_completed_count / all_md_count * 100)) if all_md_count > 0 else 0
+    is_folder_complete = all_completed_count == all_md_count and all_md_count > 0
+    
+    # Build subfolder cards
+    subfolder_cards = []
+    for sf in subfolders:
+        md_count = sf['md_count']
+        completed = sf['completed_count']
+        pct = int((completed / md_count * 100)) if md_count > 0 else 0
+        pct_color = '#22c55e' if pct == 100 else '#f59e0b' if pct >= 50 else '#6b7280'
+        
+        completion_html = f'''
+            <div class="completion-bar" style="margin-top: 8px;">
+                <div class="completion-fill" style="width: {pct}%; background: {pct_color};"></div>
+            </div>
+            <span class="completion-text">{completed}/{md_count}</span>
+        ''' if md_count > 0 else ''
+        
+        subfolder_cards.append(f'''
+            <a href="/view/{sf['path']}" class="folder-card-link">
+                <div class="folder-card small">
+                    <div class="folder-card-header">
+                        <span class="folder-icon">📁</span>
+                        <span class="folder-title">{sf['name']}</span>
+                    </div>
+                    <div class="folder-card-stats">
+                        <span class="stat-badge">📝 {sf['md_count']} notes</span>
+                    </div>
+                    {completion_html}
+                </div>
+            </a>
+        ''')
+    
+    # Build MD files list
+    md_files_html = ''
+    if md_files:
+        file_items = []
+        for f in md_files:
+            status = '✅' if f.get('completed') else '📄'
+            completed_class = 'completed' if f.get('completed') else ''
+            file_items.append(f'<a href="/view/{f["path"]}" class="file-card {completed_class}">{status} {f["name"]}</a>')
+        
+        completed_in_folder = sum(1 for f in md_files if f.get('completed'))
+        md_files_html = f'''
+            <div class="files-section">
+                <h3>📄 Notes ({completed_in_folder}/{len(md_files)} completed)</h3>
+                <div class="files-grid">{''.join(file_items)}</div>
+            </div>
+        '''
+    
+    # Build other files list
+    other_files_html = ''
+    if other_files:
+        file_items = []
+        for f in other_files:
+            icon = '📕' if f['type'] == 'pdf' else '🖼️'
+            file_items.append(f'<a href="/view/{f["path"]}" class="file-card other">{icon} {f["name"]}</a>')
+        other_files_html = f'''
+            <div class="files-section">
+                <h3>📎 Other Files ({len(other_files)})</h3>
+                <div class="files-grid">{''.join(file_items)}</div>
+            </div>
+        '''
+    
+    # Breadcrumb navigation
+    breadcrumb_parts = filepath.split('/')
+    breadcrumbs = ['<a href="/" class="breadcrumb-link">🏠 Home</a>']
+    current_path = ''
+    for i, part in enumerate(breadcrumb_parts):
+        current_path = f"{current_path}/{part}" if current_path else part
+        if i == len(breadcrumb_parts) - 1:
+            breadcrumbs.append(f'<span class="breadcrumb-current">{part}</span>')
+        else:
+            breadcrumbs.append(f'<a href="/view/{current_path}" class="breadcrumb-link">{part}</a>')
+    
+    content = f'''
+    <style>
+        .folder-dashboard {{
+            padding: 20px;
+            max-width: 1200px;
+            margin: 0 auto;
+        }}
+        .folder-header {{
+            margin-bottom: 20px;
+        }}
+        .breadcrumb {{
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 15px;
+            font-size: 0.9em;
+        }}
+        .breadcrumb-link {{
+            color: #888;
+            text-decoration: none;
+        }}
+        .breadcrumb-link:hover {{
+            color: #7c3aed;
+        }}
+        .breadcrumb::after {{
+            content: none;
+        }}
+        .breadcrumb > *:not(:last-child)::after {{
+            content: ' / ';
+            color: #555;
+            margin-left: 8px;
+        }}
+        .breadcrumb-current {{
+            color: #e0e0e0;
+            font-weight: 600;
+        }}
+        .folder-title-bar {{
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }}
+        .folder-title-bar h1 {{
+            font-size: 1.8em;
+            color: #e0e0e0;
+            margin: 0;
+        }}
+        .folder-stats {{
+            display: flex;
+            gap: 15px;
+            margin-top: 10px;
+        }}
+        .folder-stat {{
+            background: #2d2d2d;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.85em;
+            color: #aaa;
+        }}
+        .subfolders-section {{
+            margin-top: 25px;
+        }}
+        .subfolders-section h3, .files-section h3 {{
+            color: #e0e0e0;
+            margin-bottom: 15px;
+            font-size: 1.1em;
+        }}
+        .subfolders-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 12px;
+        }}
+        .folder-card-link {{
+            text-decoration: none;
+        }}
+        .folder-card.small {{
+            background: #252526;
+            border: 1px solid #3c3c3c;
+            border-radius: 10px;
+            padding: 14px;
+            transition: all 0.2s ease;
+        }}
+        .folder-card.small:hover {{
+            border-color: #7c3aed;
+            transform: translateY(-2px);
+        }}
+        .folder-card.small .folder-card-header {{
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }}
+        .folder-card.small .folder-icon {{
+            font-size: 1.2em;
+        }}
+        .folder-card.small .folder-title {{
+            font-size: 0.95em;
+            font-weight: 500;
+            color: #e0e0e0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }}
+        .folder-card.small .stat-badge {{
+            background: #3c3c3c;
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 0.75em;
+            color: #888;
+        }}
+        .files-section {{
+            margin-top: 25px;
+        }}
+        .files-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 10px;
+        }}
+        .file-card {{
+            background: #252526;
+            border: 1px solid #3c3c3c;
+            border-radius: 8px;
+            padding: 12px 14px;
+            color: #aaa;
+            text-decoration: none;
+            transition: all 0.15s;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            display: block;
+        }}
+        .file-card:hover {{
+            background: #7c3aed;
+            color: white;
+            border-color: #7c3aed;
+        }}
+        .file-card.other {{
+            background: #1e1e1e;
+        }}
+        .file-card.completed {{
+            background: #22c55e15;
+            border-color: #22c55e40;
+        }}
+        .file-card.completed:hover {{
+            background: #22c55e;
+            border-color: #22c55e;
+        }}
+    </style>
+    
+    <div class="folder-dashboard">
+        <div class="folder-header">
+            <div class="breadcrumb">
+                {' '.join(breadcrumbs)}
+            </div>
+            <div class="folder-title-bar">
+                <span style="font-size: 1.5em;">📂</span>
+                <h1>{folder_name}</h1>
+            </div>
+            <div class="folder-stats">
+                <span class="folder-stat">📁 {len(subfolders)} folders</span>
+                <span class="folder-stat">📄 {len(md_files)} notes</span>
+                <span class="folder-stat" style="background: {'#22c55e30' if is_folder_complete else '#2d2d2d'}; color: {'#22c55e' if is_folder_complete else '#aaa'};">{'✅' if is_folder_complete else '📊'} {all_completed_count}/{all_md_count} completed</span>
+            </div>
+        </div>
+        
+        {"<div class='subfolders-section'><h3>📁 Subfolders</h3><div class='subfolders-grid'>" + ''.join(subfolder_cards) + "</div></div>" if subfolders else ""}
+        
+        {md_files_html}
+        {other_files_html}
+    </div>
+    '''
+    
+    return render_template_string(HTML_TEMPLATE, title=folder_name, tree=tree, content=content, vault_name=get_vault_name(), is_markdown=False)
+
 
 @app.route('/view/<path:filepath>')
 def view_file(filepath):
-    """View a specific file"""
+    """View a specific file or folder"""
     full_path = os.path.join(VAULT_PATH, filepath)
     
     # Security check - prevent directory traversal
@@ -7960,6 +8696,10 @@ def view_file(filepath):
     
     if not os.path.exists(full_path):
         abort(404)
+    
+    # Handle directory view
+    if os.path.isdir(full_path):
+        return view_folder(filepath, full_path)
     
     ext = filepath.lower().rsplit('.', 1)[-1] if '.' in filepath else ''
     tree = f'<ul>{get_file_tree(VAULT_PATH, VAULT_PATH, filepath)}</ul>'
@@ -7998,6 +8738,9 @@ def view_file(filepath):
         
         # Fix list continuation (numbered items after nested bullets)
         md_content = fix_list_continuation(md_content)
+        
+        # Convert task lists (- [ ] and - [x]) to checkboxes
+        md_content = convert_task_lists(md_content)
         
         # Protect math expressions before markdown processing
         md_content, math_placeholders = protect_math_expressions(md_content)
@@ -10309,10 +11052,14 @@ def api_download_offline_zip():
     
     zip_buffer.seek(0)
     
+    # Use vault name for the zip filename
+    safe_vault_name = get_vault_name().replace(' ', '_').replace('/', '_')
+    zip_filename = f'{safe_vault_name}_Offline.zip'
+    
     return Response(
         zip_buffer.getvalue(),
         mimetype='application/zip',
-        headers={'Content-Disposition': 'attachment; filename=EWADIS_Offline.zip'}
+        headers={'Content-Disposition': f'attachment; filename={zip_filename}'}
     )
 
 
@@ -11546,14 +12293,24 @@ def api_get_weak_cards():
 
 @app.route('/api/study/weak-cards-full')
 def api_get_weak_cards_full():
-    """Get weak cards with full content for mix mode review"""
+    """Get weak cards with full content for mix mode review.
+    
+    Query params:
+        filepath (optional): Filter to only this file's weak cards
+    """
     try:
         weak_cards_full = []
+        filter_filepath = request.args.get('filepath', None)
         
         # First get weak card references
         weak_refs = {}  # filepath -> [card_keys]
         for srs_data in scan_all_srs_files():
             filepath = srs_data.get('filePath', '')
+            
+            # If filtering by filepath, skip non-matching files
+            if filter_filepath and filepath != filter_filepath:
+                continue
+                
             for card_key, card_data in srs_data.get('cards', {}).items():
                 # Card is weak if: lapses >= 1 OR easeFactor < 2.0 (lowered threshold)
                 if card_data.get('lapses', 0) >= 1 or card_data.get('easeFactor', 2.5) < 2.0:

@@ -53,19 +53,19 @@
     },
     "127.0.0.1": {
       "first_seen": "2026-02-20 09:19:41",
-      "last_seen": "2026-03-22 21:31:08",
-      "count": 5571,
+      "last_seen": "2026-03-23 13:25:20",
+      "count": 6191,
       "paths": [
-        "/api/annotations/7 Week  - Generative Models & Graph/subpages/Sampling from a probability distribution.md",
-        "/",
-        "/view/7 Week  - Generative Models & Graph/subpages/Sampling from a probability distribution.md",
-        "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-01.png",
-        "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-02.png",
-        "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-03.png",
-        "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-04.png",
-        "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-05.png",
-        "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-06.png",
-        "/api/study/settings"
+        "/api/annotations/1 Week  - Introduction/subpages",
+        "/view/6 Week  - Advanced Stats & Similarity",
+        "/api/annotations/6 Week  - Advanced Stats & Similarity",
+        "/view/6 Week  - Advanced Stats & Similarity/subpages",
+        "/api/study/settings",
+        "/api/annotations/6 Week  - Advanced Stats & Similarity/subpages",
+        "/view/7 Week  - Generative Models & Graph",
+        "/api/annotations/7 Week  - Generative Models & Graph",
+        "/view/7 Week  - Generative Models & Graph/subpages",
+        "/api/annotations/7 Week  - Generative Models & Graph/subpages"
       ]
     },
     "192.168.0.40": {
@@ -100,503 +100,503 @@
   "recent": [
     {
       "ip": "127.0.0.1",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-08.png",
-      "time": "2026-03-22 21:28:06"
-    },
-    {
-      "ip": "127.0.0.1",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-09.png",
-      "time": "2026-03-22 21:28:06"
-    },
-    {
-      "ip": "127.0.0.1",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-10.png",
-      "time": "2026-03-22 21:28:06"
-    },
-    {
-      "ip": "127.0.0.1",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-11.png",
-      "time": "2026-03-22 21:28:06"
+      "path": "/",
+      "time": "2026-03-23 13:03:04"
     },
     {
       "ip": "127.0.0.1",
       "path": "/api/study/settings",
-      "time": "2026-03-22 21:28:06"
+      "time": "2026-03-23 13:03:04"
     },
     {
       "ip": "127.0.0.1",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-12.png",
-      "time": "2026-03-22 21:28:06"
+      "path": "/view/7 Week  - Generative Models & Graph/subpages/Pittfalls when increasing the number of model parameters.md",
+      "time": "2026-03-23 13:03:07"
     },
     {
       "ip": "127.0.0.1",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-13.png",
-      "time": "2026-03-22 21:28:06"
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-01.png",
+      "time": "2026-03-23 13:03:07"
     },
     {
       "ip": "127.0.0.1",
-      "path": "/raw/7 Week  - Generative Models & Graph/img/Pasted image 20250126192350.png",
-      "time": "2026-03-22 21:28:06"
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-02.png",
+      "time": "2026-03-23 13:03:07"
     },
     {
       "ip": "127.0.0.1",
-      "path": "/api/annotations/7 Week  - Generative Models & Graph/subpages/Sampling from a probability distribution.md",
-      "time": "2026-03-22 21:28:06"
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-03.png",
+      "time": "2026-03-23 13:03:07"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/subpages/Sampling from a probability distribution.md",
-      "time": "2026-03-22 21:28:18"
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-04.png",
+      "time": "2026-03-23 13:03:07"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-01.png",
-      "time": "2026-03-22 21:28:18"
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-05.png",
+      "time": "2026-03-23 13:03:07"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-02.png",
-      "time": "2026-03-22 21:28:18"
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-06.png",
+      "time": "2026-03-23 13:03:07"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-03.png",
-      "time": "2026-03-22 21:28:18"
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-07.png",
+      "time": "2026-03-23 13:03:07"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-04.png",
-      "time": "2026-03-22 21:28:18"
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-08.png",
+      "time": "2026-03-23 13:03:07"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-05.png",
-      "time": "2026-03-22 21:28:18"
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-09.png",
+      "time": "2026-03-23 13:03:07"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-06.png",
-      "time": "2026-03-22 21:28:18"
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-10.png",
+      "time": "2026-03-23 13:03:07"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-07.png",
-      "time": "2026-03-22 21:28:19"
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-11.png",
+      "time": "2026-03-23 13:03:07"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-08.png",
-      "time": "2026-03-22 21:28:19"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-09.png",
-      "time": "2026-03-22 21:28:19"
-    },
-    {
-      "ip": "192.168.178.23",
+      "ip": "127.0.0.1",
       "path": "/api/study/settings",
-      "time": "2026-03-22 21:28:19"
+      "time": "2026-03-23 13:03:07"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-10.png",
-      "time": "2026-03-22 21:28:19"
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-12.png",
+      "time": "2026-03-23 13:03:07"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-11.png",
-      "time": "2026-03-22 21:28:19"
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-13.png",
+      "time": "2026-03-23 13:03:07"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-12.png",
-      "time": "2026-03-22 21:28:19"
+      "ip": "127.0.0.1",
+      "path": "/api/annotations/7 Week  - Generative Models & Graph/subpages/Pittfalls when increasing the number of model parameters.md",
+      "time": "2026-03-23 13:03:07"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-13.png",
-      "time": "2026-03-22 21:28:19"
+      "ip": "127.0.0.1",
+      "path": "/api/study/dashboard",
+      "time": "2026-03-23 13:03:10"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/raw/7 Week  - Generative Models & Graph/img/Pasted image 20250126192350.png",
-      "time": "2026-03-22 21:28:19"
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/subpages/Pittfalls when increasing the number of model parameters.md",
+      "time": "2026-03-23 13:11:38"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/api/annotations/7 Week  - Generative Models & Graph/subpages/Sampling from a probability distribution.md",
-      "time": "2026-03-22 21:28:20"
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-01.png",
+      "time": "2026-03-23 13:11:39"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/manifest.json",
-      "time": "2026-03-22 21:28:20"
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-02.png",
+      "time": "2026-03-23 13:11:39"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/subpages/Sampling from a probability distribution.md",
-      "time": "2026-03-22 21:28:23"
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-03.png",
+      "time": "2026-03-23 13:11:39"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-01.png",
-      "time": "2026-03-22 21:28:23"
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-04.png",
+      "time": "2026-03-23 13:11:39"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-02.png",
-      "time": "2026-03-22 21:28:23"
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-05.png",
+      "time": "2026-03-23 13:11:39"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-03.png",
-      "time": "2026-03-22 21:28:23"
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-06.png",
+      "time": "2026-03-23 13:11:39"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-04.png",
-      "time": "2026-03-22 21:28:23"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-05.png",
-      "time": "2026-03-22 21:28:23"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-06.png",
-      "time": "2026-03-22 21:28:23"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-08.png",
-      "time": "2026-03-22 21:28:23"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-07.png",
-      "time": "2026-03-22 21:28:23"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-09.png",
-      "time": "2026-03-22 21:28:23"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-10.png",
-      "time": "2026-03-22 21:28:23"
-    },
-    {
-      "ip": "192.168.178.23",
+      "ip": "127.0.0.1",
       "path": "/api/study/settings",
-      "time": "2026-03-22 21:28:23"
+      "time": "2026-03-23 13:11:39"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-11.png",
-      "time": "2026-03-22 21:28:23"
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-07.png",
+      "time": "2026-03-23 13:11:39"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-12.png",
-      "time": "2026-03-22 21:28:23"
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-08.png",
+      "time": "2026-03-23 13:11:39"
     },
     {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-13.png",
-      "time": "2026-03-22 21:28:23"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/raw/7 Week  - Generative Models & Graph/img/Pasted image 20250126192350.png",
-      "time": "2026-03-22 21:28:24"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/api/annotations/7 Week  - Generative Models & Graph/subpages/Sampling from a probability distribution.md",
-      "time": "2026-03-22 21:28:25"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/manifest.json",
-      "time": "2026-03-22 21:28:25"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/subpages/Sampling from a probability distribution.md",
-      "time": "2026-03-22 21:28:31"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-01.png",
-      "time": "2026-03-22 21:28:31"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-02.png",
-      "time": "2026-03-22 21:28:31"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-03.png",
-      "time": "2026-03-22 21:28:31"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-04.png",
-      "time": "2026-03-22 21:28:31"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-05.png",
-      "time": "2026-03-22 21:28:31"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-06.png",
-      "time": "2026-03-22 21:28:31"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-07.png",
-      "time": "2026-03-22 21:28:31"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-10.png",
-      "time": "2026-03-22 21:28:31"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-09.png",
-      "time": "2026-03-22 21:28:31"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-08.png",
-      "time": "2026-03-22 21:28:31"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-11.png",
-      "time": "2026-03-22 21:28:31"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-12.png",
-      "time": "2026-03-22 21:28:31"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-13.png",
-      "time": "2026-03-22 21:28:31"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/raw/7 Week  - Generative Models & Graph/img/Pasted image 20250126192350.png",
-      "time": "2026-03-22 21:28:31"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/subpages/Sampling from a probability distribution.md",
-      "time": "2026-03-22 21:30:44"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-01.png",
-      "time": "2026-03-22 21:30:45"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-02.png",
-      "time": "2026-03-22 21:30:45"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-03.png",
-      "time": "2026-03-22 21:30:45"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-04.png",
-      "time": "2026-03-22 21:30:45"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-05.png",
-      "time": "2026-03-22 21:30:45"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-06.png",
-      "time": "2026-03-22 21:30:45"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/api/study/settings",
-      "time": "2026-03-22 21:30:45"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-07.png",
-      "time": "2026-03-22 21:30:45"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-08.png",
-      "time": "2026-03-22 21:30:45"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-09.png",
-      "time": "2026-03-22 21:30:45"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-10.png",
-      "time": "2026-03-22 21:30:45"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-11.png",
-      "time": "2026-03-22 21:30:46"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-12.png",
-      "time": "2026-03-22 21:30:46"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-13.png",
-      "time": "2026-03-22 21:30:46"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/raw/7 Week  - Generative Models & Graph/img/Pasted image 20250126192350.png",
-      "time": "2026-03-22 21:30:46"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/api/annotations/7 Week  - Generative Models & Graph/subpages/Sampling from a probability distribution.md",
-      "time": "2026-03-22 21:30:46"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/manifest.json",
-      "time": "2026-03-22 21:30:46"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/subpages/Sampling from a probability distribution.md",
-      "time": "2026-03-22 21:30:48"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-01.png",
-      "time": "2026-03-22 21:30:49"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-02.png",
-      "time": "2026-03-22 21:30:49"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-03.png",
-      "time": "2026-03-22 21:30:49"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-04.png",
-      "time": "2026-03-22 21:30:49"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-05.png",
-      "time": "2026-03-22 21:30:49"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-06.png",
-      "time": "2026-03-22 21:30:49"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-07.png",
-      "time": "2026-03-22 21:30:49"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-09.png",
-      "time": "2026-03-22 21:30:49"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-08.png",
-      "time": "2026-03-22 21:30:49"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-10.png",
-      "time": "2026-03-22 21:30:49"
-    },
-    {
-      "ip": "192.168.178.23",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-11.png",
-      "time": "2026-03-22 21:30:49"
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-09.png",
+      "time": "2026-03-23 13:11:39"
     },
     {
       "ip": "127.0.0.1",
       "path": "/",
-      "time": "2026-03-22 21:31:05"
+      "time": "2026-03-23 13:11:51"
     },
     {
       "ip": "127.0.0.1",
       "path": "/api/study/settings",
-      "time": "2026-03-22 21:31:05"
+      "time": "2026-03-23 13:11:52"
     },
     {
       "ip": "127.0.0.1",
-      "path": "/view/7 Week  - Generative Models & Graph/subpages/Sampling from a probability distribution.md",
-      "time": "2026-03-22 21:31:08"
+      "path": "/view/7 Week  - Generative Models & Graph/subpages/Pittfalls when increasing the number of model parameters.md",
+      "time": "2026-03-23 13:12:04"
     },
     {
       "ip": "127.0.0.1",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-01.png",
-      "time": "2026-03-22 21:31:08"
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-01.png",
+      "time": "2026-03-23 13:12:04"
     },
     {
       "ip": "127.0.0.1",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-02.png",
-      "time": "2026-03-22 21:31:08"
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-02.png",
+      "time": "2026-03-23 13:12:04"
     },
     {
       "ip": "127.0.0.1",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-03.png",
-      "time": "2026-03-22 21:31:08"
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-03.png",
+      "time": "2026-03-23 13:12:04"
     },
     {
       "ip": "127.0.0.1",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-04.png",
-      "time": "2026-03-22 21:31:08"
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-04.png",
+      "time": "2026-03-23 13:12:04"
     },
     {
       "ip": "127.0.0.1",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-05.png",
-      "time": "2026-03-22 21:31:08"
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-05.png",
+      "time": "2026-03-23 13:12:04"
     },
     {
       "ip": "127.0.0.1",
-      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Sampling-from-a-probability-distribution/slide-06.png",
-      "time": "2026-03-22 21:31:08"
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-06.png",
+      "time": "2026-03-23 13:12:04"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-07.png",
+      "time": "2026-03-23 13:12:05"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-08.png",
+      "time": "2026-03-23 13:12:05"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-09.png",
+      "time": "2026-03-23 13:12:05"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-10.png",
+      "time": "2026-03-23 13:12:05"
     },
     {
       "ip": "127.0.0.1",
       "path": "/api/study/settings",
-      "time": "2026-03-22 21:31:08"
+      "time": "2026-03-23 13:12:05"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-11.png",
+      "time": "2026-03-23 13:12:05"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-12.png",
+      "time": "2026-03-23 13:12:05"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/annotations/7 Week  - Generative Models & Graph/subpages/Pittfalls when increasing the number of model parameters.md",
+      "time": "2026-03-23 13:12:05"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/Slides/Generative Models for the Web/Pittfalls-when-increasing-the-number-of-model-parameters/slide-13.png",
+      "time": "2026-03-23 13:12:05"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/dashboard",
+      "time": "2026-03-23 13:12:12"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/weak-cards",
+      "time": "2026-03-23 13:14:06"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/all-cards/Week 1 - Ethernet/subpages/Ethernet header.md",
+      "time": "2026-03-23 13:14:06"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/all-cards/Week 1 - Ethernet/subpages/Ethernet header.md",
+      "time": "2026-03-23 13:14:06"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/all-cards/Week 1 - Ethernet/subpages/Ethernet header.md",
+      "time": "2026-03-23 13:14:06"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/all-cards/Week 1 - Ethernet/subpages/Ethernet header.md",
+      "time": "2026-03-23 13:14:06"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/all-cards/Week 1 - Ethernet/subpages/Ethernet header.md",
+      "time": "2026-03-23 13:14:06"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/all-cards/Week 1 - Ethernet/subpages/Ethernet header.md",
+      "time": "2026-03-23 13:14:06"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/all-cards/Week 1 - Ethernet/subpages/Ethernet header.md",
+      "time": "2026-03-23 13:14:06"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/all-cards/Week 1 - Ethernet/subpages/Ethernet header.md",
+      "time": "2026-03-23 13:14:06"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/all-cards/Week 1 - Ethernet/subpages/Ethernet header.md",
+      "time": "2026-03-23 13:14:06"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/all-cards/Week 1 - Ethernet/subpages/Ethernet header.md",
+      "time": "2026-03-23 13:14:06"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/all-cards/Week 1 - Ethernet/subpages/Collision detection.md",
+      "time": "2026-03-23 13:14:06"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/all-cards/Week 1 - Ethernet/subpages/Collision detection.md",
+      "time": "2026-03-23 13:14:06"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/all-cards/Week 1 - Ethernet/subpages/Collision detection.md",
+      "time": "2026-03-23 13:14:06"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/all-cards/Week 1 - Ethernet/subpages/Collision detection.md",
+      "time": "2026-03-23 13:14:06"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/all-cards/Week 1 - Ethernet/subpages/Collision detection.md",
+      "time": "2026-03-23 13:14:06"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/all-cards/Week 1 - Ethernet/subpages/Collision detection.md",
+      "time": "2026-03-23 13:14:06"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/all-cards/Week 1 - Ethernet/subpages/Collision detection.md",
+      "time": "2026-03-23 13:14:06"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/all-cards/Week 1 - Ethernet/subpages/Collision detection.md",
+      "time": "2026-03-23 13:14:06"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/all-cards/Week 1 - Ethernet/subpages/Collision detection.md",
+      "time": "2026-03-23 13:14:06"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/all-cards/Week 1 - Ethernet/subpages/Collision detection.md",
+      "time": "2026-03-23 13:14:06"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/",
+      "time": "2026-03-23 13:16:09"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/settings",
+      "time": "2026-03-23 13:16:09"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/4 Week  - Web Content & Dynamic",
+      "time": "2026-03-23 13:18:07"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/settings",
+      "time": "2026-03-23 13:18:07"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/annotations/4 Week  - Web Content & Dynamic",
+      "time": "2026-03-23 13:18:07"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/3 Week  - Internet vs WWW & HTTP",
+      "time": "2026-03-23 13:18:12"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/settings",
+      "time": "2026-03-23 13:18:12"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/annotations/3 Week  - Internet vs WWW & HTTP",
+      "time": "2026-03-23 13:18:12"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/1 Week  - Introduction",
+      "time": "2026-03-23 13:18:20"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/settings",
+      "time": "2026-03-23 13:18:20"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/",
+      "time": "2026-03-23 13:23:51"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/settings",
+      "time": "2026-03-23 13:23:51"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/1 Week  - Introduction",
+      "time": "2026-03-23 13:23:55"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/settings",
+      "time": "2026-03-23 13:23:56"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/annotations/1 Week  - Introduction",
+      "time": "2026-03-23 13:23:56"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/1 Week  - Introduction/subpages",
+      "time": "2026-03-23 13:24:49"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/settings",
+      "time": "2026-03-23 13:24:49"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/annotations/1 Week  - Introduction/subpages",
+      "time": "2026-03-23 13:24:49"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/6 Week  - Advanced Stats & Similarity",
+      "time": "2026-03-23 13:25:08"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/settings",
+      "time": "2026-03-23 13:25:08"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/annotations/6 Week  - Advanced Stats & Similarity",
+      "time": "2026-03-23 13:25:08"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/6 Week  - Advanced Stats & Similarity/subpages",
+      "time": "2026-03-23 13:25:10"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/settings",
+      "time": "2026-03-23 13:25:10"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/annotations/6 Week  - Advanced Stats & Similarity/subpages",
+      "time": "2026-03-23 13:25:11"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph",
+      "time": "2026-03-23 13:25:16"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/settings",
+      "time": "2026-03-23 13:25:16"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/annotations/7 Week  - Generative Models & Graph",
+      "time": "2026-03-23 13:25:17"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/view/7 Week  - Generative Models & Graph/subpages",
+      "time": "2026-03-23 13:25:19"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/study/settings",
+      "time": "2026-03-23 13:25:20"
+    },
+    {
+      "ip": "127.0.0.1",
+      "path": "/api/annotations/7 Week  - Generative Models & Graph/subpages",
+      "time": "2026-03-23 13:25:20"
     }
   ]
 }
