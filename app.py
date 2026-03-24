@@ -527,13 +527,39 @@ def protect_array_notation(content):
     return content
 
 
+def protect_css_selectors(content):
+    """
+    Protect CSS selector patterns like (#name) and (.class) from MathJax processing.
+    
+    The # symbol is a LaTeX macro parameter character and causes MathJax errors
+    when it appears in text like "ID (#name)" or "#id".
+    
+    Wraps such patterns in backticks to render as inline code.
+    """
+    # Pattern 1: CSS ID selector in parentheses like (#name) or (#id)
+    # This prevents MathJax from trying to process # as LaTeX
+    content = re.sub(r'(?<!`)\(#([a-zA-Z_][a-zA-Z0-9_-]*)\)(?!`)', r'(`#\1`)', content)
+    
+    # Pattern 2: CSS class selector in parentheses like (.class) or (.name)
+    content = re.sub(r'(?<!`)\(\.([a-zA-Z_][a-zA-Z0-9_-]*)\)(?!`)', r'(`.\1`)', content)
+    
+    # Pattern 3: Standalone #id or .class patterns (common in CSS discussions)
+    # Match #word that's not in a heading context (not at start of line after optional >)
+    content = re.sub(r'(?<!`)(?<!^)(?<!^> )(?<![#`])#([a-zA-Z_][a-zA-Z0-9_-]*)(?![`\w])', r'`#\1`', content)
+    
+    return content
+
+
 def protect_math_expressions(content):
     """Protect LaTeX math expressions from markdown processing"""
     # First, convert common math notations like e^(...) to LaTeX
     content = convert_inline_math_notation(content)
     
-    # Also protect array notation from being parsed as links
+    # Protect array notation from being parsed as links
     content = protect_array_notation(content)
+    
+    # Protect CSS selectors (#id, .class) from MathJax errors
+    content = protect_css_selectors(content)
     
     placeholders = {}
     counter = [0]  # Use list to allow modification in nested function
