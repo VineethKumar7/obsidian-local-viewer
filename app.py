@@ -499,10 +499,41 @@ def convert_inline_math_notation(content):
     
     return content
 
+def protect_array_notation(content):
+    """
+    Protect array/matrix notation like A[i][j] from being parsed as markdown links.
+    
+    The pattern [i] and [j] get interpreted as link references in markdown,
+    causing text like "A[i][j] = 1" to render incorrectly.
+    
+    This function wraps such patterns in backticks to render them as inline code.
+    """
+    # Pattern matches: word/letter followed by [single_char_or_word][...]
+    # Examples: A[i][j], matrix[row][col], arr[0], list[index]
+    # But NOT: [link text](url) or [[wiki links]]
+    
+    # Pattern 1: Variable followed by multiple bracket pairs like A[i][j]
+    # Matches: A[i][j], A[i][j][k], matrix[0][1], etc.
+    # Negative lookbehind for backtick to avoid double-wrapping
+    multi_bracket_pattern = re.compile(r'(?<!`)(?<!\[)\b([A-Za-z_][A-Za-z0-9_]*)((?:\[[^\]]+\]){2,})(?!`)')
+    content = re.sub(multi_bracket_pattern, r'`\1\2`', content)
+    
+    # Pattern 2: Single bracket with single letter/short index like A[i], arr[0]
+    # Only if it looks like array notation (not a markdown link)
+    # Matches: A[i], A[j], arr[0], list[n], but NOT [link text]
+    single_bracket_pattern = re.compile(r'(?<!`)(?<!\])\b([A-Za-z_][A-Za-z0-9_]*)\[([a-zA-Z0-9_]{1,3})\](?![`\(\]])')
+    content = re.sub(single_bracket_pattern, r'`\1[\2]`', content)
+    
+    return content
+
+
 def protect_math_expressions(content):
     """Protect LaTeX math expressions from markdown processing"""
     # First, convert common math notations like e^(...) to LaTeX
     content = convert_inline_math_notation(content)
+    
+    # Also protect array notation from being parsed as links
+    content = protect_array_notation(content)
     
     placeholders = {}
     counter = [0]  # Use list to allow modification in nested function
@@ -4677,13 +4708,18 @@ HTML_TEMPLATE = '''
                 const data = await response.json();
                 
                 if (data.success) {
-                    btn.innerHTML = '✅ <span class="btn-text">Done!</span>';
+                    // Show cheatsheet info if available
+                    let statusMsg = '✅ Synced!';
+                    if (data.cheatsheet && data.cheatsheet.success) {
+                        statusMsg = `✅ Synced! (📝 ${data.cheatsheet.definitions_found} definitions)`;
+                    }
+                    btn.innerHTML = `<span class="btn-text">${statusMsg}</span>`;
                     setTimeout(() => { 
                         btn.innerHTML = originalText;
                         btn.disabled = false;
                         // Reload page to show updated values
                         location.reload();
-                    }, 1000);
+                    }, 1500);
                 } else {
                     btn.innerHTML = '❌ <span class="btn-text">Failed</span>';
                     alert('Sync failed: ' + (data.error || 'Unknown error'));
@@ -12530,6 +12566,140 @@ def api_access_log():
     return html
 
 
+def generate_quick_definitions_cheatsheet():
+    """
+    Generate a consolidated cheatsheet from all 📝 Quick Definitions for Exam callouts.
+    
+    Scans all MD files in the vault, extracts [!quote]+ 📝 Quick Definitions callouts,
+    and generates a single cheatsheet.md file in a 'cheatsheet' folder.
+    
+    Returns:
+        dict: {success: bool, files_scanned: int, definitions_found: int, error: str}
+    """
+    if not VAULT_PATH:
+        return {'success': False, 'error': 'VAULT_PATH not set', 'files_scanned': 0, 'definitions_found': 0}
+    
+    cheatsheet_dir = os.path.join(VAULT_PATH, 'cheatsheet')
+    cheatsheet_file = os.path.join(cheatsheet_dir, 'Quick Definitions Cheatsheet.md')
+    
+    # Create cheatsheet directory if it doesn't exist
+    os.makedirs(cheatsheet_dir, exist_ok=True)
+    
+    # Pattern to match Quick Definitions callouts
+    # Matches: > [!quote]+ 📝 Quick Definitions for Exam (or similar variations)
+    callout_start_pattern = re.compile(
+        r'^>\s*\[!quote\][+-]?\s*📝\s*Quick\s+Definitions.*$',
+        re.IGNORECASE | re.MULTILINE
+    )
+    
+    definitions_by_source = {}
+    files_scanned = 0
+    
+    for root, dirs, files in os.walk(VAULT_PATH):
+        # Skip hidden directories and the cheatsheet directory itself
+        dirs[:] = [d for d in dirs if not d.startswith('.') and d != 'cheatsheet']
+        
+        for filename in files:
+            if not filename.endswith('.md') or filename.startswith('.'):
+                continue
+            
+            full_path = os.path.join(root, filename)
+            rel_path = os.path.relpath(full_path, VAULT_PATH)
+            files_scanned += 1
+            
+            try:
+                with open(full_path, 'r', encoding='utf-8') as f:
+                    content = f.read()
+            except Exception:
+                continue
+            
+            # Find Quick Definitions callouts
+            lines = content.split('\n')
+            i = 0
+            while i < len(lines):
+                line = lines[i]
+                
+                # Check if this line starts a Quick Definitions callout
+                if callout_start_pattern.match(line):
+                    # Extract the callout content
+                    callout_lines = []
+                    i += 1
+                    while i < len(lines) and lines[i].startswith('>'):
+                        # Remove the > prefix and preserve content
+                        callout_line = re.sub(r'^>\s?', '', lines[i])
+                        callout_lines.append(callout_line)
+                        i += 1
+                    
+                    if callout_lines:
+                        callout_content = '\n'.join(callout_lines)
+                        if rel_path not in definitions_by_source:
+                            definitions_by_source[rel_path] = []
+                        definitions_by_source[rel_path].append(callout_content)
+                else:
+                    i += 1
+    
+    # Generate the cheatsheet content
+    timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    cheatsheet_content = f"""---
+title: Quick Definitions Cheatsheet
+generated: {timestamp}
+auto_generated: true
+sources: {len(definitions_by_source)}
+---
+
+# 📝 Quick Definitions Cheatsheet
+
+> [!info] Auto-Generated
+> This file is automatically generated from all `📝 Quick Definitions for Exam` callouts found in the vault.
+> 
+> **Last synced:** {timestamp}
+> **Source files:** {len(definitions_by_source)}
+> **Total definitions sections:** {sum(len(v) for v in definitions_by_source.values())}
+> 
+> To update, click the **🔄 Sync** button in the toolbar.
+
+---
+
+"""
+    
+    if not definitions_by_source:
+        cheatsheet_content += "> No Quick Definitions callouts found in the vault.\n"
+    else:
+        for source_path, definitions_list in sorted(definitions_by_source.items()):
+            # Create a cleaner title from the path
+            source_name = os.path.splitext(os.path.basename(source_path))[0]
+            source_folder = os.path.dirname(source_path)
+            
+            cheatsheet_content += f"## 📄 {source_name}\n\n"
+            cheatsheet_content += f"> Source: `{source_path}`\n\n"
+            
+            for definition_block in definitions_list:
+                # Add the definition content
+                cheatsheet_content += definition_block + "\n\n"
+            
+            cheatsheet_content += "---\n\n"
+    
+    # Write the cheatsheet file
+    try:
+        with open(cheatsheet_file, 'w', encoding='utf-8') as f:
+            f.write(cheatsheet_content)
+    except Exception as e:
+        return {
+            'success': False,
+            'error': f'Failed to write cheatsheet: {str(e)}',
+            'files_scanned': files_scanned,
+            'definitions_found': len(definitions_by_source)
+        }
+    
+    return {
+        'success': True,
+        'files_scanned': files_scanned,
+        'definitions_found': len(definitions_by_source),
+        'total_sections': sum(len(v) for v in definitions_by_source.values()),
+        'cheatsheet_path': cheatsheet_file
+    }
+
+
 @app.route('/api/sync-metadata', methods=['POST'])
 def api_sync_metadata():
     """Sync metadata from obsidian-viewer-meta.json to file frontmatter and update index tables"""
@@ -12551,16 +12721,30 @@ def api_sync_metadata():
             capture_output=True, text=True, timeout=30
         )
         
+        # Generate Quick Definitions Cheatsheet
+        cheatsheet_result = generate_quick_definitions_cheatsheet()
+        
         # Rebuild file cache to pick up any frontmatter changes
         build_file_cache()
         
         return jsonify({
             'success': True,
             'sync_output': result1.stdout + result1.stderr,
-            'update_output': result2.stdout + result2.stderr
+            'update_output': result2.stdout + result2.stderr,
+            'cheatsheet': cheatsheet_result
         })
     except subprocess.TimeoutExpired:
         return jsonify({'success': False, 'error': 'Script timed out'}), 500
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/generate-cheatsheet', methods=['POST'])
+def api_generate_cheatsheet():
+    """Generate the Quick Definitions Cheatsheet without running other sync operations"""
+    try:
+        result = generate_quick_definitions_cheatsheet()
+        return jsonify(result)
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
