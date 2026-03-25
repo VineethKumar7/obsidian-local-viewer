@@ -2718,6 +2718,10 @@ HTML_TEMPLATE = '''
             /* Hide dock toggle on mobile */
             .dock-toggle { display: none !important; }
             
+            /* Hide graph sidebar and toggle on mobile */
+            .graph-sidebar { display: none !important; }
+            .graph-dock-toggle { display: none !important; }
+            
             /* Show hamburger menu on mobile */
             .toggle-btn { display: block !important; }
             
