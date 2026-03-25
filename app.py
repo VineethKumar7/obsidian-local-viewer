@@ -5156,6 +5156,93 @@ HTML_TEMPLATE = '''
                     renderGraph();
                 }
             });
+            
+            // Touch support for mobile
+            let touchStartDist = 0;
+            let touchStartZoom = 1;
+            let lastTouchPos = null;
+            
+            canvas.ontouchstart = function(e) {
+                if (e.touches.length === 2) {
+                    // Pinch to zoom - record initial distance
+                    const dx = e.touches[0].clientX - e.touches[1].clientX;
+                    const dy = e.touches[0].clientY - e.touches[1].clientY;
+                    touchStartDist = Math.sqrt(dx * dx + dy * dy);
+                    touchStartZoom = graphZoom;
+                    e.preventDefault();
+                } else if (e.touches.length === 1) {
+                    // Single touch - pan or drag node
+                    const touch = e.touches[0];
+                    const rect = canvas.getBoundingClientRect();
+                    const mx = (touch.clientX - rect.left - canvas.width / 2 - graphOffsetX) / graphZoom;
+                    const my = (touch.clientY - rect.top - canvas.height / 2 - graphOffsetY) / graphZoom;
+                    
+                    // Check if touching a node
+                    for (const node of graphData.nodes) {
+                        const dist = Math.sqrt((mx - node.x) ** 2 + (my - node.y) ** 2);
+                        if (dist < 20) {
+                            graphDragging = node;
+                            e.preventDefault();
+                            return;
+                        }
+                    }
+                    
+                    // Start panning
+                    lastTouchPos = { x: touch.clientX, y: touch.clientY };
+                    graphPanning = true;
+                }
+            };
+            
+            canvas.ontouchmove = function(e) {
+                if (e.touches.length === 2) {
+                    // Pinch to zoom
+                    const dx = e.touches[0].clientX - e.touches[1].clientX;
+                    const dy = e.touches[0].clientY - e.touches[1].clientY;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const scale = dist / touchStartDist;
+                    graphZoom = Math.max(0.3, Math.min(3, touchStartZoom * scale));
+                    renderGraph();
+                    e.preventDefault();
+                } else if (e.touches.length === 1) {
+                    const touch = e.touches[0];
+                    
+                    if (graphDragging) {
+                        const rect = canvas.getBoundingClientRect();
+                        graphDragging.x = (touch.clientX - rect.left - canvas.width / 2 - graphOffsetX) / graphZoom;
+                        graphDragging.y = (touch.clientY - rect.top - canvas.height / 2 - graphOffsetY) / graphZoom;
+                        renderGraph();
+                        e.preventDefault();
+                    } else if (graphPanning && lastTouchPos) {
+                        graphOffsetX += touch.clientX - lastTouchPos.x;
+                        graphOffsetY += touch.clientY - lastTouchPos.y;
+                        lastTouchPos = { x: touch.clientX, y: touch.clientY };
+                        renderGraph();
+                        e.preventDefault();
+                    }
+                }
+            };
+            
+            canvas.ontouchend = function(e) {
+                // Check for tap on node (navigate)
+                if (!graphDragging && !graphPanning && e.changedTouches.length === 1) {
+                    const touch = e.changedTouches[0];
+                    const rect = canvas.getBoundingClientRect();
+                    const mx = (touch.clientX - rect.left - canvas.width / 2 - graphOffsetX) / graphZoom;
+                    const my = (touch.clientY - rect.top - canvas.height / 2 - graphOffsetY) / graphZoom;
+                    
+                    for (const node of graphData.nodes) {
+                        const dist = Math.sqrt((mx - node.x) ** 2 + (my - node.y) ** 2);
+                        if (dist < 20 && !node.isCenter) {
+                            window.location.href = '/view/' + encodeURIComponent(node.id + '.md');
+                            return;
+                        }
+                    }
+                }
+                
+                graphDragging = null;
+                graphPanning = false;
+                lastTouchPos = null;
+            };
         }
         
         function zoomGraphIn() {
