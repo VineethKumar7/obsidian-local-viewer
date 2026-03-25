@@ -2387,6 +2387,91 @@ HTML_TEMPLATE = '''
         details.callout summary::-webkit-details-marker { display: none; }
         details.callout summary .callout-title::after { content: '▶'; margin-left: auto; font-size: 12px; transition: transform 0.2s; }
         details.callout[open] summary .callout-title::after { transform: rotate(90deg); }
+        
+        /* Cheatsheet Relevance Controls */
+        .callout-wrapper {
+            position: relative;
+            transition: opacity 0.3s, transform 0.3s;
+        }
+        .callout-wrapper.not-relevant {
+            opacity: 0.5;
+        }
+        .callout-wrapper.dragging {
+            opacity: 0.8;
+            transform: scale(1.02);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            z-index: 100;
+        }
+        .callout-controls {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            z-index: 10;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .callout-wrapper:hover .callout-controls {
+            opacity: 1;
+        }
+        .callout-controls .relevance-checkbox {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: #10b981;
+        }
+        .callout-controls .drag-handle {
+            cursor: grab;
+            padding: 4px;
+            color: #888;
+            font-size: 14px;
+            user-select: none;
+        }
+        .callout-controls .drag-handle:active {
+            cursor: grabbing;
+        }
+        .callout-controls .drag-handle:hover {
+            color: #ccc;
+        }
+        .cheatsheet-toolbar {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 16px;
+            padding: 12px;
+            background: #2d2d2d;
+            border-radius: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .cheatsheet-toolbar button {
+            padding: 8px 14px;
+            background: #3c3c3c;
+            border: none;
+            color: #ccc;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .cheatsheet-toolbar button:hover {
+            background: #4c4c4c;
+        }
+        .cheatsheet-toolbar button.active {
+            background: #10b981;
+            color: white;
+        }
+        .cheatsheet-toolbar .stats {
+            margin-left: auto;
+            color: #888;
+            font-size: 12px;
+        }
+        .callout-wrapper.drag-over {
+            border-top: 3px solid #10b981;
+        }
         .content a { color: #0066cc; text-decoration: none; }
         .content a:hover { text-decoration: underline; }
         .content a.internal-link { 
@@ -5048,6 +5133,287 @@ HTML_TEMPLATE = '''
                 toggleGraphSidebar();
             }
         });
+        
+        // ============================================
+        // CHEATSHEET RELEVANCE & REORDERING
+        // ============================================
+        const isCheatsheetPage = window.location.pathname.includes('/cheatsheet/');
+        let cheatsheetState = {};
+        
+        function initCheatsheetFeatures() {
+            if (!isCheatsheetPage) return;
+            
+            const contentArea = document.getElementById('contentArea');
+            if (!contentArea) return;
+            
+            // Load saved state
+            const stateKey = 'cheatsheet_' + window.location.pathname;
+            const savedState = localStorage.getItem(stateKey);
+            if (savedState) {
+                try {
+                    cheatsheetState = JSON.parse(savedState);
+                } catch (e) {
+                    cheatsheetState = {};
+                }
+            }
+            
+            // Find all callouts (both div and details)
+            const callouts = contentArea.querySelectorAll('.callout');
+            if (callouts.length === 0) return;
+            
+            // Add toolbar at the top of content
+            const firstH1 = contentArea.querySelector('h1');
+            const toolbar = document.createElement('div');
+            toolbar.className = 'cheatsheet-toolbar';
+            toolbar.innerHTML = `
+                <button onclick="sortByRelevance()" title="Sort: relevant items first">📊 Sort by Relevance</button>
+                <button onclick="markAllRelevant()" title="Mark all as relevant">✅ Mark All</button>
+                <button onclick="clearAllMarks()" title="Clear all marks">🔄 Reset</button>
+                <button onclick="toggleShowIrrelevant()" id="toggleIrrelevantBtn" title="Show/hide irrelevant items">👁️ Hide Irrelevant</button>
+                <span class="stats" id="cheatsheetStats"></span>
+            `;
+            if (firstH1 && firstH1.nextSibling) {
+                firstH1.parentNode.insertBefore(toolbar, firstH1.nextSibling);
+            } else {
+                contentArea.insertBefore(toolbar, contentArea.firstChild);
+            }
+            
+            // Wrap each callout and add controls
+            callouts.forEach((callout, index) => {
+                const calloutId = getCalloutId(callout, index);
+                
+                // Create wrapper
+                const wrapper = document.createElement('div');
+                wrapper.className = 'callout-wrapper';
+                wrapper.dataset.calloutId = calloutId;
+                wrapper.dataset.originalIndex = index;
+                wrapper.draggable = true;
+                
+                // Insert wrapper
+                callout.parentNode.insertBefore(wrapper, callout);
+                wrapper.appendChild(callout);
+                
+                // Add controls
+                const controls = document.createElement('div');
+                controls.className = 'callout-controls';
+                
+                const isRelevant = cheatsheetState[calloutId]?.relevant !== false;
+                controls.innerHTML = `
+                    <input type="checkbox" class="relevance-checkbox" 
+                           ${isRelevant ? 'checked' : ''} 
+                           onchange="toggleRelevance('${calloutId}', this.checked)"
+                           title="Mark as relevant for exam">
+                    <span class="drag-handle" title="Drag to reorder">⋮⋮</span>
+                `;
+                wrapper.appendChild(controls);
+                
+                // Apply saved state
+                if (!isRelevant) {
+                    wrapper.classList.add('not-relevant');
+                }
+                
+                // Drag and drop events
+                wrapper.addEventListener('dragstart', handleDragStart);
+                wrapper.addEventListener('dragend', handleDragEnd);
+                wrapper.addEventListener('dragover', handleDragOver);
+                wrapper.addEventListener('drop', handleDrop);
+            });
+            
+            // Apply saved order
+            applySavedOrder();
+            updateStats();
+        }
+        
+        function getCalloutId(callout, index) {
+            // Generate a stable ID from callout content
+            const title = callout.querySelector('.callout-title');
+            if (title) {
+                return title.textContent.trim().substring(0, 50).replace(/[^a-zA-Z0-9]/g, '_');
+            }
+            return 'callout_' + index;
+        }
+        
+        function toggleRelevance(calloutId, isRelevant) {
+            const wrapper = document.querySelector(`[data-callout-id="${calloutId}"]`);
+            if (wrapper) {
+                if (isRelevant) {
+                    wrapper.classList.remove('not-relevant');
+                } else {
+                    wrapper.classList.add('not-relevant');
+                }
+            }
+            
+            if (!cheatsheetState[calloutId]) {
+                cheatsheetState[calloutId] = {};
+            }
+            cheatsheetState[calloutId].relevant = isRelevant;
+            saveCheatsheetState();
+            updateStats();
+        }
+        
+        function sortByRelevance() {
+            const contentArea = document.getElementById('contentArea');
+            const wrappers = Array.from(contentArea.querySelectorAll('.callout-wrapper'));
+            
+            // Sort: relevant first, then by original index
+            wrappers.sort((a, b) => {
+                const aRelevant = !a.classList.contains('not-relevant');
+                const bRelevant = !b.classList.contains('not-relevant');
+                
+                if (aRelevant && !bRelevant) return -1;
+                if (!aRelevant && bRelevant) return 1;
+                
+                // Keep original order within each group
+                return parseInt(a.dataset.originalIndex) - parseInt(b.dataset.originalIndex);
+            });
+            
+            // Reorder in DOM
+            const hr = contentArea.querySelector('hr.section-divider');
+            wrappers.forEach((wrapper, newIndex) => {
+                wrapper.dataset.sortIndex = newIndex;
+                if (hr) {
+                    contentArea.insertBefore(wrapper, hr);
+                } else {
+                    contentArea.appendChild(wrapper);
+                }
+            });
+            
+            saveSortOrder();
+        }
+        
+        function markAllRelevant() {
+            document.querySelectorAll('.callout-wrapper').forEach(wrapper => {
+                wrapper.classList.remove('not-relevant');
+                const checkbox = wrapper.querySelector('.relevance-checkbox');
+                if (checkbox) checkbox.checked = true;
+                
+                const calloutId = wrapper.dataset.calloutId;
+                if (!cheatsheetState[calloutId]) {
+                    cheatsheetState[calloutId] = {};
+                }
+                cheatsheetState[calloutId].relevant = true;
+            });
+            saveCheatsheetState();
+            updateStats();
+        }
+        
+        function clearAllMarks() {
+            cheatsheetState = {};
+            localStorage.removeItem('cheatsheet_' + window.location.pathname);
+            location.reload();
+        }
+        
+        let showIrrelevant = true;
+        function toggleShowIrrelevant() {
+            showIrrelevant = !showIrrelevant;
+            const btn = document.getElementById('toggleIrrelevantBtn');
+            
+            document.querySelectorAll('.callout-wrapper.not-relevant').forEach(wrapper => {
+                wrapper.style.display = showIrrelevant ? '' : 'none';
+            });
+            
+            btn.textContent = showIrrelevant ? '👁️ Hide Irrelevant' : '👁️ Show Irrelevant';
+            btn.classList.toggle('active', !showIrrelevant);
+        }
+        
+        // Drag and drop handlers
+        let draggedItem = null;
+        
+        function handleDragStart(e) {
+            draggedItem = this;
+            this.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+        }
+        
+        function handleDragEnd(e) {
+            this.classList.remove('dragging');
+            document.querySelectorAll('.callout-wrapper').forEach(w => {
+                w.classList.remove('drag-over');
+            });
+            draggedItem = null;
+            saveSortOrder();
+        }
+        
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            
+            if (this !== draggedItem) {
+                this.classList.add('drag-over');
+            }
+        }
+        
+        function handleDrop(e) {
+            e.preventDefault();
+            this.classList.remove('drag-over');
+            
+            if (draggedItem && this !== draggedItem) {
+                const parent = this.parentNode;
+                const allWrappers = Array.from(parent.querySelectorAll('.callout-wrapper'));
+                const draggedIndex = allWrappers.indexOf(draggedItem);
+                const targetIndex = allWrappers.indexOf(this);
+                
+                if (draggedIndex < targetIndex) {
+                    parent.insertBefore(draggedItem, this.nextSibling);
+                } else {
+                    parent.insertBefore(draggedItem, this);
+                }
+            }
+        }
+        
+        function saveSortOrder() {
+            const wrappers = document.querySelectorAll('.callout-wrapper');
+            const order = Array.from(wrappers).map(w => w.dataset.calloutId);
+            
+            if (!cheatsheetState._order) {
+                cheatsheetState._order = [];
+            }
+            cheatsheetState._order = order;
+            saveCheatsheetState();
+        }
+        
+        function applySavedOrder() {
+            if (!cheatsheetState._order || cheatsheetState._order.length === 0) return;
+            
+            const contentArea = document.getElementById('contentArea');
+            const wrappers = document.querySelectorAll('.callout-wrapper');
+            const wrapperMap = {};
+            
+            wrappers.forEach(w => {
+                wrapperMap[w.dataset.calloutId] = w;
+            });
+            
+            // Find insertion point (before first hr or at end)
+            const hr = contentArea.querySelector('hr.section-divider');
+            
+            cheatsheetState._order.forEach(id => {
+                const wrapper = wrapperMap[id];
+                if (wrapper) {
+                    if (hr) {
+                        contentArea.insertBefore(wrapper, hr);
+                    } else {
+                        contentArea.appendChild(wrapper);
+                    }
+                }
+            });
+        }
+        
+        function saveCheatsheetState() {
+            const stateKey = 'cheatsheet_' + window.location.pathname;
+            localStorage.setItem(stateKey, JSON.stringify(cheatsheetState));
+        }
+        
+        function updateStats() {
+            const total = document.querySelectorAll('.callout-wrapper').length;
+            const relevant = document.querySelectorAll('.callout-wrapper:not(.not-relevant)').length;
+            const stats = document.getElementById('cheatsheetStats');
+            if (stats) {
+                stats.textContent = `${relevant}/${total} marked relevant`;
+            }
+        }
+        
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', initCheatsheetFeatures);
         
         // ============================================
         // METADATA FUNCTIONS
