@@ -4749,7 +4749,11 @@ HTML_TEMPLATE = '''
             if (graphSidebarOpen) {
                 graphSidebar.classList.remove('collapsed');
                 graphDockToggle.classList.add('open');
-                initGraph();
+                // Delay init to ensure layout is complete
+                setTimeout(() => {
+                    initGraph();
+                    requestAnimationFrame(() => renderGraph());
+                }, 100);
             }
         });
         
@@ -4763,7 +4767,12 @@ HTML_TEMPLATE = '''
             if (graphSidebarOpen) {
                 graphSidebar.classList.remove('collapsed');
                 graphDockToggle.classList.add('open');
-                initGraph();
+                // Wait for CSS transition to complete before initializing graph
+                setTimeout(() => {
+                    initGraph();
+                    // Re-render after another frame to ensure proper sizing
+                    requestAnimationFrame(() => renderGraph());
+                }, 300);
             } else {
                 graphSidebar.classList.add('collapsed');
                 graphDockToggle.classList.remove('open');
@@ -4853,8 +4862,17 @@ HTML_TEMPLATE = '''
             if (!canvas) return;
             
             const container = canvas.parentElement;
-            canvas.width = container.clientWidth;
-            canvas.height = container.clientHeight;
+            const width = container.clientWidth || 320;
+            const height = container.clientHeight || 400;
+            
+            // Skip render if dimensions are too small (sidebar still animating)
+            if (width < 50 || height < 50) {
+                setTimeout(renderGraph, 50);
+                return;
+            }
+            
+            canvas.width = width;
+            canvas.height = height;
             
             const ctx = canvas.getContext('2d');
             const centerX = canvas.width / 2 + graphOffsetX;
