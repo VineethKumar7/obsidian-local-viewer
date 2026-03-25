@@ -1294,6 +1294,111 @@ HTML_TEMPLATE = '''
             visibility: hidden;
         }
         
+        /* Right Sidebar - Graph Panel */
+        .graph-sidebar {
+            width: 320px;
+            min-width: 320px;
+            background: #252526;
+            color: #cccccc;
+            flex-shrink: 0;
+            box-shadow: -1px 0 3px rgba(0,0,0,0.3);
+            transition: width 0.25s ease, min-width 0.25s ease;
+            position: relative;
+            z-index: 100;
+            display: flex;
+            flex-direction: column;
+        }
+        .graph-sidebar.collapsed {
+            width: 0 !important;
+            min-width: 0 !important;
+            overflow: hidden !important;
+        }
+        .graph-sidebar-header {
+            padding: 12px 16px;
+            background: #1e1e1e;
+            border-bottom: 1px solid #3c3c3c;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .graph-sidebar-header h3 {
+            color: #cccccc;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin: 0;
+        }
+        .graph-sidebar-close {
+            background: #3c3c3c;
+            border: none;
+            color: #ccc;
+            padding: 4px 8px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .graph-sidebar-close:hover {
+            background: #cc3333;
+            color: white;
+        }
+        .graph-container {
+            flex: 1;
+            position: relative;
+            overflow: hidden;
+        }
+        #graphCanvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+        .graph-controls {
+            padding: 8px 12px;
+            background: #1e1e1e;
+            border-top: 1px solid #3c3c3c;
+            display: flex;
+            gap: 8px;
+            justify-content: center;
+        }
+        .graph-controls button {
+            background: #3c3c3c;
+            border: none;
+            color: #ccc;
+            padding: 6px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+        }
+        .graph-controls button:hover {
+            background: #4c4c4c;
+        }
+        .graph-dock-toggle {
+            position: fixed;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 150;
+            background: #3c3c3c;
+            border: none;
+            color: #ccc;
+            padding: 12px 6px;
+            cursor: pointer;
+            border-radius: 6px 0 0 6px;
+            transition: right 0.25s ease;
+        }
+        .graph-dock-toggle:hover {
+            background: #4c4c4c;
+        }
+        .graph-dock-toggle .arrow {
+            transition: transform 0.25s ease;
+        }
+        .graph-dock-toggle.open .arrow {
+            transform: rotate(180deg);
+        }
+        .graph-dock-toggle.open {
+            right: 320px;
+        }
+        
         /* Search Box Styles */
         .search-container {
             padding: 12px 0;
@@ -2507,6 +2612,8 @@ HTML_TEMPLATE = '''
         
         /* Fullscreen mode adjustments */
         .fullscreen-mode .sidebar { display: none; }
+        .fullscreen-mode .graph-sidebar { display: none; }
+        .fullscreen-mode .graph-dock-toggle { display: none; }
         .fullscreen-mode .toggle-btn { left: 15px; }
         .fullscreen-mode .content { max-width: 100%; }
         
@@ -4448,6 +4555,25 @@ HTML_TEMPLATE = '''
         </div>
     </div>
     
+    <!-- Right Sidebar - Graph View -->
+    <div class="graph-sidebar collapsed" id="graphSidebar">
+        <div class="graph-sidebar-header">
+            <h3>🔗 Local Graph</h3>
+            <button class="graph-sidebar-close" onclick="toggleGraphSidebar()">✕</button>
+        </div>
+        <div class="graph-container">
+            <canvas id="graphCanvas"></canvas>
+        </div>
+        <div class="graph-controls">
+            <button onclick="zoomGraphIn()" title="Zoom In">➕</button>
+            <button onclick="zoomGraphOut()" title="Zoom Out">➖</button>
+            <button onclick="resetGraphView()" title="Reset View">🎯</button>
+        </div>
+    </div>
+    <button class="graph-dock-toggle" id="graphDockToggle" onclick="toggleGraphSidebar()" title="Toggle Graph (Ctrl+→)">
+        <span class="arrow">▶</span>
+    </button>
+    
     <script>
         // Check if mobile
         const isMobile = window.innerWidth <= 768;
@@ -4602,6 +4728,308 @@ HTML_TEMPLATE = '''
                 toggleBtn.classList.remove('sidebar-open');
             }
         }
+        
+        // ============================================
+        // GRAPH SIDEBAR FUNCTIONS
+        // ============================================
+        let graphSidebarOpen = localStorage.getItem('graphSidebarOpen') === 'true';
+        let graphData = { nodes: [], links: [] };
+        let graphZoom = 1;
+        let graphOffsetX = 0;
+        let graphOffsetY = 0;
+        let graphDragging = null;
+        let graphPanning = false;
+        let graphLastMouse = { x: 0, y: 0 };
+        
+        // Initialize graph sidebar state
+        document.addEventListener('DOMContentLoaded', function() {
+            const graphSidebar = document.getElementById('graphSidebar');
+            const graphDockToggle = document.getElementById('graphDockToggle');
+            
+            if (graphSidebarOpen) {
+                graphSidebar.classList.remove('collapsed');
+                graphDockToggle.classList.add('open');
+                initGraph();
+            }
+        });
+        
+        function toggleGraphSidebar() {
+            const graphSidebar = document.getElementById('graphSidebar');
+            const graphDockToggle = document.getElementById('graphDockToggle');
+            
+            graphSidebarOpen = !graphSidebarOpen;
+            localStorage.setItem('graphSidebarOpen', graphSidebarOpen);
+            
+            if (graphSidebarOpen) {
+                graphSidebar.classList.remove('collapsed');
+                graphDockToggle.classList.add('open');
+                initGraph();
+            } else {
+                graphSidebar.classList.add('collapsed');
+                graphDockToggle.classList.remove('open');
+            }
+        }
+        
+        function initGraph() {
+            // Parse wiki-links from content
+            const content = document.getElementById('contentArea');
+            const currentFile = '{{ file_path|default("")|replace(".md", "")|safe }}';
+            const links = new Set();
+            
+            // Find all wiki-links in content
+            const wikiLinkPattern = /\[\[([^\]|]+)(?:\|[^\]]+)?\]\]/g;
+            const htmlContent = content ? content.innerHTML : '';
+            
+            // Also check for rendered links (href containing /view/)
+            const anchorLinks = content ? content.querySelectorAll('a[href*="/view/"]') : [];
+            anchorLinks.forEach(a => {
+                const href = a.getAttribute('href');
+                if (href) {
+                    const match = href.match(/\/view\/(.+)$/);
+                    if (match) {
+                        links.add(decodeURIComponent(match[1]).replace('.md', ''));
+                    }
+                }
+            });
+            
+            // Build graph data
+            graphData = {
+                nodes: [],
+                links: []
+            };
+            
+            // Add current file as center node
+            if (currentFile) {
+                const currentName = currentFile.split('/').pop();
+                graphData.nodes.push({
+                    id: currentFile,
+                    name: currentName,
+                    x: 0,
+                    y: 0,
+                    vx: 0,
+                    vy: 0,
+                    isCenter: true
+                });
+            }
+            
+            // Add linked files
+            let angle = 0;
+            const angleStep = (2 * Math.PI) / Math.max(links.size, 1);
+            const radius = 120;
+            
+            links.forEach(link => {
+                const linkName = link.split('/').pop();
+                graphData.nodes.push({
+                    id: link,
+                    name: linkName,
+                    x: Math.cos(angle) * radius,
+                    y: Math.sin(angle) * radius,
+                    vx: 0,
+                    vy: 0,
+                    isCenter: false
+                });
+                
+                if (currentFile) {
+                    graphData.links.push({
+                        source: currentFile,
+                        target: link
+                    });
+                }
+                angle += angleStep;
+            });
+            
+            // Reset view
+            graphZoom = 1;
+            graphOffsetX = 0;
+            graphOffsetY = 0;
+            
+            // Start rendering
+            renderGraph();
+            setupGraphInteraction();
+        }
+        
+        function renderGraph() {
+            const canvas = document.getElementById('graphCanvas');
+            if (!canvas) return;
+            
+            const container = canvas.parentElement;
+            canvas.width = container.clientWidth;
+            canvas.height = container.clientHeight;
+            
+            const ctx = canvas.getContext('2d');
+            const centerX = canvas.width / 2 + graphOffsetX;
+            const centerY = canvas.height / 2 + graphOffsetY;
+            
+            // Clear canvas
+            ctx.fillStyle = '#252526';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Apply zoom
+            ctx.save();
+            ctx.translate(centerX, centerY);
+            ctx.scale(graphZoom, graphZoom);
+            
+            // Draw links
+            ctx.strokeStyle = '#e06c75';
+            ctx.lineWidth = 1.5 / graphZoom;
+            
+            graphData.links.forEach(link => {
+                const source = graphData.nodes.find(n => n.id === link.source);
+                const target = graphData.nodes.find(n => n.id === link.target);
+                if (source && target) {
+                    ctx.beginPath();
+                    ctx.moveTo(source.x, source.y);
+                    ctx.lineTo(target.x, target.y);
+                    ctx.stroke();
+                }
+            });
+            
+            // Draw nodes
+            graphData.nodes.forEach(node => {
+                // Node circle
+                ctx.beginPath();
+                const nodeRadius = node.isCenter ? 12 : 8;
+                ctx.arc(node.x, node.y, nodeRadius, 0, Math.PI * 2);
+                ctx.fillStyle = node.isCenter ? '#e06c75' : '#98c379';
+                ctx.fill();
+                
+                // Node label - positioned below to avoid overlap
+                ctx.font = `${11 / graphZoom}px -apple-system, BlinkMacSystemFont, sans-serif`;
+                ctx.fillStyle = '#abb2bf';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'top';
+                
+                // Truncate long names
+                let displayName = node.name;
+                if (displayName.length > 20) {
+                    displayName = displayName.substring(0, 18) + '...';
+                }
+                
+                // Draw label with background for readability
+                const textMetrics = ctx.measureText(displayName);
+                const textY = node.y + nodeRadius + 4;
+                
+                ctx.fillStyle = 'rgba(37, 37, 38, 0.8)';
+                ctx.fillRect(
+                    node.x - textMetrics.width / 2 - 3,
+                    textY - 1,
+                    textMetrics.width + 6,
+                    14 / graphZoom
+                );
+                
+                ctx.fillStyle = node.isCenter ? '#e5c07b' : '#abb2bf';
+                ctx.fillText(displayName, node.x, textY);
+            });
+            
+            ctx.restore();
+        }
+        
+        function setupGraphInteraction() {
+            const canvas = document.getElementById('graphCanvas');
+            if (!canvas) return;
+            
+            // Remove old listeners
+            canvas.onmousedown = null;
+            canvas.onmousemove = null;
+            canvas.onmouseup = null;
+            canvas.onwheel = null;
+            canvas.onclick = null;
+            
+            canvas.onmousedown = function(e) {
+                const rect = canvas.getBoundingClientRect();
+                const mx = (e.clientX - rect.left - canvas.width / 2 - graphOffsetX) / graphZoom;
+                const my = (e.clientY - rect.top - canvas.height / 2 - graphOffsetY) / graphZoom;
+                
+                // Check if clicking a node
+                for (const node of graphData.nodes) {
+                    const dist = Math.sqrt((mx - node.x) ** 2 + (my - node.y) ** 2);
+                    if (dist < 15) {
+                        graphDragging = node;
+                        return;
+                    }
+                }
+                
+                // Start panning
+                graphPanning = true;
+                graphLastMouse = { x: e.clientX, y: e.clientY };
+            };
+            
+            canvas.onmousemove = function(e) {
+                if (graphDragging) {
+                    const rect = canvas.getBoundingClientRect();
+                    graphDragging.x = (e.clientX - rect.left - canvas.width / 2 - graphOffsetX) / graphZoom;
+                    graphDragging.y = (e.clientY - rect.top - canvas.height / 2 - graphOffsetY) / graphZoom;
+                    renderGraph();
+                } else if (graphPanning) {
+                    graphOffsetX += e.clientX - graphLastMouse.x;
+                    graphOffsetY += e.clientY - graphLastMouse.y;
+                    graphLastMouse = { x: e.clientX, y: e.clientY };
+                    renderGraph();
+                }
+            };
+            
+            canvas.onmouseup = function() {
+                graphDragging = null;
+                graphPanning = false;
+            };
+            
+            canvas.onwheel = function(e) {
+                e.preventDefault();
+                const delta = e.deltaY > 0 ? 0.9 : 1.1;
+                graphZoom = Math.max(0.3, Math.min(3, graphZoom * delta));
+                renderGraph();
+            };
+            
+            canvas.onclick = function(e) {
+                if (graphDragging) return;
+                
+                const rect = canvas.getBoundingClientRect();
+                const mx = (e.clientX - rect.left - canvas.width / 2 - graphOffsetX) / graphZoom;
+                const my = (e.clientY - rect.top - canvas.height / 2 - graphOffsetY) / graphZoom;
+                
+                // Check if clicking a node
+                for (const node of graphData.nodes) {
+                    const dist = Math.sqrt((mx - node.x) ** 2 + (my - node.y) ** 2);
+                    if (dist < 15 && !node.isCenter) {
+                        // Navigate to the linked file
+                        window.location.href = '/view/' + encodeURIComponent(node.id + '.md');
+                        return;
+                    }
+                }
+            };
+            
+            // Resize handler
+            window.addEventListener('resize', function() {
+                if (graphSidebarOpen) {
+                    renderGraph();
+                }
+            });
+        }
+        
+        function zoomGraphIn() {
+            graphZoom = Math.min(3, graphZoom * 1.2);
+            renderGraph();
+        }
+        
+        function zoomGraphOut() {
+            graphZoom = Math.max(0.3, graphZoom * 0.8);
+            renderGraph();
+        }
+        
+        function resetGraphView() {
+            graphZoom = 1;
+            graphOffsetX = 0;
+            graphOffsetY = 0;
+            renderGraph();
+        }
+        
+        // Keyboard shortcut: Ctrl+Right Arrow to toggle graph
+        document.addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 'ArrowRight') {
+                e.preventDefault();
+                toggleGraphSidebar();
+            }
+        });
         
         // ============================================
         // METADATA FUNCTIONS
@@ -8710,6 +9138,7 @@ def index():
         
         <div class="keyboard-hints">
             <kbd>Ctrl+B</kbd> Toggle sidebar &nbsp;•&nbsp;
+            <kbd>Ctrl+→</kbd> Toggle graph &nbsp;•&nbsp;
             <kbd>F11</kbd> Fullscreen &nbsp;•&nbsp;
             <kbd>Esc</kbd> Show sidebar
         </div>
@@ -15754,6 +16183,7 @@ Examples:
 ╠══════════════════════════════════════════════════════╣
 ║  Keyboard Shortcuts:                                 ║
 ║    Ctrl+B  — Toggle sidebar                          ║
+║    Ctrl+→  — Toggle graph panel                      ║
 ║    F11     — Fullscreen                              ║
 ║    Esc     — Show sidebar                            ║
 ╚══════════════════════════════════════════════════════╝
