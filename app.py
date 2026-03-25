@@ -1381,6 +1381,51 @@ HTML_TEMPLATE = '''
         .graph-controls button:hover {
             background: #4c4c4c;
         }
+        /* Size buttons - mobile only */
+        .graph-controls .size-buttons {
+            display: none;
+        }
+        @media (max-width: 768px) {
+            .graph-controls .size-buttons {
+                display: flex;
+                gap: 8px;
+                align-items: center;
+            }
+        }
+        /* Resize handle - desktop only */
+        .graph-resize-handle {
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 6px;
+            background: transparent;
+            cursor: ew-resize;
+            z-index: 20;
+            transition: background 0.2s;
+        }
+        .graph-resize-handle:hover,
+        .graph-resize-handle.dragging {
+            background: #0066cc;
+        }
+        .graph-resize-handle::after {
+            content: '⋮';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: #666;
+            font-size: 14px;
+            pointer-events: none;
+        }
+        .graph-resize-handle:hover::after {
+            color: #fff;
+        }
+        @media (max-width: 768px) {
+            .graph-resize-handle {
+                display: none;
+            }
+        }
         .graph-sidebar.size-small {
             width: 280px !important;
             min-width: 280px !important;
@@ -4719,6 +4764,7 @@ HTML_TEMPLATE = '''
     
     <!-- Right Sidebar - Graph View -->
     <div class="graph-sidebar collapsed" id="graphSidebar">
+        <div class="graph-resize-handle" id="graphResizeHandle"></div>
         <div class="graph-sidebar-header">
             <h3>🔗 Local Graph</h3>
             <button class="graph-sidebar-close" onclick="toggleGraphSidebar()">✕</button>
@@ -4730,11 +4776,13 @@ HTML_TEMPLATE = '''
             <button onclick="zoomGraphIn()" title="Zoom In">➕</button>
             <button onclick="zoomGraphOut()" title="Zoom Out">➖</button>
             <button onclick="resetGraphView()" title="Reset View">🎯</button>
-            <span style="color:#555">|</span>
-            <button onclick="setGraphSize('small')" title="Small panel">S</button>
-            <button onclick="setGraphSize('medium')" title="Medium panel">M</button>
-            <button onclick="setGraphSize('large')" title="Large panel">L</button>
-            <button onclick="setGraphSize('full')" title="Fullscreen">⛶</button>
+            <span class="size-buttons">
+                <span style="color:#555">|</span>
+                <button onclick="setGraphSize('small')" title="Small panel">S</button>
+                <button onclick="setGraphSize('medium')" title="Medium panel">M</button>
+                <button onclick="setGraphSize('large')" title="Large panel">L</button>
+                <button onclick="setGraphSize('full')" title="Fullscreen">⛶</button>
+            </span>
         </div>
     </div>
     <button class="graph-dock-toggle" id="graphDockToggle" onclick="toggleGraphSidebar()" title="Toggle Graph (Ctrl+→)">
@@ -5341,7 +5389,77 @@ HTML_TEMPLATE = '''
                     toggle.classList.add('size-' + savedSize);
                 }
             }
+            
+            // Restore custom width if saved
+            const savedWidth = localStorage.getItem('graphSidebarWidth');
+            if (savedWidth) {
+                const sidebar = document.getElementById('graphSidebar');
+                if (sidebar) {
+                    sidebar.style.width = savedWidth + 'px';
+                    sidebar.style.minWidth = savedWidth + 'px';
+                }
+            }
+            
+            // Setup resize handle
+            setupGraphResize();
         });
+        
+        function setupGraphResize() {
+            const handle = document.getElementById('graphResizeHandle');
+            const sidebar = document.getElementById('graphSidebar');
+            const toggle = document.getElementById('graphDockToggle');
+            
+            if (!handle || !sidebar) return;
+            
+            let isResizing = false;
+            let startX = 0;
+            let startWidth = 0;
+            
+            handle.addEventListener('mousedown', function(e) {
+                isResizing = true;
+                startX = e.clientX;
+                startWidth = sidebar.offsetWidth;
+                handle.classList.add('dragging');
+                document.body.style.cursor = 'ew-resize';
+                document.body.style.userSelect = 'none';
+                e.preventDefault();
+            });
+            
+            document.addEventListener('mousemove', function(e) {
+                if (!isResizing) return;
+                
+                const diff = startX - e.clientX;
+                const newWidth = Math.max(200, Math.min(800, startWidth + diff));
+                
+                sidebar.style.width = newWidth + 'px';
+                sidebar.style.minWidth = newWidth + 'px';
+                
+                // Update toggle position
+                if (toggle && toggle.classList.contains('open')) {
+                    toggle.style.right = newWidth + 'px';
+                }
+                
+                // Re-render graph
+                renderGraph();
+            });
+            
+            document.addEventListener('mouseup', function() {
+                if (isResizing) {
+                    isResizing = false;
+                    handle.classList.remove('dragging');
+                    document.body.style.cursor = '';
+                    document.body.style.userSelect = '';
+                    
+                    // Save custom width
+                    const currentWidth = sidebar.offsetWidth;
+                    localStorage.setItem('graphSidebarWidth', currentWidth);
+                    
+                    // Clear size classes since we're using custom width
+                    sidebar.classList.remove('size-small', 'size-medium', 'size-large', 'size-full');
+                    toggle.classList.remove('size-small', 'size-medium', 'size-large', 'size-full');
+                }
+            });
+        }
         
         // Keyboard shortcut: Ctrl+Right Arrow to toggle graph
         document.addEventListener('keydown', function(e) {
