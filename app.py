@@ -5513,7 +5513,7 @@ HTML_TEMPLATE = '''
                 contentArea.insertBefore(toolbar, contentArea.firstChild);
             }
             
-            // Wrap each callout and add controls
+            // Wrap each callout with its preceding h2 header (if any)
             callouts.forEach((callout, index) => {
                 const calloutId = getCalloutId(callout, index);
                 
@@ -5524,8 +5524,29 @@ HTML_TEMPLATE = '''
                 wrapper.dataset.originalIndex = index;
                 wrapper.draggable = true;
                 
-                // Insert wrapper
-                callout.parentNode.insertBefore(wrapper, callout);
+                // Find preceding h2 header (skip over whitespace text nodes)
+                let prevElement = callout.previousElementSibling;
+                let headerToInclude = null;
+                
+                // Look for h2 that comes before this callout
+                while (prevElement) {
+                    if (prevElement.tagName === 'H2') {
+                        headerToInclude = prevElement;
+                        break;
+                    } else if (prevElement.tagName === 'HR' || prevElement.classList?.contains('callout-wrapper')) {
+                        // Stop if we hit a divider or another wrapper
+                        break;
+                    }
+                    prevElement = prevElement.previousElementSibling;
+                }
+                
+                // Insert wrapper before the header (or callout if no header)
+                if (headerToInclude) {
+                    headerToInclude.parentNode.insertBefore(wrapper, headerToInclude);
+                    wrapper.appendChild(headerToInclude);
+                } else {
+                    callout.parentNode.insertBefore(wrapper, callout);
+                }
                 wrapper.appendChild(callout);
                 
                 // Add controls
