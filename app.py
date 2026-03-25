@@ -1402,6 +1402,11 @@ HTML_TEMPLATE = '''
             bottom: 0 !important;
             z-index: 500 !important;
         }
+        /* Toggle button position for different sizes */
+        .graph-dock-toggle.open.size-small { right: 280px; }
+        .graph-dock-toggle.open.size-medium { right: 400px; }
+        .graph-dock-toggle.open.size-large { right: 550px; }
+        .graph-dock-toggle.open.size-full { display: none; }
         .graph-dock-toggle {
             position: fixed;
             right: 0;
@@ -5292,15 +5297,17 @@ HTML_TEMPLATE = '''
             const sidebar = document.getElementById('graphSidebar');
             const toggle = document.getElementById('graphDockToggle');
             
-            // Remove all size classes
+            // Remove all size classes from both sidebar and toggle
             sidebar.classList.remove('size-small', 'size-medium', 'size-large', 'size-full');
+            toggle.classList.remove('size-small', 'size-medium', 'size-large', 'size-full');
             
             // Add new size class
             if (size !== 'default') {
                 sidebar.classList.add('size-' + size);
+                toggle.classList.add('size-' + size);
             }
             
-            // Update toggle position for large/full
+            // Update toggle visibility for fullscreen
             if (size === 'full') {
                 toggle.style.display = 'none';
             } else {
@@ -5319,8 +5326,12 @@ HTML_TEMPLATE = '''
             const savedSize = localStorage.getItem('graphSidebarSize');
             if (savedSize && savedSize !== 'default') {
                 const sidebar = document.getElementById('graphSidebar');
+                const toggle = document.getElementById('graphDockToggle');
                 if (sidebar) {
                     sidebar.classList.add('size-' + savedSize);
+                }
+                if (toggle) {
+                    toggle.classList.add('size-' + savedSize);
                 }
             }
         });
