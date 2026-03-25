@@ -5041,21 +5041,67 @@ HTML_TEMPLATE = '''
                 });
             }
             
-            // Add linked files
-            let angle = 0;
-            const angleStep = (2 * Math.PI) / Math.max(links.size, 1);
-            const radius = 120;
+            // Get backlinks (files that reference this file) from the navigation section
+            const backlinks = new Set();
+            const parentsList = document.querySelector('.parents-list');
+            if (parentsList) {
+                parentsList.querySelectorAll('a[href*="/view/"]').forEach(a => {
+                    const href = a.getAttribute('href');
+                    if (href) {
+                        const match = href.match(/\/view\/(.+)$/);
+                        if (match) {
+                            backlinks.add(decodeURIComponent(match[1]).replace('.md', ''));
+                        }
+                    }
+                });
+            }
             
-            links.forEach(link => {
+            // Add backlinks (parent nodes) - positioned above center
+            let parentAngle = Math.PI; // Start from left side going up
+            const parentAngleStep = Math.PI / Math.max(backlinks.size, 1);
+            const parentRadius = 100;
+            
+            backlinks.forEach(link => {
                 const linkName = link.split('/').pop();
                 graphData.nodes.push({
                     id: link,
                     name: linkName,
-                    x: Math.cos(angle) * radius,
-                    y: Math.sin(angle) * radius,
+                    x: Math.cos(parentAngle) * parentRadius,
+                    y: -Math.abs(Math.sin(parentAngle) * parentRadius) - 40, // Above center
                     vx: 0,
                     vy: 0,
-                    isCenter: false
+                    isCenter: false,
+                    isParent: true  // Mark as parent/backlink
+                });
+                
+                if (currentFile) {
+                    graphData.links.push({
+                        source: link,  // Parent links TO current
+                        target: currentFile
+                    });
+                }
+                parentAngle += parentAngleStep;
+            });
+            
+            // Add linked files (children) - positioned below center
+            let angle = 0;
+            const angleStep = Math.PI / Math.max(links.size, 1);
+            const radius = 120;
+            
+            links.forEach(link => {
+                // Skip if already added as backlink
+                if (backlinks.has(link)) return;
+                
+                const linkName = link.split('/').pop();
+                graphData.nodes.push({
+                    id: link,
+                    name: linkName,
+                    x: Math.cos(angle) * radius - 60,
+                    y: Math.abs(Math.sin(angle) * radius) + 40, // Below center
+                    vx: 0,
+                    vy: 0,
+                    isCenter: false,
+                    isChild: true  // Mark as child/outgoing link
                 });
                 
                 if (currentFile) {
@@ -5128,7 +5174,11 @@ HTML_TEMPLATE = '''
                 ctx.beginPath();
                 const nodeRadius = node.isCenter ? 12 : 8;
                 ctx.arc(node.x, node.y, nodeRadius, 0, Math.PI * 2);
-                ctx.fillStyle = node.isCenter ? '#e06c75' : '#98c379';
+                // Colors: red=current, blue=parents (backlinks), green=children (outgoing)
+                let nodeColor = '#98c379'; // default green
+                if (node.isCenter) nodeColor = '#e06c75'; // red
+                else if (node.isParent) nodeColor = '#61afef'; // blue for parents
+                ctx.fillStyle = nodeColor;
                 ctx.fill();
                 
                 // Node label - positioned below to avoid overlap
@@ -5155,7 +5205,10 @@ HTML_TEMPLATE = '''
                     14 / graphZoom
                 );
                 
-                ctx.fillStyle = node.isCenter ? '#e5c07b' : '#abb2bf';
+                let labelColor = '#abb2bf'; // default gray
+                if (node.isCenter) labelColor = '#e5c07b'; // gold
+                else if (node.isParent) labelColor = '#61afef'; // blue
+                ctx.fillStyle = labelColor;
                 ctx.fillText(displayName, node.x, textY);
             });
             
