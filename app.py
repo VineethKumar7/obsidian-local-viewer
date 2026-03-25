@@ -1381,6 +1381,27 @@ HTML_TEMPLATE = '''
         .graph-controls button:hover {
             background: #4c4c4c;
         }
+        .graph-sidebar.size-small {
+            width: 280px !important;
+            min-width: 280px !important;
+        }
+        .graph-sidebar.size-medium {
+            width: 400px !important;
+            min-width: 400px !important;
+        }
+        .graph-sidebar.size-large {
+            width: 550px !important;
+            min-width: 550px !important;
+        }
+        .graph-sidebar.size-full {
+            width: 100vw !important;
+            min-width: 100vw !important;
+            position: fixed !important;
+            top: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            z-index: 500 !important;
+        }
         .graph-dock-toggle {
             position: fixed;
             right: 0;
@@ -4697,6 +4718,11 @@ HTML_TEMPLATE = '''
             <button onclick="zoomGraphIn()" title="Zoom In">➕</button>
             <button onclick="zoomGraphOut()" title="Zoom Out">➖</button>
             <button onclick="resetGraphView()" title="Reset View">🎯</button>
+            <span style="color:#555">|</span>
+            <button onclick="setGraphSize('small')" title="Small panel">S</button>
+            <button onclick="setGraphSize('medium')" title="Medium panel">M</button>
+            <button onclick="setGraphSize('large')" title="Large panel">L</button>
+            <button onclick="setGraphSize('full')" title="Fullscreen">⛶</button>
         </div>
     </div>
     <button class="graph-dock-toggle" id="graphDockToggle" onclick="toggleGraphSidebar()" title="Toggle Graph (Ctrl+→)">
@@ -5261,6 +5287,43 @@ HTML_TEMPLATE = '''
             graphOffsetY = 0;
             renderGraph();
         }
+        
+        function setGraphSize(size) {
+            const sidebar = document.getElementById('graphSidebar');
+            const toggle = document.getElementById('graphDockToggle');
+            
+            // Remove all size classes
+            sidebar.classList.remove('size-small', 'size-medium', 'size-large', 'size-full');
+            
+            // Add new size class
+            if (size !== 'default') {
+                sidebar.classList.add('size-' + size);
+            }
+            
+            // Update toggle position for large/full
+            if (size === 'full') {
+                toggle.style.display = 'none';
+            } else {
+                toggle.style.display = '';
+            }
+            
+            // Save preference
+            localStorage.setItem('graphSidebarSize', size);
+            
+            // Re-render graph after resize
+            setTimeout(renderGraph, 100);
+        }
+        
+        // Restore saved size on load
+        document.addEventListener('DOMContentLoaded', function() {
+            const savedSize = localStorage.getItem('graphSidebarSize');
+            if (savedSize && savedSize !== 'default') {
+                const sidebar = document.getElementById('graphSidebar');
+                if (sidebar) {
+                    sidebar.classList.add('size-' + savedSize);
+                }
+            }
+        });
         
         // Keyboard shortcut: Ctrl+Right Arrow to toggle graph
         document.addEventListener('keydown', function(e) {
