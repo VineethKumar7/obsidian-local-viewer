@@ -12701,10 +12701,9 @@ sources: {len(definitions_by_source)}
         for source_path, definitions_list in sorted(definitions_by_source.items()):
             # Create a cleaner title from the path
             source_name = os.path.splitext(os.path.basename(source_path))[0]
-            source_folder = os.path.dirname(source_path)
+            wiki_link_path = source_path.replace('.md', '').replace('\\', '/')
             
-            cheatsheet_content += f"## 📄 {source_name}\n\n"
-            cheatsheet_content += f"> Source: `{source_path}`\n\n"
+            cheatsheet_content += f"## 📄 [[{wiki_link_path}|{source_name}]]\n\n"
             
             for definition_block in definitions_list:
                 # Add the definition content
