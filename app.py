@@ -1402,6 +1402,13 @@ HTML_TEMPLATE = '''
             bottom: 0 !important;
             z-index: 500 !important;
         }
+        /* Collapsed state must override size classes */
+        .graph-sidebar.collapsed {
+            width: 0 !important;
+            min-width: 0 !important;
+            overflow: hidden !important;
+            padding: 0 !important;
+        }
         /* Toggle button position for different sizes */
         .graph-dock-toggle.open.size-small { right: 280px; }
         .graph-dock-toggle.open.size-medium { right: 400px; }
