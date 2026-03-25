@@ -4919,8 +4919,13 @@ HTML_TEMPLATE = '''
             const htmlContent = content ? content.innerHTML : '';
             
             // Also check for rendered links (href containing /view/)
+            // Exclude links in navigation sections (Referenced By, Related, etc.)
             const anchorLinks = content ? content.querySelectorAll('a[href*="/view/"]') : [];
             anchorLinks.forEach(a => {
+                // Skip if link is inside navigation section
+                if (a.closest('.page-navigation') || a.closest('.nav-section')) {
+                    return;
+                }
                 const href = a.getAttribute('href');
                 if (href) {
                     const match = href.match(/\/view\/(.+)$/);
