@@ -2735,17 +2735,19 @@ HTML_TEMPLATE = '''
             }
             .graph-dock-toggle {
                 z-index: 260;
-                top: auto;
-                bottom: 80px;
+                top: 70px;
+                bottom: auto;
+                left: auto;
                 right: 10px;
-                padding: 14px 10px;
+                padding: 10px 8px;
                 background: #3c3c3c;
-                border-radius: 50%;
-                width: 44px;
-                height: 44px;
+                border-radius: 6px;
+                width: auto;
+                height: auto;
                 display: flex !important;
                 align-items: center;
                 justify-content: center;
+                font-size: 12px;
             }
             .graph-dock-toggle.open {
                 right: 290px;
