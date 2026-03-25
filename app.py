@@ -5128,7 +5128,7 @@ HTML_TEMPLATE = '''
             canvas.onwheel = function(e) {
                 e.preventDefault();
                 const delta = e.deltaY > 0 ? 0.9 : 1.1;
-                graphZoom = Math.max(0.3, Math.min(3, graphZoom * delta));
+                graphZoom = Math.max(0.2, Math.min(6, graphZoom * delta));
                 renderGraph();
             };
             
@@ -5200,7 +5200,7 @@ HTML_TEMPLATE = '''
                     const dy = e.touches[0].clientY - e.touches[1].clientY;
                     const dist = Math.sqrt(dx * dx + dy * dy);
                     const scale = dist / touchStartDist;
-                    graphZoom = Math.max(0.3, Math.min(3, touchStartZoom * scale));
+                    graphZoom = Math.max(0.2, Math.min(6, touchStartZoom * scale));
                     renderGraph();
                     e.preventDefault();
                 } else if (e.touches.length === 1) {
@@ -5246,12 +5246,12 @@ HTML_TEMPLATE = '''
         }
         
         function zoomGraphIn() {
-            graphZoom = Math.min(3, graphZoom * 1.2);
+            graphZoom = Math.min(6, graphZoom * 1.2);
             renderGraph();
         }
         
         function zoomGraphOut() {
-            graphZoom = Math.max(0.3, graphZoom * 0.8);
+            graphZoom = Math.max(0.2, graphZoom * 0.8);
             renderGraph();
         }
         
