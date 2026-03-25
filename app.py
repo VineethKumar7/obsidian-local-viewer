@@ -2718,9 +2718,38 @@ HTML_TEMPLATE = '''
             /* Hide dock toggle on mobile */
             .dock-toggle { display: none !important; }
             
-            /* Hide graph sidebar and toggle on mobile */
-            .graph-sidebar { display: none !important; }
-            .graph-dock-toggle { display: none !important; }
+            /* Graph sidebar as overlay on mobile */
+            .graph-sidebar {
+                position: fixed !important;
+                top: 60px;
+                right: 0;
+                bottom: 0;
+                width: 280px !important;
+                min-width: 280px !important;
+                z-index: 250;
+                transform: translateX(100%);
+                transition: transform 0.3s ease;
+            }
+            .graph-sidebar:not(.collapsed) {
+                transform: translateX(0);
+            }
+            .graph-dock-toggle {
+                z-index: 260;
+                top: auto;
+                bottom: 80px;
+                right: 10px;
+                padding: 14px 10px;
+                background: #3c3c3c;
+                border-radius: 50%;
+                width: 44px;
+                height: 44px;
+                display: flex !important;
+                align-items: center;
+                justify-content: center;
+            }
+            .graph-dock-toggle.open {
+                right: 290px;
+            }
             
             /* Show hamburger menu on mobile */
             .toggle-btn { display: block !important; }
