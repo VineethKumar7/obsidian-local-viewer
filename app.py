@@ -530,11 +530,12 @@ def protect_array_notation(content):
 def protect_css_selectors(content):
     """
     Protect CSS selector patterns like (#name) and (.class) from MathJax processing.
+    Also protects trailing # like "Apartment#" which causes LaTeX errors.
     
     The # symbol is a LaTeX macro parameter character and causes MathJax errors
-    when it appears in text like "ID (#name)" or "#id".
+    when it appears in text like "ID (#name)" or "#id" or "word#".
     
-    Wraps such patterns in backticks to render as inline code.
+    Wraps such patterns in backticks or escapes them.
     """
     # Pattern 1: CSS ID selector in parentheses like (#name) or (#id)
     # This prevents MathJax from trying to process # as LaTeX
@@ -546,6 +547,14 @@ def protect_css_selectors(content):
     # Pattern 3: Standalone #id or .class patterns (common in CSS discussions)
     # Match #word that's not in a heading context (not at start of line after optional >)
     content = re.sub(r'(?<!`)(?<!^)(?<!^> )(?<![#`])#([a-zA-Z_][a-zA-Z0-9_-]*)(?![`\w])', r'`#\1`', content)
+    
+    # Pattern 4: Word ending with # like "Apartment#" or "Room#"
+    # Replace trailing # with HTML entity to avoid LaTeX macro parameter errors
+    content = re.sub(r'(\w+)#(?=\W|$)', r'\1&#35;', content)
+    
+    # Pattern 5: Standalone # not in heading or code
+    # Replace with HTML entity if not already protected
+    content = re.sub(r'(?<!`)(?<!\d)#(?!\w)(?!`)', r'&#35;', content)
     
     return content
 
