@@ -12847,8 +12847,7 @@ sources: {len(tips_by_source)}
             # Convert path to wiki link format (without .md extension)
             wiki_link_path = source_path.replace('.md', '').replace('\\', '/')
             
-            cheatsheet_content += f"## 📄 [{source_name}]({wiki_link_path.replace(' ', '%20')})\n\n"
-            cheatsheet_content += f"> Source: [[{wiki_link_path}]]\n\n"
+            cheatsheet_content += f"## 📄 [[{wiki_link_path}|{source_name}]]\n\n"
             
             for tip in tips_list:
                 title = tip['title']
