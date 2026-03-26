@@ -13351,7 +13351,9 @@ def api_download_offline_zip():
 </html>'''
                 
                 # Add to ZIP with .html extension
+                # Sanitize path for Windows/Android (remove : and other problematic chars)
                 html_path = rel_path.rsplit('.', 1)[0] + '.html'
+                html_path = html_path.replace(':', '-').replace('?', '').replace('*', '').replace('<', '').replace('>', '').replace('|', '-')
                 zf.writestr(html_path, html_content.encode('utf-8'))
                 
                 # Collect images to copy
@@ -13387,9 +13389,11 @@ def api_download_offline_zip():
             files_by_folder[folder].append(rel_path)
         
         for folder in sorted(files_by_folder.keys()):
-            index_html += f'<li><strong>📁 {folder}</strong><ul>'
+            safe_folder = folder.replace(':', '-').replace('?', '').replace('*', '')
+            index_html += f'<li><strong>📁 {safe_folder}</strong><ul>'
             for rel_path in files_by_folder[folder]:
                 html_path = rel_path.rsplit('.', 1)[0] + '.html'
+                html_path = html_path.replace(':', '-').replace('?', '').replace('*', '').replace('<', '').replace('>', '').replace('|', '-')
                 name = os.path.basename(rel_path).rsplit('.', 1)[0]
                 index_html += f'<li><a href="{html_path}">{name}</a></li>'
             index_html += '</ul></li>'
@@ -13406,6 +13410,8 @@ def api_download_offline_zip():
             try:
                 if os.path.exists(img_path):
                     img_rel_path = os.path.relpath(img_path, VAULT_PATH)
+                    # Sanitize path for Windows/Android
+                    img_rel_path = img_rel_path.replace(':', '-').replace('?', '').replace('*', '').replace('<', '').replace('>', '').replace('|', '-')
                     with open(img_path, 'rb') as img_file:
                         zf.writestr(img_rel_path, img_file.read())
             except Exception as e:
