@@ -13114,6 +13114,35 @@ def api_download_offline_zip():
     '''
     
     # Helper function to convert image to base64 data URI
+    def find_image_path(image_name, source_file_path):
+        """Find the actual path to an image file."""
+        current_dir = os.path.dirname(source_file_path)
+        
+        # Try different possible locations
+        possible_paths = [
+            os.path.join(current_dir, image_name),
+            os.path.join(current_dir, 'img', image_name),
+            os.path.join(current_dir, 'images', image_name),
+            os.path.join(VAULT_PATH, image_name),
+            os.path.join(VAULT_PATH, 'img', image_name),
+        ]
+        
+        # Also try parent directories
+        parent = os.path.dirname(current_dir)
+        if parent:
+            possible_paths.extend([
+                os.path.join(parent, image_name),
+                os.path.join(parent, 'img', image_name),
+            ])
+        
+        for path in possible_paths:
+            if os.path.exists(path):
+                return path
+        return None
+    
+    # Collect all images to copy
+    all_images_to_copy = set()
+    
     def image_to_base64(image_path, file_full_path):
         """Convert an image file to base64 data URI"""
         import base64
@@ -13190,7 +13219,10 @@ def api_download_offline_zip():
                     if len(parts) >= 3:
                         md_content = parts[2]
                 
-                # Convert Obsidian image embeds ![[image.png]] to base64
+                # Convert Obsidian image embeds ![[image.png]] to relative paths
+                # Images will be copied to the ZIP as separate files (faster than base64)
+                images_to_copy = set()
+                
                 def replace_obsidian_image(match):
                     inner = match.group(1)
                     if '|' in inner:
@@ -13201,28 +13233,35 @@ def api_download_offline_zip():
                     
                     ext = link_part.lower().rsplit('.', 1)[-1] if '.' in link_part else ''
                     if ext in ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp']:
-                        data_uri = image_to_base64(link_part, full_path)
-                        if data_uri:
-                            return f'![{alt_text}]({data_uri})'
-                        else:
-                            return f'![{alt_text} (image not found)]({link_part})'
-                    return match.group(0)  # Return unchanged for non-images
+                        # Find the image file
+                        img_path = find_image_path(link_part, full_path)
+                        if img_path:
+                            images_to_copy.add(img_path)
+                            # Use relative path from HTML file to image
+                            html_dir = os.path.dirname(rel_path)
+                            img_rel = os.path.relpath(img_path, VAULT_PATH)
+                            if html_dir:
+                                img_from_html = os.path.relpath(img_rel, html_dir)
+                            else:
+                                img_from_html = img_rel
+                            return f'![{alt_text}]({img_from_html})'
+                        return f'![{alt_text}]({link_part})'
+                    return match.group(0)
                 
                 md_content = re.sub(r'!\[\[([^\]]+)\]\]', replace_obsidian_image, md_content)
                 
-                # Also convert standard markdown images ![alt](path) to base64
+                # Also handle standard markdown images ![alt](path)
                 def replace_md_image(match):
                     alt_text = match.group(1)
-                    img_path = match.group(2)
+                    img_path_str = match.group(2)
                     
-                    # Skip if already a data URI or external URL
-                    if img_path.startswith('data:') or img_path.startswith('http'):
+                    if img_path_str.startswith('data:') or img_path_str.startswith('http'):
                         return match.group(0)
                     
-                    data_uri = image_to_base64(img_path, full_path)
-                    if data_uri:
-                        return f'![{alt_text}]({data_uri})'
-                    return match.group(0)  # Return unchanged if image not found
+                    img_path = find_image_path(img_path_str, full_path)
+                    if img_path:
+                        images_to_copy.add(img_path)
+                    return match.group(0)  # Keep original path
                 
                 md_content = re.sub(r'!\[([^\]]*)\]\(([^)]+)\)', replace_md_image, md_content)
                 
@@ -13315,6 +13354,9 @@ def api_download_offline_zip():
                 html_path = rel_path.rsplit('.', 1)[0] + '.html'
                 zf.writestr(html_path, html_content.encode('utf-8'))
                 
+                # Collect images to copy
+                all_images_to_copy.update(images_to_copy)
+                
             except Exception as e:
                 print(f"Error processing {rel_path}: {e}")
                 continue
@@ -13358,6 +13400,16 @@ def api_download_offline_zip():
 </html>'''
         
         zf.writestr('index.html', index_html.encode('utf-8'))
+        
+        # Copy all images to the ZIP
+        for img_path in all_images_to_copy:
+            try:
+                if os.path.exists(img_path):
+                    img_rel_path = os.path.relpath(img_path, VAULT_PATH)
+                    with open(img_path, 'rb') as img_file:
+                        zf.writestr(img_rel_path, img_file.read())
+            except Exception as e:
+                print(f"Error copying image {img_path}: {e}")
     
     zip_buffer.seek(0)
     zip_data = zip_buffer.getvalue()
