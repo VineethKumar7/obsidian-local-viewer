@@ -13360,15 +13360,21 @@ def api_download_offline_zip():
         zf.writestr('index.html', index_html.encode('utf-8'))
     
     zip_buffer.seek(0)
+    zip_data = zip_buffer.getvalue()
     
     # Use vault name for the zip filename
     safe_vault_name = get_vault_name().replace(' ', '_').replace('/', '_')
     zip_filename = f'{safe_vault_name}_Offline.zip'
     
     return Response(
-        zip_buffer.getvalue(),
+        zip_data,
         mimetype='application/zip',
-        headers={'Content-Disposition': f'attachment; filename={zip_filename}'}
+        headers={
+            'Content-Disposition': f'attachment; filename="{zip_filename}"',
+            'Content-Length': str(len(zip_data)),
+            'Content-Type': 'application/zip',
+            'Cache-Control': 'no-cache'
+        }
     )
 
 
@@ -13732,15 +13738,21 @@ def api_download_topic_zip(filepath):
             converted_files.append((rel_path, html_path))
     
     zip_buffer.seek(0)
+    zip_data = zip_buffer.getvalue()
     
     # Sanitize filename
     safe_topic = re.sub(r'[^\w\-]', '_', topic_name)
     zip_filename = f'{safe_topic}_Topic.zip'
     
     return Response(
-        zip_buffer.getvalue(),
+        zip_data,
         mimetype='application/zip',
-        headers={'Content-Disposition': f'attachment; filename={zip_filename}'}
+        headers={
+            'Content-Disposition': f'attachment; filename="{zip_filename}"',
+            'Content-Length': str(len(zip_data)),
+            'Content-Type': 'application/zip',
+            'Cache-Control': 'no-cache'
+        }
     )
 
 
