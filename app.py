@@ -15,7 +15,174 @@ import markdown
 import tempfile
 import subprocess
 
+try:
+    import fitz  # PyMuPDF — used by /pdf-crop and PDF++ thumbnail embeds
+    _FITZ_AVAILABLE = True
+except ImportError:
+    fitz = None
+    _FITZ_AVAILABLE = False
+
 app = Flask(__name__)
+
+
+# --- PDF++ split-pane: styles, markup, and JS injected into every markdown page.
+# Clicking a .pdf-plus-embed thumbnail slides in a right-side panel containing an
+# iframe to /view/<pdf>?page=N&rect=X,Y,W,H (which scrolls + highlights on load).
+PDF_PLUS_PANE_HTML = '''
+<style>
+.pdf-plus-embed {
+    display: inline-block;
+    max-width: 100%;
+    margin: 8px 0;
+    padding: 6px;
+    border: 1px solid rgba(120, 120, 120, 0.3);
+    border-radius: 6px;
+    background: rgba(255, 255, 255, 0.03);
+    text-decoration: none !important;
+    color: inherit;
+    cursor: pointer;
+    transition: border-color 0.15s, transform 0.1s;
+}
+.pdf-plus-embed:hover {
+    border-color: #6aa3ff;
+    transform: translateY(-1px);
+}
+.pdf-plus-embed img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    border-radius: 3px;
+}
+.pdf-plus-caption {
+    display: block;
+    font-size: 12px;
+    opacity: 0.75;
+    margin-top: 4px;
+    text-align: center;
+    font-family: monospace;
+}
+.pdf-side-pane {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 50vw;
+    height: 100vh;
+    background: #1e1e1e;
+    box-shadow: -4px 0 20px rgba(0,0,0,0.4);
+    transform: translateX(100%);
+    transition: transform 0.25s ease;
+    z-index: 9000;
+    display: flex;
+    flex-direction: column;
+}
+.pdf-side-pane.open { transform: translateX(0); }
+.pdf-side-pane-header {
+    background: #2a2a2a;
+    color: #fff;
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    border-bottom: 1px solid #111;
+    flex-shrink: 0;
+}
+.pdf-side-pane-title {
+    font-size: 13px;
+    font-family: monospace;
+    opacity: 0.85;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.pdf-side-pane-actions { display: flex; gap: 6px; }
+.pdf-side-pane-btn {
+    background: #3a3a3a;
+    color: #fff;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+}
+.pdf-side-pane-btn:hover { background: #4a4a4a; }
+.pdf-side-pane iframe {
+    flex: 1;
+    width: 100%;
+    border: 0;
+    background: #525659;
+}
+.pdf-side-pane-resizer {
+    position: absolute;
+    left: -4px;
+    top: 0;
+    width: 8px;
+    height: 100%;
+    cursor: col-resize;
+    z-index: 10;
+}
+@media (max-width: 900px) {
+    .pdf-side-pane { width: 100vw; }
+    .pdf-side-pane-resizer { display: none; }
+}
+</style>
+<div id="pdfSidePane" class="pdf-side-pane" aria-hidden="true">
+    <div class="pdf-side-pane-resizer" id="pdfPaneResizer"></div>
+    <div class="pdf-side-pane-header">
+        <div class="pdf-side-pane-title" id="pdfSidePaneTitle">PDF</div>
+        <div class="pdf-side-pane-actions">
+            <button class="pdf-side-pane-btn" id="pdfPaneOpenFull" title="Open full view">⤢</button>
+            <button class="pdf-side-pane-btn" onclick="closePdfSide()" title="Close (Esc)">✕</button>
+        </div>
+    </div>
+    <iframe id="pdfSidePaneFrame" src="about:blank" loading="lazy"></iframe>
+</div>
+<script>
+(function() {
+    const pane = document.getElementById('pdfSidePane');
+    const frame = document.getElementById('pdfSidePaneFrame');
+    const title = document.getElementById('pdfSidePaneTitle');
+    const openFullBtn = document.getElementById('pdfPaneOpenFull');
+    const resizer = document.getElementById('pdfPaneResizer');
+    let lastOpenedUrl = '';
+
+    window.openPdfSide = function(el) {
+        const pdfPath = el.getAttribute('data-pdf');
+        const page = el.getAttribute('data-page') || '1';
+        const rect = el.getAttribute('data-rect') || '';
+        let url = '/view/' + pdfPath + '?page=' + encodeURIComponent(page) + '&pane=1';
+        if (rect) url += '&rect=' + encodeURIComponent(rect);
+        lastOpenedUrl = '/view/' + pdfPath + '#page=' + page;
+        if (openFullBtn) openFullBtn.onclick = () => window.open('/view/' + pdfPath + '?page=' + page, '_blank');
+        title.textContent = decodeURIComponent(pdfPath.split('/').pop()) + ' — p.' + page;
+        frame.src = url;
+        pane.classList.add('open');
+        pane.setAttribute('aria-hidden', 'false');
+    };
+    window.closePdfSide = function() {
+        pane.classList.remove('open');
+        pane.setAttribute('aria-hidden', 'true');
+        // Delay clear so the slide-out animation has time to finish
+        setTimeout(() => { if (!pane.classList.contains('open')) frame.src = 'about:blank'; }, 300);
+    };
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && pane.classList.contains('open')) closePdfSide();
+    });
+    // Draggable resizer
+    if (resizer) {
+        let dragging = false;
+        resizer.addEventListener('mousedown', (e) => { dragging = true; e.preventDefault(); });
+        document.addEventListener('mousemove', (e) => {
+            if (!dragging) return;
+            const w = Math.max(320, Math.min(window.innerWidth - 200, window.innerWidth - e.clientX));
+            pane.style.width = w + 'px';
+        });
+        document.addEventListener('mouseup', () => { dragging = false; });
+    }
+})();
+</script>
+'''
+
 
 # Will be set via command line or environment variable
 VAULT_PATH = None
@@ -136,34 +303,63 @@ def convert_obsidian_links(html_content, current_file_dir=""):
     # First handle image/file embeds: ![[filename]]
     def replace_embed(match):
         inner = match.group(1)
-        
+
         # Handle display text: ![[image.png|alt text]]
         if '|' in inner:
             link_part, alt_text = inner.split('|', 1)
         else:
             link_part = inner
             alt_text = inner
-        
+
+        # Strip PDF++ fragment (#page=N&rect=X,Y,W,H) before file lookup
+        fragment = ''
+        link_lookup = link_part
+        if '#' in link_part:
+            link_lookup, fragment = link_part.split('#', 1)
+
         # Find the file
-        file_path = find_file_in_vault(link_part)
-        
+        file_path = find_file_in_vault(link_lookup)
+
         # Try relative path if not found
         if not file_path and current_file_dir:
-            relative_path = os.path.join(current_file_dir, link_part)
+            relative_path = os.path.join(current_file_dir, link_lookup)
             relative_path = os.path.normpath(relative_path)
             file_path = find_file_in_vault(relative_path)
-        
+
         if file_path:
-            ext = link_part.lower().rsplit('.', 1)[-1] if '.' in link_part else ''
-            
+            ext = link_lookup.lower().rsplit('.', 1)[-1] if '.' in link_lookup else ''
+
             # Image embeds
             if ext in ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp']:
                 return f'<img src="/raw/{file_path}" alt="{alt_text}" style="max-width: 100%; cursor: zoom-in;" onclick="openLightbox(this.src)">'
-            
-            # PDF embeds
+
+            # PDF embeds — PDF++ thumbnail when fragment contains page+rect
             elif ext == 'pdf':
+                if fragment and 'page=' in fragment:
+                    # Parse fragment: page=N[&rect=X,Y,W,H]
+                    frag_parts = {}
+                    for kv in fragment.split('&'):
+                        if '=' in kv:
+                            k, v = kv.split('=', 1)
+                            frag_parts[k] = v
+                    page_num = frag_parts.get('page', '1')
+                    rect_val = frag_parts.get('rect', '')
+                    qs = f'page={page_num}'
+                    if rect_val:
+                        qs += f'&rect={rect_val}'
+                    # Escape caption for HTML attribute use
+                    caption = (alt_text or '').replace('"', '&quot;')
+                    return (
+                        f'<a class="pdf-plus-embed" href="#" '
+                        f'data-pdf="{file_path}" data-page="{page_num}" data-rect="{rect_val}" '
+                        f'onclick="openPdfSide(this); return false;" '
+                        f'title="Click to open PDF at page {page_num}">'
+                        f'<img src="/pdf-crop/{file_path}?{qs}" alt="{caption}" loading="lazy">'
+                        f'<span class="pdf-plus-caption">📕 {caption}</span>'
+                        f'</a>'
+                    )
                 return f'<a href="/view/{file_path}" class="internal-link">📄 {alt_text}</a>'
-            
+
             # Other files
             else:
                 return f'<a href="/view/{file_path}" class="internal-link">{alt_text}</a>'
@@ -589,6 +785,32 @@ def protect_math_expressions(content):
     content = re.sub(r'(?<!\$)\$(?!\$)([^\$\n]+?)(?<!\$)\$(?!\$)', replace_math, content)
     
     return content, placeholders
+
+def protect_wiki_embeds(content):
+    """Protect ![[...]] wiki-embeds from math/CSS mangling.
+
+    PDF++ embeds contain `#page=N&rect=...` fragments that the CSS-selector
+    protector would otherwise wrap in backticks. Stash each embed behind a
+    placeholder, restore after markdown processing.
+    """
+    placeholders = {}
+    counter = [0]
+
+    def replace(m):
+        key = f'WIKIEMBED_PLACEHOLDER_{counter[0]}_END'
+        placeholders[key] = m.group(0)
+        counter[0] += 1
+        return key
+
+    content = re.sub(r'!\[\[[^\]]+\]\]', replace, content)
+    return content, placeholders
+
+
+def restore_wiki_embeds(content, placeholders):
+    for key, original in placeholders.items():
+        content = content.replace(key, original)
+    return content
+
 
 def restore_math_expressions(content, placeholders):
     """Restore protected math expressions after markdown processing.
@@ -11051,18 +11273,24 @@ def view_file(filepath):
         # Convert task lists (- [ ] and - [x]) to checkboxes
         md_content = convert_task_lists(md_content)
         
+        # Protect ![[wiki-embeds]] before math/CSS processing mangles PDF++ fragments
+        md_content, wiki_embed_placeholders = protect_wiki_embeds(md_content)
+
         # Protect math expressions before markdown processing
         md_content, math_placeholders = protect_math_expressions(md_content)
-        
+
         # Convert markdown to HTML
         html_content = markdown.markdown(
-            md_content, 
+            md_content,
             extensions=['tables', 'fenced_code', 'toc', 'nl2br', 'sane_lists']
         )
-        
+
         # Restore math expressions after markdown processing
         html_content = restore_math_expressions(html_content, math_placeholders)
-        
+
+        # Restore wiki-embeds now that markdown is done (before link conversion)
+        html_content = restore_wiki_embeds(html_content, wiki_embed_placeholders)
+
         # Convert Obsidian [[wiki-links]] to HTML links
         current_dir = os.path.dirname(filepath)
         html_content = convert_obsidian_links(html_content, current_dir)
@@ -11077,10 +11305,10 @@ def view_file(filepath):
         nav_html = render_page_navigation(nav_data, current_dir)
         
         return render_template_string(
-            HTML_TEMPLATE, 
-            title=filename, 
-            tree=tree, 
-            content=title_html + html_content + nav_html,
+            HTML_TEMPLATE,
+            title=filename,
+            tree=tree,
+            content=title_html + html_content + nav_html + PDF_PLUS_PANE_HTML,
             vault_name=get_vault_name(),
             is_markdown=True,
             file_path=filepath,
@@ -11468,35 +11696,171 @@ def view_file(filepath):
             const maxScale = 4.0;
             const isMobilePdf = window.innerWidth <= 768 || 'ontouchstart' in window;
             
+            // Parse URL params once so PDF++ side-pane can jump + highlight
+            const pdfQueryParams = new URLSearchParams(window.location.search);
+            const pdfInitialPage = parseInt(pdfQueryParams.get('page') || '0', 10);
+            const pdfInitialRect = pdfQueryParams.get('rect') || '';
+            const pdfInPane = pdfQueryParams.get('pane') === '1';
+
             async function loadPDF() {{
                 const url = '/raw/{filepath}';
                 const viewer = document.getElementById('pdfViewer');
-                
+
                 try {{
                     pdfDoc = await pdfjsLib.getDocument(url).promise;
                     viewer.innerHTML = '';
-                    
-                    // On mobile, calculate scale to fit width
-                    if (isMobilePdf) {{
+
+                    // On mobile (or inside the side pane), fit PDF width to available space
+                    const fitWidth = isMobilePdf || pdfInPane;
+                    if (fitWidth) {{
                         const firstPage = await pdfDoc.getPage(1);
                         const defaultViewport = firstPage.getViewport({{ scale: 1.0 }});
-                        // Use window width minus padding (more reliable than viewer.clientWidth on initial load)
-                        const availableWidth = window.innerWidth - 40; // 20px padding each side
+                        const availableWidth = (pdfInPane ? viewer.clientWidth : window.innerWidth) - 40;
                         currentScale = availableWidth / defaultViewport.width;
-                        // Clamp to reasonable bounds (allow smaller for wide PDFs)
                         currentScale = Math.max(minScale, Math.min(currentScale, 1.5));
-                        console.log('Mobile PDF scale:', currentScale, 'Page width:', defaultViewport.width, 'Available:', availableWidth);
                     }}
-                    
-                    // Render all pages
-                    for (let i = 1; i <= pdfDoc.numPages; i++) {{
-                        await renderPage(i, viewer);
+
+                    // Pre-allocate placeholder slots for ALL pages so the scroll
+                    // height is correct immediately. Then render target page first,
+                    // jump, then render the rest radiating outward.
+                    const total = pdfDoc.numPages;
+                    const target = (pdfInitialPage > 0 && pdfInitialPage <= total) ? pdfInitialPage : 0;
+                    const firstPage = await pdfDoc.getPage(1);
+                    const fpView = firstPage.getViewport({{ scale: currentScale }});
+                    const placeholders = [];
+                    for (let i = 1; i <= total; i++) {{
+                        const ph = document.createElement('canvas');
+                        ph.className = 'pdf-page';
+                        ph.dataset.pageNum = String(i);
+                        ph.width = 1;  // tiny intrinsic; CSS controls layout size
+                        ph.height = 1;
+                        ph.style.width = fpView.width + 'px';
+                        ph.style.height = fpView.height + 'px';
+                        ph.style.background = '#fafafa';
+                        viewer.appendChild(ph);
+                        placeholders.push(ph);
+                    }}
+
+                    // Build render order: target first, then radiate outward.
+                    const order = [];
+                    if (target > 0) {{
+                        order.push(target);
+                        for (let d = 1; d < total; d++) {{
+                            if (target + d <= total) order.push(target + d);
+                            if (target - d >= 1) order.push(target - d);
+                        }}
+                    }} else {{
+                        for (let i = 1; i <= total; i++) order.push(i);
+                    }}
+
+                    // Render target first, then jump.
+                    if (target > 0) {{
+                        await renderPageInPlaceholder(order[0], placeholders[order[0]-1]);
+                        requestAnimationFrame(() => requestAnimationFrame(() => {{
+                            jumpToPdfPage(pdfInitialPage, pdfInitialRect);
+                        }}));
+                    }}
+                    // Render the rest in radiating order in background.
+                    for (let k = (target > 0 ? 1 : 0); k < order.length; k++) {{
+                        await renderPageInPlaceholder(order[k], placeholders[order[k]-1]);
                     }}
                 }} catch (error) {{
                     viewer.innerHTML = '<div class="pdf-loading">Error loading PDF: ' + error.message + '</div>';
                 }}
             }}
-            
+
+            function jumpToPdfPage(pageNum, rectStr) {{
+                const viewer = document.getElementById('pdfViewer');
+                const pages = viewer.querySelectorAll('.pdf-page');
+                if (pageNum < 1 || pageNum > pages.length) return;
+                const target = pages[pageNum - 1];
+
+                // Remove any previous highlight (and unwrap any previous highlight wrapper)
+                viewer.querySelectorAll('.pdf-plus-highlight-wrapper').forEach(w => {{
+                    const canvas = w.querySelector('.pdf-page');
+                    if (canvas) w.parentNode.insertBefore(canvas, w);
+                    w.remove();
+                }});
+                viewer.querySelectorAll('.pdf-plus-highlight').forEach(n => n.remove());
+
+                let highlightTop = 0;
+                let hasHighlight = false;
+                let wrapper = null;
+
+                // Draw highlight over the requested rect (if any)
+                if (rectStr) {{
+                    const parts = rectStr.split(',').map(parseFloat);
+                    if (parts.length === 4 && parts.every(n => !isNaN(n))) {{
+                        // PDF++ rect = (x, y, w, h) in PDF user space (bottom-left origin, PDF points).
+                        const [rx, ry, rw, rh] = parts;
+                        // Use the canvas's CSS box (set in renderPage via style.width/height).
+                        const displayW = target.getBoundingClientRect().width || parseFloat(target.style.width) || target.offsetWidth;
+                        const displayH = target.getBoundingClientRect().height || parseFloat(target.style.height) || target.offsetHeight;
+                        const pdfPageHeight = displayH / currentScale;
+
+                        // Convert to top-left origin, scaled to display pixels.
+                        const left = rx * currentScale;
+                        const top = (pdfPageHeight - ry - rh) * currentScale;
+                        const width = rw * currentScale;
+                        const height = rh * currentScale;
+
+                        const hl = document.createElement('div');
+                        hl.className = 'pdf-plus-highlight';
+                        hl.style.cssText = `position:absolute;pointer-events:none;
+                            background:rgba(255,224,0,0.35);
+                            border:2px solid rgba(255,180,0,0.85);
+                            border-radius:3px;
+                            left:${{left}}px;top:${{top}}px;
+                            width:${{width}}px;height:${{height}}px;
+                            box-shadow:0 0 0 2px rgba(255,255,255,0.4);
+                            z-index:5;`;
+
+                        // Wrap the canvas so the absolute-positioned highlight aligns to it.
+                        wrapper = document.createElement('div');
+                        wrapper.className = 'pdf-plus-highlight-wrapper';
+                        wrapper.style.cssText = `position:relative;display:block;width:${{displayW}}px;height:${{displayH}}px;`;
+                        target.parentNode.insertBefore(wrapper, target);
+                        wrapper.appendChild(target);
+                        wrapper.appendChild(hl);
+
+                        highlightTop = top;
+                        hasHighlight = true;
+
+                        // Pulse the highlight briefly so it's obvious where the deep-link landed.
+                        hl.animate([
+                            {{ background: 'rgba(255,224,0,0.85)', transform: 'scale(1.02)' }},
+                            {{ background: 'rgba(255,224,0,0.35)', transform: 'scale(1.0)' }}
+                        ], {{ duration: 900, iterations: 2 }});
+                    }}
+                }}
+
+                // Compute anchor's position relative to viewer using bounding rects
+                // (works regardless of offsetParent / position chain).
+                const anchor = wrapper || target;
+                const anchorRect = anchor.getBoundingClientRect();
+                const viewerRect = viewer.getBoundingClientRect();
+                const anchorTopInViewer = anchorRect.top - viewerRect.top + viewer.scrollTop;
+                const padding = 20;
+                const targetScroll = hasHighlight
+                    ? Math.max(0, anchorTopInViewer + highlightTop - padding * 2)
+                    : Math.max(0, anchorTopInViewer - padding);
+                viewer.scrollTop = targetScroll;
+            }}
+
+            async function renderPageInPlaceholder(pageNum, canvas) {{
+                const page = await pdfDoc.getPage(pageNum);
+                const viewport = page.getViewport({{ scale: currentScale }});
+                const pixelRatio = window.devicePixelRatio || 1;
+                canvas.width = Math.floor(viewport.width * pixelRatio);
+                canvas.height = Math.floor(viewport.height * pixelRatio);
+                canvas.style.width = viewport.width + 'px';
+                canvas.style.height = viewport.height + 'px';
+                canvas.style.background = '';
+                const ctx = canvas.getContext('2d');
+                ctx.scale(pixelRatio, pixelRatio);
+                await page.render({{ canvasContext: ctx, viewport }}).promise;
+            }}
+
             async function renderPage(pageNum, container) {{
                 const page = await pdfDoc.getPage(pageNum);
                 const viewport = page.getViewport({{ scale: currentScale }});
@@ -11784,9 +12148,10 @@ def view_file(filepath):
                 
                 setTimeout(initPdfAnnotation, 200);
                 
-                // Restore scroll position for PDF
+                // Restore scroll position for PDF — but NOT when a deep-link
+                // (?page=…) is asking us to jump to a specific location.
                 const savedScroll = localStorage.getItem('scroll_' + window.location.pathname);
-                if (savedScroll) {{
+                if (savedScroll && !(pdfInitialPage > 0)) {{
                     setTimeout(() => {{ viewer.scrollTop = parseInt(savedScroll, 10); }}, 400);
                 }}
                 
@@ -12540,13 +12905,101 @@ print("success")
 def raw_file(filepath):
     """Serve raw file (for embedding images in markdown, etc.)"""
     full_path = os.path.join(VAULT_PATH, filepath)
-    
+
     if not os.path.abspath(full_path).startswith(os.path.abspath(VAULT_PATH)):
         abort(403)
-    
+
     if os.path.exists(full_path):
         return send_file(full_path)
     abort(404)
+
+
+# Cache cropped PDF renders to disk so repeat views are instant.
+_PDF_CROP_CACHE_DIR = os.path.expanduser('~/clawd/obsidian-viewer/.pdf_crop_cache')
+
+
+@app.route('/pdf-crop/<path:filepath>')
+def pdf_crop(filepath):
+    """Render a cropped region of a PDF page as PNG (PDF++ thumbnail).
+
+    Query params:
+      page=N           (1-indexed, required)
+      rect=X,Y,W,H     (PDF++ coords, left-origin; optional — full page if absent)
+      scale=S          (render scale, default 2.0)
+    """
+    if not _FITZ_AVAILABLE:
+        abort(503, description="PyMuPDF not installed — run `pip install pymupdf` in the viewer env.")
+
+    full_path = os.path.join(VAULT_PATH, filepath)
+    if not os.path.abspath(full_path).startswith(os.path.abspath(VAULT_PATH)):
+        abort(403)
+    if not os.path.exists(full_path) or not filepath.lower().endswith('.pdf'):
+        abort(404)
+
+    try:
+        page_num = max(1, int(request.args.get('page', '1')))
+    except ValueError:
+        page_num = 1
+    rect_arg = request.args.get('rect', '').strip()
+    try:
+        scale = float(request.args.get('scale', '2.0'))
+    except ValueError:
+        scale = 2.0
+    scale = max(0.5, min(scale, 4.0))
+
+    # On-disk cache key — stable across restarts
+    import hashlib
+    try:
+        mtime = int(os.path.getmtime(full_path))
+    except OSError:
+        mtime = 0
+    cache_key = hashlib.md5(
+        f'{filepath}|{mtime}|{page_num}|{rect_arg}|{scale}'.encode()
+    ).hexdigest()
+    os.makedirs(_PDF_CROP_CACHE_DIR, exist_ok=True)
+    cache_path = os.path.join(_PDF_CROP_CACHE_DIR, cache_key + '.png')
+    if os.path.exists(cache_path):
+        return send_file(cache_path, mimetype='image/png')
+
+    try:
+        doc = fitz.open(full_path)
+    except Exception as e:
+        abort(500, description=f'Cannot open PDF: {e}')
+
+    try:
+        if page_num > doc.page_count:
+            page_num = doc.page_count
+        page = doc.load_page(page_num - 1)
+
+        clip = None
+        if rect_arg:
+            parts = rect_arg.split(',')
+            if len(parts) == 4:
+                try:
+                    x, y, w, h = (float(p) for p in parts)
+                    page_h = page.rect.height
+                    # PDF++ rect (x, y, w, h) uses bottom-left origin (PDF user space).
+                    # fitz.Rect wants (x0, y0, x1, y1) with top-left origin. Flip Y.
+                    clip = fitz.Rect(x, page_h - y - h, x + w, page_h - y)
+                    clip = clip & page.rect  # clamp to page
+                    if clip.is_empty or clip.is_infinite:
+                        clip = None
+                except ValueError:
+                    clip = None
+
+        matrix = fitz.Matrix(scale, scale)
+        pix = page.get_pixmap(matrix=matrix, clip=clip, alpha=False)
+        png_bytes = pix.tobytes('png')
+    finally:
+        doc.close()
+
+    try:
+        with open(cache_path, 'wb') as f:
+            f.write(png_bytes)
+    except OSError:
+        pass  # cache failure shouldn't break the response
+
+    return Response(png_bytes, mimetype='image/png')
 
 @app.route('/stream/<path:filepath>')
 def stream_file(filepath):
@@ -13017,6 +13470,7 @@ def api_download_offline_zip():
     import zipfile
     import io
     from datetime import datetime
+    from urllib.parse import quote
     
     # Get CSS for embedding in HTML
     css_content = '''
@@ -13140,8 +13594,7 @@ def api_download_offline_zip():
                 return path
         return None
     
-    # Collect all images to copy
-    all_images_to_copy = set()
+    # Images are embedded as base64 directly in HTML (for Android compatibility)
     
     def image_to_base64(image_path, file_full_path):
         """Convert an image file to base64 data URI"""
@@ -13219,9 +13672,8 @@ def api_download_offline_zip():
                     if len(parts) >= 3:
                         md_content = parts[2]
                 
-                # Convert Obsidian image embeds ![[image.png]] to relative paths
-                # Images will be copied to the ZIP as separate files (faster than base64)
-                images_to_copy = set()
+                # Convert Obsidian image embeds ![[image.png]] to base64 data URIs
+                # This ensures images work offline on Android (Chrome blocks local file access)
                 
                 def replace_obsidian_image(match):
                     inner = match.group(1)
@@ -13233,18 +13685,12 @@ def api_download_offline_zip():
                     
                     ext = link_part.lower().rsplit('.', 1)[-1] if '.' in link_part else ''
                     if ext in ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp']:
-                        # Find the image file
+                        # Find the image file and convert to base64
                         img_path = find_image_path(link_part, full_path)
                         if img_path:
-                            images_to_copy.add(img_path)
-                            # Use relative path from HTML file to image
-                            html_dir = os.path.dirname(rel_path)
-                            img_rel = os.path.relpath(img_path, VAULT_PATH)
-                            if html_dir:
-                                img_from_html = os.path.relpath(img_rel, html_dir)
-                            else:
-                                img_from_html = img_rel
-                            return f'![{alt_text}]({img_from_html})'
+                            base64_data = image_to_base64(img_path, full_path)
+                            if base64_data:
+                                return f'![{alt_text}]({base64_data})'
                         return f'![{alt_text}]({link_part})'
                     return match.group(0)
                 
@@ -13260,8 +13706,10 @@ def api_download_offline_zip():
                     
                     img_path = find_image_path(img_path_str, full_path)
                     if img_path:
-                        images_to_copy.add(img_path)
-                    return match.group(0)  # Keep original path
+                        base64_data = image_to_base64(img_path, full_path)
+                        if base64_data:
+                            return f'![{alt_text}]({base64_data})'
+                    return match.group(0)
                 
                 md_content = re.sub(r'!\[([^\]]*)\]\(([^)]+)\)', replace_md_image, md_content)
                 
@@ -13312,16 +13760,18 @@ def api_download_offline_zip():
                     
                     if target_path:
                         # Calculate relative path from current file to target
+                        # Replace spaces with underscores to match actual file names in ZIP
                         target_path = target_path.replace(' ', '_')
-                        if current_dir:
+                        current_dir_normalized = current_dir.replace(' ', '_') if current_dir else ''
+                        if current_dir_normalized:
                             # Go up from current dir and then to target
-                            rel_link = os.path.relpath(target_path, current_dir)
+                            rel_link = os.path.relpath(target_path, current_dir_normalized)
                         else:
                             rel_link = target_path
                         html_link = rel_link.replace('\\', '/')
                     else:
                         # File not found, use the link as-is
-                        html_link = link_normalized + '.html'
+                        html_link = link_normalized.replace(' ', '_') + '.html'
                     
                     return f'<a href="{html_link}" class="nav-link">{display}</a>'
                 
@@ -13351,13 +13801,12 @@ def api_download_offline_zip():
 </html>'''
                 
                 # Add to ZIP with .html extension
-                # Sanitize path for Windows/Android (remove : and other problematic chars)
+                # Sanitize path for Windows/Android (remove : and other problematic chars, replace spaces)
                 html_path = rel_path.rsplit('.', 1)[0] + '.html'
-                html_path = html_path.replace(':', '-').replace('?', '').replace('*', '').replace('<', '').replace('>', '').replace('|', '-')
+                html_path = html_path.replace(' ', '_').replace(':', '-').replace('?', '').replace('*', '').replace('<', '').replace('>', '').replace('|', '-')
                 zf.writestr(html_path, html_content.encode('utf-8'))
                 
-                # Collect images to copy
-                all_images_to_copy.update(images_to_copy)
+                # Images are now embedded as base64, no need to copy
                 
             except Exception as e:
                 print(f"Error processing {rel_path}: {e}")
@@ -13393,7 +13842,8 @@ def api_download_offline_zip():
             index_html += f'<li><strong>📁 {safe_folder}</strong><ul>'
             for rel_path in files_by_folder[folder]:
                 html_path = rel_path.rsplit('.', 1)[0] + '.html'
-                html_path = html_path.replace(':', '-').replace('?', '').replace('*', '').replace('<', '').replace('>', '').replace('|', '-')
+                # Same sanitization as actual files (spaces -> underscores)
+                html_path = html_path.replace(' ', '_').replace(':', '-').replace('?', '').replace('*', '').replace('<', '').replace('>', '').replace('|', '-')
                 name = os.path.basename(rel_path).rsplit('.', 1)[0]
                 index_html += f'<li><a href="{html_path}">{name}</a></li>'
             index_html += '</ul></li>'
@@ -13405,17 +13855,7 @@ def api_download_offline_zip():
         
         zf.writestr('index.html', index_html.encode('utf-8'))
         
-        # Copy all images to the ZIP
-        for img_path in all_images_to_copy:
-            try:
-                if os.path.exists(img_path):
-                    img_rel_path = os.path.relpath(img_path, VAULT_PATH)
-                    # Sanitize path for Windows/Android
-                    img_rel_path = img_rel_path.replace(':', '-').replace('?', '').replace('*', '').replace('<', '').replace('>', '').replace('|', '-')
-                    with open(img_path, 'rb') as img_file:
-                        zf.writestr(img_rel_path, img_file.read())
-            except Exception as e:
-                print(f"Error copying image {img_path}: {e}")
+        # Images are embedded as base64 in the HTML files, no separate image files needed
     
     zip_buffer.seek(0)
     zip_data = zip_buffer.getvalue()
