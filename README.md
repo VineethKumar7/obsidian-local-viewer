@@ -11,9 +11,13 @@ A lightweight Python server that renders your markdown files beautifully in any 
 
 ### 📁 Navigation & Viewing
 - **Folder tree navigation** — Browse your entire vault structure with collapsible folders
-- **Beautiful markdown rendering** — Headers, code blocks, tables, lists, blockquotes, LaTeX math
+- **Beautiful markdown rendering** — Headers, code blocks, tables, lists, blockquotes, LaTeX math (including interval notation)
 - **Wiki-link support** — `[[links]]` rendered as clickable navigation
-- **Dark theme** — Easy on the eyes for extended study sessions
+- **Image embeds** — `![[image.png]]` Obsidian-style embeds supported
+- **Image lightbox** — Click any image to open a zoomable full-screen view
+- **Automatic page navigation** — Parent, sibling, child, and backlink pages linked at the bottom of every note
+- **Collapsible callouts** — Toggle all callouts open/closed from the three-dot menu
+- **Dark theme + toggle** — Easy on the eyes; toggle light/dark with preference persisted in localStorage
 
 ### ✏️ Annotations (iPad/Apple Pencil)
 - **Pen tool** — Write notes with pressure-sensitive strokes
@@ -44,8 +48,24 @@ A lightweight Python server that renders your markdown files beautifully in any 
 
 ### 📕 Media Support
 - **PDF viewer** — Full PDF.js with zoom controls
+- **PDF++ split-pane** — Click a `.pdf-plus-embed` thumbnail in a note to slide in a right-side PDF panel that scrolls to the page and highlights the target rectangle
+- **PDF region thumbnails** — `/pdf-crop` renders and caches cropped page regions as inline thumbnails (requires `pymupdf`)
 - **Video playback** — Plyr.js player (YouTube-style controls)
-- **Images** — PNG, JPG, GIF, WebP displayed inline
+- **Images** — PNG, JPG, GIF, WebP displayed inline, click to zoom
+
+### 🔗 Graph View
+- **Local graph sidebar** — Right-side panel showing the current note's connections (links + backlinks)
+- **Interactive** — Draggable resize handle on desktop, touch gestures on mobile, wide zoom range for large graphs
+- **Size controls** — Cycle through panel sizes, collapse/expand
+- **Mobile-friendly** — Slide-in overlay on phones/tablets, top-right toggle to avoid toolbar overlap
+- **Smart filtering** — Bottom-navigation links excluded so the graph stays focused on real content connections
+
+### 🎨 Cheatsheets
+Auto-generated one-page summaries from your notes:
+- **Quick Definitions** — All `> [!definition]` callouts aggregated into a scannable reference, linked back via wiki-links
+- **Memory Tips** — All `> [!tip]` / `> [!mnemonic]` callouts gathered into a quick-recall sheet
+- **Relevance controls** — Mark any cheatsheet item as high/medium/low relevance; state persists per vault
+- **Smart grouping** — H2 section headers stay bundled with their callouts
 
 ---
 
@@ -148,12 +168,15 @@ Combines all card types (flashcards + MCQ + cloze) into one shuffled study sessi
 
 ### 📊 Study Dashboard
 
-Track your learning progress:
+Track your learning progress. Available on the **homepage** (vault-wide stats) and inside any **folder view** (scoped to that folder):
 - 🔥 **Day streak** — Consecutive days meeting your goal
 - **Cards due** — Cards ready for review
 - **Mastery %** — Percentage of cards in advanced boxes
-- **Weak cards** — Cards you've missed 2+ times
-- **Heatmap** — 4-week activity calendar
+- **Weak cards** — Cards you've missed 2+ times, plus a one-click "Weak Cards Mix" study session
+- **Heatmap** — 4-week activity calendar with per-day hover tooltips (date + card count)
+- **Daily / Weekly / Monthly / Hourly tabs** — Different time-scale views of your review activity
+- **Progress bar + chart** — At-a-glance progress on the homepage
+- **Review buttons** — Jump straight from the dashboard into due-cards for each folder
 
 ### 🎯 Focus Mode
 
@@ -196,6 +219,18 @@ Simpler alternative to SRS with 5 boxes:
 
 Correct → move up. Wrong → back to Box 1.
 
+### 📝 Exam Mode
+
+Full exam simulation with mixed question types — MCQ, flashcards, and cloze deletions in a single timed session. Supports different question types in one paper and gives you a final score breakdown.
+
+### ⚙️ Settings Panel
+
+Tune your study experience — daily goal, timer length, default study mode, and more. Settings persist per vault.
+
+### 📂 JSON Study File Support
+
+In addition to writing cards inline in markdown, you can drop a `filename.json` next to any `filename.md` to define flashcards, MCQ, and cloze cards in structured form. Useful when migrating from Anki or generating cards programmatically. SRS data is stored alongside as `filename.md.srs.json`.
+
 ---
 
 ## 🔧 Study Toolbar Buttons
@@ -208,6 +243,10 @@ Correct → move up. Wrong → back to Box 1.
 | 🎲 **Mix Mode** | Shuffled mix of all card types |
 | 📊 **Dashboard** | View study progress & stats |
 | 📋 **Summary** | Quick summary of current file |
+| 🎓 **Exam Mode** | Full timed exam simulation (mixed question types) |
+| 🎨 **Cheatsheet** | Open Quick Definitions / Memory Tips for current section |
+| 🔗 **Graph** | Toggle local graph sidebar |
+| ⚙️ **Settings** | Study preferences panel |
 
 ---
 
@@ -237,6 +276,8 @@ cd obsidian-local-viewer
 # Install dependencies
 pip install -r requirements.txt
 ```
+
+> `pymupdf` (installed via `requirements.txt`) is required for PDF++ region thumbnails. If it isn't available, the rest of the viewer still works — only the `/pdf-crop` endpoint is disabled.
 
 ## 🚀 Usage
 
@@ -289,16 +330,22 @@ python app.py ~/Documents/MyVault --ssl
 | Button | Function |
 |--------|----------|
 | 📥 **PDF** | Download current page as PDF |
-| 📦 **Topic** | Download page + linked subpages as ZIP |
+| 📦 **Topic** | Download page + linked subpages as ZIP (with inlined images + MathJax) |
 | 🎴 **Flashcards** | Study flashcards from current file |
 | ✅ **MCQ** | Multiple choice quiz |
 | 📝 **Cloze** | Fill-in-the-blank practice |
 | 🎲 **Mix Mode** | Shuffled mix of all card types |
+| 🎓 **Exam Mode** | Full timed exam simulation |
 | 📊 **Dashboard** | View study progress & stats |
 | 📋 **Summary** | Quick summary of current file |
+| 🎨 **Cheatsheet** | Quick Definitions / Memory Tips view |
+| 🔗 **Graph** | Toggle local graph sidebar |
+| ⚙️ **Settings** | Study preferences panel |
+| 🌓 **Theme** | Toggle light / dark mode |
 | ✏️ **Annotate** | Enter annotation mode (Apple Pencil) |
 | ℹ️ **Info** | View/edit file metadata |
 | 🔄 **Sync** | Sync metadata to index tables |
+| ⋯ | Three-dot menu (collapse callouts, and more) |
 | ⛶ | Toggle fullscreen |
 
 ## 📥 Offline Download
