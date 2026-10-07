@@ -13341,12 +13341,38 @@ def view_file(filepath):
             <div class="audio-controls" style="background: #1e1e1e; padding: 15px; border-radius: 10px; margin-top: 10px;">
                 <div style="display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
                     <span style="color: #ccc;">Speed:</span>
-                    <button onclick="document.getElementById('audioPlayer').playbackRate=0.5" style="background:#444;color:#fff;border:none;padding:6px 12px;border-radius:5px;cursor:pointer;">0.5x</button>
-                    <button onclick="document.getElementById('audioPlayer').playbackRate=0.75" style="background:#444;color:#fff;border:none;padding:6px 12px;border-radius:5px;cursor:pointer;">0.75x</button>
-                    <button onclick="document.getElementById('audioPlayer').playbackRate=1" style="background:#0066cc;color:#fff;border:none;padding:6px 12px;border-radius:5px;cursor:pointer;">1x</button>
-                    <button onclick="document.getElementById('audioPlayer').playbackRate=1.25" style="background:#444;color:#fff;border:none;padding:6px 12px;border-radius:5px;cursor:pointer;">1.25x</button>
-                    <button onclick="document.getElementById('audioPlayer').playbackRate=1.5" style="background:#444;color:#fff;border:none;padding:6px 12px;border-radius:5px;cursor:pointer;">1.5x</button>
-                    <button onclick="document.getElementById('audioPlayer').playbackRate=2" style="background:#444;color:#fff;border:none;padding:6px 12px;border-radius:5px;cursor:pointer;">2x</button>
+                    <span id="audioSpeeds" style="display:contents"></span>
+                    <script>
+                    // The rate was set by inline onclick and the 1x button was hard-coded
+                    // blue, so a press changed the speed but nothing on screen moved and
+                    // the buttons looked dead (Vineeth, 2026-10-07). Now the pressed one
+                    // lights up, and the choice is shared with the side player
+                    // (localStorage 'audioPaneSpeed') and survives opening the next file.
+                    (function(){{
+                      const a = document.getElementById('audioPlayer');
+                      const box = document.getElementById('audioSpeeds');
+                      const RATES = [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
+                      let rate = 1;
+                      try {{ rate = parseFloat(localStorage.getItem('audioPaneSpeed')) || 1; }} catch(e) {{}}
+                      const btns = RATES.map(v => {{
+                        const b = document.createElement('button');
+                        b.type = 'button'; b.textContent = v + 'x';
+                        b.style.cssText = 'color:#fff;border:none;padding:6px 12px;border-radius:5px;cursor:pointer;';
+                        b.onclick = () => set(v);
+                        box.appendChild(b); return b;
+                      }});
+                      function paint(){{ btns.forEach((b, i) => b.style.background = RATES[i] === rate ? '#0066cc' : '#444'); }}
+                      function set(v){{
+                        rate = v; a.playbackRate = v;
+                        try {{ localStorage.setItem('audioPaneSpeed', String(v)); }} catch(e) {{}}
+                        paint();
+                      }}
+                      // Some browsers reset the rate when the source (re)loads.
+                      a.addEventListener('loadedmetadata', () => {{ a.playbackRate = rate; }});
+                      a.addEventListener('play', () => {{ if (a.playbackRate !== rate) a.playbackRate = rate; }});
+                      set(rate);
+                    }})();
+                    </script>
                 </div>
             </div>
         </div>
