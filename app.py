@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 import os
 import sys
 import re
+import html
 import json
 import argparse
 import socket
@@ -184,6 +185,161 @@ PDF_PLUS_PANE_HTML = '''
 '''
 
 
+# --- Audio side player: an audio embed with a timed transcript sidecar
+# (``<audio>.transcript.json``, {"segments": [{start, end, text}]}) opens this
+# panel instead of the one-tap button. The sentence being spoken is highlighted
+# and kept in view; tap a sentence to jump there; speed 1x-2x is remembered.
+AUDIO_PANE_HTML = r'''
+<style>
+.audio-side-pane{position:fixed;top:0;right:0;width:min(460px,100vw);height:100vh;background:#1e1e1e;
+  color:#ddd;box-shadow:-4px 0 20px rgba(0,0,0,.4);transform:translateX(100%);transition:transform .25s ease;
+  z-index:9001;display:flex;flex-direction:column;font-family:system-ui,sans-serif}
+.audio-side-pane.open{transform:translateX(0)}
+.asp-head{display:flex;align-items:center;gap:8px;padding:10px 12px;background:#2a2a2a;border-bottom:1px solid #333}
+.asp-title{flex:1;font-size:14px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.asp-btn{background:#3a3a3a;color:#eee;border:1px solid #4a4a4a;border-radius:6px;padding:5px 10px;
+  cursor:pointer;font-size:14px;min-width:36px}
+.asp-btn:hover{background:#4a4a4a}
+.asp-ctl{padding:10px 12px;border-bottom:1px solid #333;display:flex;flex-direction:column;gap:8px}
+.asp-row{display:flex;align-items:center;gap:8px}
+.asp-seek{flex:1;accent-color:#6366f1}
+.asp-time{font-variant-numeric:tabular-nums;font-size:12px;opacity:.8;min-width:92px;text-align:right}
+.asp-speed{display:flex;gap:4px;flex-wrap:wrap}
+.asp-speed button{background:#2f2f2f;color:#ccc;border:1px solid #444;border-radius:12px;padding:3px 9px;
+  font-size:12px;cursor:pointer}
+.asp-speed button.on{background:#6366f1;border-color:#6366f1;color:#fff}
+.asp-tx{flex:1;overflow-y:auto;padding:14px 16px 40vh;line-height:1.55;font-size:16px}
+.asp-tx p{margin:0 0 10px;padding:6px 8px;border-radius:6px;cursor:pointer;opacity:.8;transition:opacity .2s,background .2s}
+.asp-tx p.done{opacity:.5}
+.asp-tx p.now{opacity:1;background:#312e81;color:#fff}
+.asp-tx p:hover{opacity:.9}
+.asp-follow{position:absolute;right:16px;bottom:16px;display:none}
+.asp-follow.show{display:block}
+</style>
+<div id="audioSidePane" class="audio-side-pane" aria-hidden="true">
+  <div class="asp-head">
+    <div class="asp-title" id="aspTitle">Audio</div>
+    <button class="asp-btn" onclick="closeAudioPane()" title="Close (Esc)">✕</button>
+  </div>
+  <div class="asp-ctl">
+    <div class="asp-row">
+      <button class="asp-btn" id="aspBack" title="Back 10 s">⟲10</button>
+      <button class="asp-btn" id="aspPlay" title="Play / pause (Space)">▶</button>
+      <button class="asp-btn" id="aspFwd" title="Forward 10 s">10⟳</button>
+      <input type="range" class="asp-seek" id="aspSeek" min="0" max="1000" value="0">
+      <span class="asp-time" id="aspTime">0:00 / 0:00</span>
+    </div>
+    <div class="asp-speed" id="aspSpeed"></div>
+  </div>
+  <div class="asp-tx" id="aspTx"></div>
+  <button class="asp-btn asp-follow" id="aspFollow" title="Back to the sentence being spoken">↧ follow</button>
+</div>
+<script>
+(function(){
+  const pane = document.getElementById('audioSidePane');
+  const tx = document.getElementById('aspTx');
+  const playBtn = document.getElementById('aspPlay');
+  const seek = document.getElementById('aspSeek');
+  const time = document.getElementById('aspTime');
+  const follow = document.getElementById('aspFollow');
+  const SPEEDS = [1, 1.25, 1.5, 1.75, 2];
+  let audio = null, segs = [], nodes = [], cur = -1, src = '', btnEl = null;
+  let userScrolledAt = 0, seeking = false;
+
+  function getSpeed(){ try { return parseFloat(localStorage.getItem('audioPaneSpeed')) || 1; } catch(e){ return 1; } }
+  function setSpeed(v){
+    try { localStorage.setItem('audioPaneSpeed', String(v)); } catch(e){}
+    if (audio) audio.playbackRate = v;
+    document.querySelectorAll('#aspSpeed button').forEach(b =>
+      b.classList.toggle('on', parseFloat(b.dataset.v) === v));
+  }
+  const sp = document.getElementById('aspSpeed');
+  SPEEDS.forEach(v => {
+    const b = document.createElement('button');
+    b.dataset.v = v; b.textContent = v + '×'; b.onclick = () => setSpeed(v);
+    sp.appendChild(b);
+  });
+
+  const fmt = s => { s = Math.max(0, s|0); return (s/60|0) + ':' + String(s%60).padStart(2,'0'); };
+
+  function paint(){
+    if (!audio) return;
+    const t = audio.currentTime, d = audio.duration || 0;
+    if (!seeking && d) seek.value = Math.round(t / d * 1000);
+    time.textContent = fmt(t) + ' / ' + fmt(d);
+    let i = -1;
+    for (let k = 0; k < segs.length; k++) { if (t >= segs[k].start) i = k; else break; }
+    if (i !== cur){
+      nodes.forEach((n, k) => { n.classList.toggle('now', k === i); n.classList.toggle('done', k < i); });
+      cur = i;
+      if (i >= 0 && Date.now() - userScrolledAt > 4000) {
+        nodes[i].scrollIntoView({block:'center', behavior:'smooth'});
+        follow.classList.remove('show');
+      } else if (i >= 0) follow.classList.add('show');
+    }
+  }
+
+  function setPlaying(on){ playBtn.textContent = on ? '⏸' : '▶'; if (btnEl) btnEl.classList.toggle('playing', on); }
+
+  window.openAudioPane = function(btn){
+    if (audio && src === btn.dataset.src) { audio.paused ? audio.play() : audio.pause(); return; }
+    if (audio) { audio.pause(); setPlaying(false); }
+    src = btn.dataset.src; btnEl = btn;
+    document.getElementById('aspTitle').textContent = (btn.textContent || '').replace('🔊','').replace(/^\s*▶\s*(Play:\s*)?/,'').trim()
+      || decodeURIComponent(src.split('/').pop());
+    tx.innerHTML = '<p class="now">Loading transcript…</p>'; segs = []; nodes = []; cur = -1;
+    audio = new Audio(src);
+    audio.playbackRate = getSpeed(); setSpeed(getSpeed());
+    audio.ontimeupdate = paint;
+    audio.onloadedmetadata = paint;
+    audio.onplay = () => setPlaying(true);
+    audio.onpause = () => setPlaying(false);
+    audio.onended = () => setPlaying(false);
+    audio.onerror = () => { tx.innerHTML = '<p class="now">Could not play this file.</p>'; };
+    fetch(src + '.transcript.json').then(r => r.ok ? r.json() : null).then(j => {
+      segs = (j && j.segments) || [];
+      tx.innerHTML = '';
+      nodes = segs.map((s, k) => {
+        const p = document.createElement('p');
+        p.textContent = s.text;
+        p.onclick = () => { audio.currentTime = s.start + 0.01; userScrolledAt = 0; if (audio.paused) audio.play(); };
+        tx.appendChild(p); return p;
+      });
+      if (!segs.length) tx.innerHTML = '<p>No transcript for this audio.</p>';
+      cur = -1; paint();
+    }).catch(() => { tx.innerHTML = '<p>No transcript for this audio.</p>'; });
+    pane.classList.add('open'); pane.setAttribute('aria-hidden','false');
+    audio.play().catch(() => setPlaying(false));
+  };
+  window.closeAudioPane = function(){
+    if (audio) audio.pause();
+    pane.classList.remove('open'); pane.setAttribute('aria-hidden','true');
+  };
+  playBtn.onclick = () => { if (audio) audio.paused ? audio.play() : audio.pause(); };
+  document.getElementById('aspBack').onclick = () => { if (audio) audio.currentTime = Math.max(0, audio.currentTime - 10); };
+  document.getElementById('aspFwd').onclick = () => { if (audio) audio.currentTime = Math.min(audio.duration || 0, audio.currentTime + 10); };
+  seek.addEventListener('input', () => { seeking = true;
+    if (audio && audio.duration) time.textContent = fmt(seek.value / 1000 * audio.duration) + ' / ' + fmt(audio.duration); });
+  seek.addEventListener('change', () => { seeking = false; userScrolledAt = 0;
+    if (audio && audio.duration) audio.currentTime = seek.value / 1000 * audio.duration; });
+  // A hand on the transcript pauses the auto-follow for a few seconds, so reading
+  // ahead or back is not yanked away; "follow" brings it straight back.
+  ['wheel','touchmove'].forEach(ev => tx.addEventListener(ev, () => { userScrolledAt = Date.now(); }, {passive:true}));
+  follow.onclick = () => { userScrolledAt = 0; follow.classList.remove('show');
+    if (cur >= 0) nodes[cur].scrollIntoView({block:'center', behavior:'smooth'}); };
+  document.addEventListener('keydown', e => {
+    if (!pane.classList.contains('open')) return;
+    if (/INPUT|TEXTAREA/.test((e.target.tagName||'')) && e.target !== seek) return;
+    if (e.key === 'Escape') closeAudioPane();
+    else if (e.key === ' ') { e.preventDefault(); playBtn.click(); }
+    else if (e.key === 'ArrowLeft') document.getElementById('aspBack').click();
+    else if (e.key === 'ArrowRight') document.getElementById('aspFwd').click();
+  });
+})();
+</script>
+'''
+
+
 # Will be set via command line or environment variable
 VAULT_PATH = None
 
@@ -269,8 +425,17 @@ def build_file_cache():
             
             # Store multiple mappings for flexible lookup
             _file_cache[file.lower()] = rel_path
-            _file_cache[name_without_ext.lower()] = rel_path
-            
+
+            # The extensionless key is what [[Wiki Links]] hit. A lecture folder
+            # holds "04__Hubs.md" next to "04__Hubs.pdf", so whichever os.walk
+            # reached last used to win and [[04__Hubs]] could open the PDF.
+            # A markdown note always wins the extensionless key.
+            stem_key = name_without_ext.lower()
+            existing = _file_cache.get(stem_key)
+            if existing is None or (file.lower().endswith('.md')
+                                    and not existing.lower().endswith('.md')):
+                _file_cache[stem_key] = rel_path
+
             # Also store with path for disambiguation
             _file_cache[rel_path.lower()] = rel_path
 
@@ -297,9 +462,39 @@ def find_file_in_vault(link_text):
     
     return None
 
+def _slugify_heading(text):
+    """Slug used for heading anchors. Must match the slug convert_obsidian_links
+    builds from [[Note#Heading]], or the fragment will never find its target."""
+    text = html.unescape(re.sub(r'<[^>]+>', '', text))
+    # A '"' would end the id="..." attribute early, so every heading with a
+    # quoted title collapsed to the same truncated id and its links all landed
+    # on the first one.
+    text = re.sub(r'["<>]', '', text)
+    return text.strip().lower().replace(' ', '-')
+
+
+def add_heading_anchors(html_content):
+    """Give every <h1>-<h6> an id so [[#Heading]] and [[Note#Heading]] can land
+    on it. The markdown 'toc' extension does not reach every render path here,
+    so headings otherwise arrive with no id at all and heading links silently
+    scroll nowhere."""
+    def add_id(match):
+        tag, attrs, inner = match.group(1), match.group(2), match.group(3)
+        if 'id=' in attrs:
+            return match.group(0)
+        slug = _slugify_heading(inner)
+        if not slug:
+            return match.group(0)
+        return f'<{tag}{attrs} id="{slug}">{inner}</{tag}>'
+
+    return re.sub(r'<(h[1-6])([^>]*)>(.*?)</\1>', add_id, html_content,
+                  flags=re.DOTALL)
+
+
 def convert_obsidian_links(html_content, current_file_dir=""):
     """Convert Obsidian [[wiki-links]] and ![[embeds]] to HTML"""
-    
+    html_content = add_heading_anchors(html_content)
+
     # First handle image/file embeds: ![[filename]]
     def replace_embed(match):
         inner = match.group(1)
@@ -360,14 +555,31 @@ def convert_obsidian_links(html_content, current_file_dir=""):
                     )
                 return f'<a href="/view/{file_path}" class="internal-link">📄 {alt_text}</a>'
 
+            # Audio embeds: a tap-to-play speaker button (language vaults pronounce every word)
+            elif ext in ['mp3', 'wav', 'ogg', 'm4a']:
+                label = alt_text if alt_text != inner else ''
+                safe_label = html.escape(label)
+                # A long clip with a timed transcript beside it (``<audio>.transcript.json``,
+                # made by tools/audio-transcript/align_transcript.py) opens the side player;
+                # word-pronunciation clips have no sidecar and keep the one-tap button.
+                has_tx = os.path.exists(os.path.join(VAULT_PATH, file_path + '.transcript.json'))
+                tx_attr = ' data-transcript="1"' if has_tx else ''
+                return (
+                    f'<button type="button" class="audio-embed" data-src="/raw/{file_path}"{tx_attr} '
+                    f'onclick="playEmbeddedAudio(this)" title="Play {safe_label or "audio"}">'
+                    f'<span class="audio-embed-icon">🔊</span>{(" " + safe_label) if safe_label else ""}</button>'
+                )
+
             # Other files
             else:
                 return f'<a href="/view/{file_path}" class="internal-link">{alt_text}</a>'
         else:
             return f'<span class="broken-link" title="File not found: {link_part}">![[{inner}]]</span>'
     
-    # Handle ![[...]] embed patterns
-    html_content = re.sub(r'!\[\[([^\]]+)\]\]', replace_embed, html_content)
+    # Handle ![[...]] embed patterns.
+    # Tolerate a single ']' inside the caption (e.g. "ref [6]") — match any
+    # non-']' char OR a ']' not followed by ']', up to the closing ']]'.
+    html_content = re.sub(r'!\[\[((?:[^\]\n]|\](?!\]))+)\]\]', replace_embed, html_content)
     
     def replace_link(match):
         full_match = match.group(0)
@@ -384,8 +596,15 @@ def convert_obsidian_links(html_content, current_file_dir=""):
         heading = ""
         if '#' in link_part:
             link_part, heading = link_part.split('#', 1)
-            heading = '#' + heading.lower().replace(' ', '-')
-        
+            heading = '#' + _slugify_heading(heading)
+
+        # [[#Heading]] — an anchor inside the note being rendered, so there is
+        # no file to look up. Without this, link_part is "" and it renders as a
+        # broken link even though the target heading is right there on the page.
+        if not link_part.strip() and heading:
+            label = display_text.lstrip('#') or heading.lstrip('#')
+            return f'<a href="{heading}" class="internal-link">{label}</a>'
+
         # Find the file - try multiple strategies
         file_path = None
         
@@ -429,10 +648,27 @@ def convert_obsidian_callouts(content):
     lines = content.split('\n')
     result = []
     i = 0
-    
+    fence_char = None  # backtick/tilde of the open fence while inside a code block
+
     while i < len(lines):
         line = lines[i]
-        
+
+        # Fenced code blocks pass through untouched. Without this the table
+        # branch below eats lines like `|Anna|    3|` from a Spark show()
+        # output block and re-emits them as literal <table> markup.
+        fence_match = re.match(r'^\s{0,3}(`{3,}|~{3,})', line)
+        if fence_char is not None:
+            result.append(line)
+            i += 1
+            if fence_match and fence_match.group(1)[0] == fence_char:
+                fence_char = None
+            continue
+        if fence_match:
+            fence_char = fence_match.group(1)[0]
+            result.append(line)
+            i += 1
+            continue
+
         # Check for callout start: > [!type] or > [!type]+ or > [!type]-
         callout_match = re.match(r'^>\s*\[!(\w+)\]([+-])?\s*(.*)?$', line)
         
@@ -449,6 +685,16 @@ def convert_obsidian_callouts(content):
             title = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', title)
             title = re.sub(r'\*(.+?)\*', r'<em>\1</em>', title)
             title = re.sub(r'`([^`]+)`', r'<code>\1</code>', title)
+
+            # Give "Slide NN — ..." callouts a stable anchor id so other notes can
+            # deep-link straight at one slide, e.g. [[04__Hubs#slide-45]]. The
+            # lecture notes carry no per-slide markdown heading, so without this
+            # a cross-note link can only open the file at the top.
+            anchor_attr = ''
+            slide_match = re.match(r'^\s*Slide\s+0*(\d+)\b',
+                                   re.sub(r'<[^>]+>', '', title))
+            if slide_match:
+                anchor_attr = f' id="slide-{slide_match.group(1)}"'
             
             # Collect callout content (subsequent lines starting with >)
             content_lines = []
@@ -472,10 +718,8 @@ def convert_obsidian_callouts(content):
             # Preserve line breaks for equation continuations (lines starting with =)
             callout_md = fix_equation_line_breaks(callout_md)
             
-            # Convert common math notations like e^(...) to LaTeX
-            callout_md = convert_inline_math_notation(callout_md)
-            
-            # Protect math expressions inside callouts before markdown processing
+            # Protect math expressions inside callouts (this also converts
+            # e^(...)-style notation, skipping code) before markdown processing
             callout_md, callout_math_placeholders = protect_math_expressions(callout_md)
             
             callout_html = markdown.markdown(
@@ -489,13 +733,13 @@ def convert_obsidian_callouts(content):
             if collapse_char:
                 # Collapsible callout
                 open_attr = ' open' if collapse_char == '+' else ''
-                result.append(f'<details class="callout callout-{callout_type}"{open_attr}>')
+                result.append(f'<details class="callout callout-{callout_type}"{open_attr}{anchor_attr}>')
                 result.append(f'<summary><div class="callout-title">{title}</div></summary>')
                 result.append(f'<div class="callout-content">{callout_html}</div>')
                 result.append('</details>')
             else:
                 # Non-collapsible callout
-                result.append(f'<div class="callout callout-{callout_type}">')
+                result.append(f'<div class="callout callout-{callout_type}"{anchor_attr}>')
                 result.append(f'<div class="callout-title">{title}</div>')
                 result.append(f'<div class="callout-content">{callout_html}</div>')
                 result.append('</div>')
@@ -535,13 +779,32 @@ def convert_obsidian_callouts(content):
 
 
 def process_inline_markdown(text):
-    """Process inline markdown: bold, italic, code, links."""
-    # Code (must be before bold/italic to avoid conflicts)
+    """Process inline markdown: bold, italic, code, links.
+
+    Math regions ($..$ and $$..$$) are masked out first so their internal
+    `*` characters are NOT consumed as italic markers. Without this, a line
+    like `$$ ... f^*(x) ... f = f^* $$` gets <em> tags injected inside the
+    LaTeX, which then survives math extraction and breaks MathJax rendering.
+    """
+    # 1. Stash math regions so their `*` and `_` are invisible to the
+    #    italic/bold regexes below.
+    masked = []
+    def _stash(m):
+        masked.append(m.group(0))
+        return f'\x00MATHMASK{len(masked)-1}\x00'
+
+    # Display math first (greediest), then inline.
+    text = re.sub(r'\$\$[\s\S]*?\$\$', _stash, text)
+    text = re.sub(r'(?<!\$)\$(?!\$)([^\$\n]+?)(?<!\$)\$(?!\$)', _stash, text)
+
+    # 2. Apply inline markdown on math-free text.
     text = re.sub(r'`([^`]+)`', r'<code>\1</code>', text)
-    # Bold
     text = re.sub(r'\*\*(.+?)\*\*', r'<strong>\1</strong>', text)
-    # Italic
     text = re.sub(r'\*(.+?)\*', r'<em>\1</em>', text)
+
+    # 3. Restore math regions verbatim.
+    for i, original in enumerate(masked):
+        text = text.replace(f'\x00MATHMASK{i}\x00', original)
     return text
 
 
@@ -733,6 +996,18 @@ def protect_css_selectors(content):
     
     Wraps such patterns in backticks or escapes them.
     """
+    # An Obsidian link owns its inner text: [[Note#slide-29]] has to survive
+    # verbatim, or pattern 3 below wraps the "#slide-29" in backticks and the
+    # link resolver never sees the heading (it renders as a broken link).
+    # Stash every wiki link first, restore after the selector patterns run.
+    wiki_spans = []
+
+    def _stash_wiki(match):
+        wiki_spans.append(match.group(0))
+        return f'WIKILINKPLACEHOLDER{len(wiki_spans) - 1}END'
+
+    content = re.sub(r'!?\[\[[^\]\n]+\]\]', _stash_wiki, content)
+
     # Pattern 1: CSS ID selector in parentheses like (#name) or (#id)
     # This prevents MathJax from trying to process # as LaTeX
     content = re.sub(r'(?<!`)\(#([a-zA-Z_][a-zA-Z0-9_-]*)\)(?!`)', r'(`#\1`)', content)
@@ -751,39 +1026,102 @@ def protect_css_selectors(content):
     # Pattern 5: Standalone # not in heading or code
     # Replace with HTML entity if not already protected
     content = re.sub(r'(?<!`)(?<!\d)#(?!\w)(?!`)', r'&#35;', content)
-    
+
+    # Put the wiki links back untouched
+    content = re.sub(r'WIKILINKPLACEHOLDER(\d+)END',
+                     lambda m: wiki_spans[int(m.group(1))], content)
+
     return content
+
+
+def neutralize_combining_diacritics(content):
+    """Wrap plain-text Unicode patterns that trip MathJax's splitText bug
+    in a no-mathjax span so MathJax skips them.
+
+    MathJax 3 throws IndexSizeError from `splitText` when the text node it
+    is walking contains:
+
+      a) base letter + combining mark (e.g. θ + U+0302 = θ̂) — the offsets
+         MathJax computes don't match the DOM's UTF-16 code-unit indexing.
+      b) characters in the Variation Selectors block (U+FE00–U+FE0F) — same
+         class of bug, often appearing as the second code unit of an emoji
+         like ⚠️ (= U+26A0 + U+FE0F).
+      c) supplementary-plane characters (U+10000+) — surrogate pairs that
+         take two UTF-16 code units. Common offenders: 📊 💡 🧠 𝒩 𝒙 etc.
+
+    When the bug fires, the whole-page typeset aborts and equations after
+    that point in document order silently fail to render. Wrapping the
+    offending sequence in <span class="no-mathjax"> makes MathJax skip
+    that node (per the ignoreHtmlClass regex) so it never enters the
+    buggy splitText path. The browser still draws the glyph visually.
+    """
+    def repl(m):
+        return f'<span class="no-mathjax">{m.group(0)}</span>'
+
+    # Pattern matches, in priority order:
+    #   (1) base letter + combining mark
+    #   (2) base char + variation selector
+    #   (3) standalone variation selector
+    #   (4) standalone supplementary-plane character (UTF-16 surrogate pair)
+    pattern = (
+        r'[A-Za-zͰ-Ͽ][̀-ͯ⃐-⃿]'        # combining diacritics
+        r'|.[︀-️]'             # base + variation selector (e.g. ⚠️)
+        r'|[︀-️]'              # standalone variation selector
+        r'|[\U00010000-\U0010FFFF]'      # supplementary-plane chars / emoji
+    )
+    return re.sub(pattern, repl, content)
 
 
 def protect_math_expressions(content):
     """Protect LaTeX math expressions from markdown processing"""
-    # First, convert common math notations like e^(...) to LaTeX
+    # Set code aside first. MathJax never typesets <code>/<pre>, and the
+    # rewrites below would otherwise corrupt it: `max([1, 2])` became
+    # max($[1, 2]$) and a Python "# comment" became "&#35; comment".
+    code_spans = []
+
+    def stash_code(match):
+        code_spans.append(match.group(0))
+        return f"CODESPANPLACEHOLDER{len(code_spans) - 1}END"
+
+    content = re.sub(r'^[ \t]*```[\s\S]*?^[ \t]*```[ \t]*$', stash_code, content, flags=re.MULTILINE)
+    content = re.sub(r'`[^`\n]+`', stash_code, content)
+    # Earlier steps may already have turned some spans into HTML.
+    content = re.sub(r'<(pre|code)\b[^>]*>[\s\S]*?</\1>', stash_code, content)
+
+    # Wrap MathJax-buggy Unicode (θ̂ + emoji + variation selectors) so the
+    # client-side splitText path is never entered. Must run before the rest.
+    content = neutralize_combining_diacritics(content)
+
+    # Convert common math notations like e^(...) to LaTeX so they get
+    # captured as $..$ in the next step.
     content = convert_inline_math_notation(content)
-    
-    # Protect array notation from being parsed as links
-    content = protect_array_notation(content)
-    
-    # Protect CSS selectors (#id, .class) from MathJax errors
-    content = protect_css_selectors(content)
-    
+
     placeholders = {}
     counter = [0]  # Use list to allow modification in nested function
-    
+
     def replace_math(match):
         placeholder = f"MATH_PLACEHOLDER_{counter[0]}_END"
         placeholders[placeholder] = match.group(0)
         counter[0] += 1
         return placeholder
     
-    # Protect display math ($$...$$) first - multiline
+    # Extract math FIRST, before protect_array_notation / protect_css_selectors.
+    # Otherwise patterns like E[L] inside $$..$$ get wrapped in backticks and
+    # become broken LaTeX. Math placeholders are opaque to those protectors.
+
+    # Display math ($$...$$) - multiline
     content = re.sub(r'\$\$[\s\S]*?\$\$', replace_math, content)
-    
-    # Protect inline math ($...$) - but not double dollars
-    # More permissive regex to handle math inside tables and complex expressions
-    # Match $ followed by content (can start/end with backslash for LaTeX), $
-    # Allow expressions like $\tilde{P}_{D_i}(w)$ inside tables
+
+    # Inline math ($...$) - but not double dollars. Handles math inside
+    # tables and complex expressions like $\tilde{P}_{D_i}(w)$.
     content = re.sub(r'(?<!\$)\$(?!\$)([^\$\n]+?)(?<!\$)\$(?!\$)', replace_math, content)
-    
+
+    # Now run the markdown-rescuing protectors on the math-free content.
+    content = protect_array_notation(content)
+    content = protect_css_selectors(content)
+
+    content = re.sub(r'CODESPANPLACEHOLDER(\d+)END', lambda m: code_spans[int(m.group(1))], content)
+
     return content, placeholders
 
 def protect_wiki_embeds(content):
@@ -802,7 +1140,10 @@ def protect_wiki_embeds(content):
         counter[0] += 1
         return key
 
-    content = re.sub(r'!\[\[[^\]]+\]\]', replace, content)
+    # Tolerate a single ']' inside the embed (e.g. a caption like "ref [6]"):
+    # match any non-']' char OR a ']' not followed by ']', up to the closing ']]'.
+    # Excludes newlines so a run of one-per-line embeds can't be merged.
+    content = re.sub(r'!\[\[(?:[^\]\n]|\](?!\]))+\]\]', replace, content)
     return content, placeholders
 
 
@@ -2043,6 +2384,53 @@ HTML_TEMPLATE = '''
         .toolbar button:active { transform: translateY(0); }
         .toolbar button.secondary { background: #555; }
         .toolbar button.secondary:hover { background: #444; }
+
+        /* ===== Reading progress (page-scroll percentage) ===== */
+        .reading-progress-bar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: transparent;
+            z-index: 250;            /* above toolbar (200) so it always reads */
+            pointer-events: none;
+        }
+        .reading-progress-bar > .fill {
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(90deg, #0066cc 0%, #00b894 100%);
+            transition: width 80ms linear;
+            box-shadow: 0 0 6px rgba(0, 184, 148, 0.55);
+        }
+        .reading-progress-pct {
+            position: fixed;
+            right: 18px;
+            bottom: 18px;
+            z-index: 250;
+            background: rgba(20, 20, 20, 0.78);
+            color: #f4f4f4;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 5px 10px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+            font-variant-numeric: tabular-nums;
+            user-select: none;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 200ms ease;
+        }
+        .reading-progress-pct.visible { opacity: 0.92; }
+        body:not(.dark-theme) .reading-progress-pct {
+            background: rgba(245, 245, 245, 0.92);
+            color: #222;
+            border-color: rgba(0, 0, 0, 0.08);
+        }
+        @media (max-width: 768px) {
+            .reading-progress-pct { right: 10px; bottom: 10px; font-size: 11px; padding: 4px 8px; }
+        }
         
         /* Dark Theme */
         body.dark-theme {
@@ -2565,6 +2953,16 @@ HTML_TEMPLATE = '''
         .content pre code { background: none; padding: 0; color: #ddd; }
         
         /* Other elements */
+        .audio-embed {
+            display: inline-flex; align-items: center; gap: 4px; margin: 0 2px; padding: 2px 9px;
+            border: 1px solid #c7d2fe; border-radius: 999px; background: #eef2ff; color: #3730a3;
+            font: inherit; font-size: 0.92em; cursor: pointer; vertical-align: baseline;
+        }
+        .audio-embed:hover { background: #e0e7ff; }
+        .audio-embed.playing { background: #4f46e5; color: #fff; border-color: #4f46e5; }
+        .audio-embed.audio-failed { background: #fee2e2; color: #b91c1c; border-color: #ef4444; }
+        body.dark-theme .audio-embed { background: #1e1b4b; color: #c7d2fe; border-color: #3730a3; }
+        body.dark-theme .audio-embed.playing { background: #6366f1; color: #fff; }
         .content img { 
             max-width: 100%; 
             height: auto; 
@@ -2789,6 +3187,15 @@ HTML_TEMPLATE = '''
             padding: 1px 4px;
             border-radius: 3px;
         }
+        /* brief highlight on whatever a deep link just landed on */
+        .anchor-flash {
+            animation: anchorFlash 1.8s ease-out;
+        }
+        @keyframes anchorFlash {
+            0%, 40% { box-shadow: 0 0 0 3px rgba(255, 190, 60, 0.85); }
+            100%    { box-shadow: 0 0 0 3px rgba(255, 190, 60, 0); }
+        }
+
         .content a.internal-link:hover { 
             background: rgba(124, 58, 237, 0.2);
             text-decoration: none;
@@ -4639,8 +5046,8 @@ HTML_TEMPLATE = '''
     <script>
         MathJax = {
             tex: {
-                inlineMath: [['$', '$'], ['\\(', '\\)']],
-                displayMath: [['$$', '$$'], ['\\[', '\\]']],
+                inlineMath: [['$', '$'], ['\\\\(', '\\\\)']],
+                displayMath: [['$$', '$$'], ['\\\\[', '\\\\]']],
                 processEscapes: true,
                 processEnvironments: true
             },
@@ -4649,8 +5056,13 @@ HTML_TEMPLATE = '''
                 ignoreHtmlClass: 'callout-title|no-mathjax'
             },
             startup: {
+                // Skip the default page-wide typeset entirely. The chrome
+                // (toolbar/sidebar/template) contains supplementary-plane
+                // emoji that trip MathJax 3's splitText IndexSizeError bug.
+                // The DOMContentLoaded handler below scopes typesetting to
+                // .content, where all our markdown lives.
                 pageReady: () => {
-                    return MathJax.startup.defaultPageReady();
+                    return Promise.resolve();
                 }
             }
         };
@@ -4699,6 +5111,14 @@ HTML_TEMPLATE = '''
     </style>
 </head>
 <body>
+    <!-- Page-scroll reading progress (thin top bar + small bottom-right chip).
+         Updated by updateReadingProgress() on every scroll of #contentWrapper
+         or #pdfViewer. Hidden automatically when there's nothing to scroll. -->
+    <div class="reading-progress-bar" id="readingProgressBar" aria-hidden="true">
+        <div class="fill" id="readingProgressFill"></div>
+    </div>
+    <div class="reading-progress-pct" id="readingProgressPct" aria-live="polite">0%</div>
+
     <button class="toggle-btn" onclick="toggleSidebar()" title="Toggle Sidebar">☰ <span class="btn-text">Menu</span></button>
     
     <button class="dock-toggle" id="dockToggle" onclick="toggleDock()" title="Toggle Sidebar (Ctrl+B)">
@@ -4936,6 +5356,13 @@ HTML_TEMPLATE = '''
                 <button onclick="expandAllFolders()" style="flex:1; padding: 4px 8px; font-size: 11px; background: #3c3c3c; color: #ccc; border: none; border-radius: 3px; cursor: pointer;" title="Expand All">+ All</button>
                 <button onclick="collapseAllFolders()" style="flex:1; padding: 4px 8px; font-size: 11px; background: #3c3c3c; color: #ccc; border: none; border-radius: 3px; cursor: pointer;" title="Collapse All">− All</button>
             </div>
+            {% if file_path %}
+            <div style="display: flex; gap: 8px; margin-top: 6px;">
+                <button id="sidebarCopyBtn" onclick="copySidebarPath()" style="flex:1; padding: 4px 8px; font-size: 11px; background: #3c3c3c; color: #ccc; border: none; border-radius: 3px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;" title="Copy current file path">
+                    <span id="sidebarCopyIcon">📋</span><span id="sidebarCopyText">Copy path</span>
+                </button>
+            </div>
+            {% endif %}
             <!-- Search Box -->
             <div class="search-container">
                 <div class="search-input-wrapper">
@@ -5033,8 +5460,39 @@ HTML_TEMPLATE = '''
             }
         }
         
+        // Scroll the markdown view to the element named by the URL fragment.
+        // The content scrolls inside #contentWrapper, not the window, so a
+        // native fragment jump does nothing at all here — we have to move the
+        // container ourselves. Slide images load late and shift the layout, so
+        // callers fire this several times.
+        function scrollToHash() {
+            const raw = window.location.hash;
+            if (!raw) return false;
+            const bare = raw.slice(1);
+            let decoded = bare;
+            try { decoded = decodeURIComponent(bare); } catch (e) { /* keep raw */ }
+            const target = document.getElementById(decoded) || document.getElementById(bare);
+            if (!target) return false;
+
+            const wrapper = document.getElementById('contentWrapper');
+            if (wrapper) {
+                const delta = target.getBoundingClientRect().top
+                            - wrapper.getBoundingClientRect().top;
+                wrapper.scrollTop += delta - 12;
+            } else {
+                target.scrollIntoView({ block: 'start' });
+            }
+
+            target.classList.add('anchor-flash');
+            setTimeout(() => target.classList.remove('anchor-flash'), 1800);
+            return true;
+        }
+
         function restoreScrollPosition() {
             if (!currentFilePath || currentFilePath === '/') return;
+            // A deep link wins over "resume where you left off", otherwise the
+            // saved offset yanks the reader away from the slide they clicked.
+            if (window.location.hash) return;
             const saved = localStorage.getItem('scroll_' + currentFilePath);
             if (!saved) return;
             
@@ -5071,12 +5529,61 @@ HTML_TEMPLATE = '''
         
         // Save position when leaving page
         window.addEventListener('beforeunload', saveScrollPosition);
-        
+
+        // Clicking a [[#Heading]] link while already on the page only changes
+        // the fragment — no load event fires, so scroll it ourselves.
+        window.addEventListener('hashchange', () => { scrollToHash(); });
+
         // Also save periodically while scrolling (debounced)
         let scrollSaveTimeout;
         function debouncedSaveScroll() {
             clearTimeout(scrollSaveTimeout);
             scrollSaveTimeout = setTimeout(saveScrollPosition, 500);
+        }
+
+        // ===== READING-PROGRESS BAR + PERCENTAGE CHIP =====
+        // Shows what fraction of the current page the user has scrolled past.
+        // Reads from whichever scroll container is active (#contentWrapper for
+        // markdown/HTML pages, #pdfViewer for PDFs). Hidden when content fits
+        // in the viewport (nothing to scroll).
+        let _progressHideChipTimer = null;
+        function updateReadingProgress() {
+            const bar  = document.getElementById('readingProgressBar');
+            const fill = document.getElementById('readingProgressFill');
+            const chip = document.getElementById('readingProgressPct');
+            if (!bar || !fill || !chip) return;
+
+            const pdfViewer = document.getElementById('pdfViewer');
+            const contentWrapper = document.getElementById('contentWrapper');
+            const scroller = pdfViewer || contentWrapper;
+            if (!scroller) {
+                bar.style.display = 'none';
+                chip.style.display = 'none';
+                return;
+            }
+
+            const scrollable = scroller.scrollHeight - scroller.clientHeight;
+            if (scrollable <= 4) {
+                // Nothing meaningful to scroll — hide the indicators rather
+                // than pin them at 0% / 100% (looks broken on short pages).
+                bar.style.display = 'none';
+                chip.style.display = 'none';
+                return;
+            }
+            bar.style.display = 'block';
+            chip.style.display = 'block';
+
+            const pct = Math.max(0, Math.min(100, (scroller.scrollTop / scrollable) * 100));
+            fill.style.width = pct.toFixed(2) + '%';
+            chip.textContent = Math.round(pct) + '%';
+
+            // Fade the chip in while scrolling, then back out after 1.4s of
+            // idle so it doesn't permanently sit on top of the content.
+            chip.classList.add('visible');
+            clearTimeout(_progressHideChipTimer);
+            _progressHideChipTimer = setTimeout(() => {
+                chip.classList.remove('visible');
+            }, 1400);
         }
         
         // Initialize sidebar state
@@ -5085,8 +5592,13 @@ HTML_TEMPLATE = '''
             const dockToggle = document.getElementById('dockToggle');
             const toggleBtn = document.querySelector('.toggle-btn');
             
-            // Restore scroll position
+            // Restore scroll position (no-op when a #fragment is present)
             restoreScrollPosition();
+
+            // Deep link: re-run as images/MathJax settle and move things around
+            if (window.location.hash) {
+                [0, 250, 700, 1500].forEach(d => setTimeout(scrollToHash, d));
+            }
             
             // Restore tree expansion state
             restoreTreeState();
@@ -5105,11 +5617,36 @@ HTML_TEMPLATE = '''
                 }
             }, 50);
             
-            // Add scroll listener to save position
+            // Add scroll listener to save position + update reading progress.
+            // Throttle the progress update to one frame per scroll event via
+            // requestAnimationFrame so we don't churn layout.
             const contentWrapper = document.getElementById('contentWrapper');
-            if (contentWrapper) {
-                contentWrapper.addEventListener('scroll', debouncedSaveScroll);
+            let _progressRaf = 0;
+            function onScrollerScroll() {
+                debouncedSaveScroll();
+                if (_progressRaf) return;
+                _progressRaf = requestAnimationFrame(() => {
+                    _progressRaf = 0;
+                    updateReadingProgress();
+                });
             }
+            if (contentWrapper) {
+                contentWrapper.addEventListener('scroll', onScrollerScroll, {passive: true});
+            }
+            // PDF view uses #pdfViewer; attach there too if present.
+            const pdfViewerEl = document.getElementById('pdfViewer');
+            if (pdfViewerEl) {
+                pdfViewerEl.addEventListener('scroll', onScrollerScroll, {passive: true});
+            }
+            // Recompute on resize too — viewport height change shifts the
+            // scrollable distance, which would otherwise leave the bar stale.
+            window.addEventListener('resize', updateReadingProgress, {passive: true});
+
+            // Initial paint, plus one after a short delay so MathJax / images /
+            // mermaid have had time to expand the document height.
+            updateReadingProgress();
+            setTimeout(updateReadingProgress, 600);
+            setTimeout(updateReadingProgress, 1800);
             
             if (isMobile) {
                 // Mobile: use overlay mode
@@ -5219,7 +5756,7 @@ HTML_TEMPLATE = '''
         function initGraph() {
             // Parse wiki-links from content
             const content = document.getElementById('contentArea');
-            const currentFile = '{{ file_path|default("")|replace(".md", "")|safe }}';
+            const currentFile = {{ file_path|default("")|replace(".md", "")|tojson }};
             const links = new Set();
             
             // Find all wiki-links in content
@@ -6049,7 +6586,7 @@ HTML_TEMPLATE = '''
         // ============================================
         // METADATA FUNCTIONS
         // ============================================
-        const metadataFilePath = '{{ file_path|default("")|safe }}';
+        const metadataFilePath = {{ file_path|default("")|tojson }};
         
         function openMetadataModal() {
             const modal = document.getElementById('metadataModal');
@@ -6226,7 +6763,7 @@ HTML_TEMPLATE = '''
         let flashcardStats = { correct: 0, wrong: 0 };
         
         async function openFlashcards() {
-            const filePath = '{{ file_path|default("")|safe }}';
+            const filePath = {{ file_path|default("")|tojson }};
             if (!filePath) {
                 alert('No file loaded');
                 return;
@@ -6492,7 +7029,7 @@ A: LITA - Link, Internet, Transport, Application</pre>
         let mcqPreviousScore = null;
         
         async function openMcq() {
-            const filepath = '{{ file_path|default("")|safe }}';
+            const filepath = {{ file_path|default("")|tojson }};
             if (!filepath) {
                 showMcqError('No file selected', 'Open a markdown file first to access MCQs.');
                 document.getElementById('mcqModal').classList.add('visible');
@@ -6655,7 +7192,7 @@ Q: Which port does HTTP use?
             const percentage = Math.round((mcqScore.correct / total) * 100);
             
             // Save score
-            const filepath = '{{ file_path|default("")|safe }}';
+            const filepath = {{ file_path|default("")|tojson }};
             try {
                 await fetch('/api/mcq-score/' + encodeURIComponent(filepath), {
                     method: 'POST',
@@ -6759,7 +7296,7 @@ Q: Which port does HTTP use?
         let currentStudyMode = 'flashcard'; // 'flashcard', 'cloze', 'mix'
         
         async function openCloze() {
-            const filePath = '{{ file_path|default("")|safe }}';
+            const filePath = {{ file_path|default("")|tojson }};
             if (!filePath) {
                 alert('No file loaded');
                 return;
@@ -6947,7 +7484,7 @@ HTTP is a ==stateless== protocol.</pre>
         
         // ===== SRS RATING SYSTEM =====
         let currentSrsMode = 'srs';
-        let srsFilePath = '{{ file_path|default("")|safe }}';
+        let srsFilePath = {{ file_path|default("")|tojson }};
         
         async function rateSrs(cardId, cardType, rating, filepath = null) {
             try {
@@ -7196,7 +7733,7 @@ HTTP is a ==stateless== protocol.</pre>
         let mixStats = { correct: 0, wrong: 0 };
         
         async function openMixMode() {
-            const filePath = '{{ file_path|default("")|safe }}';
+            const filePath = {{ file_path|default("")|tojson }};
             if (!filePath) {
                 alert('No file loaded');
                 return;
@@ -7790,7 +8327,7 @@ Text with {<!-- -->{blanks}} here.</pre>
         
         // ===== SUMMARY VIEW =====
         async function openSummary() {
-            const filePath = '{{ file_path|default("")|safe }}';
+            const filePath = {{ file_path|default("")|tojson }};
             if (!filePath) return;
             
             try {
@@ -7849,7 +8386,7 @@ Text with {<!-- -->{blanks}} here.</pre>
 
         // ===== EXAM MODE =====
         function openExamMode() {
-            const filePath = '{{ file_path|default("")|safe }}';
+            const filePath = {{ file_path|default("")|tojson }};
             if (!filePath) return;
             
             // Navigate to exam simulation page
@@ -8355,7 +8892,47 @@ Text with {<!-- -->{blanks}} here.</pre>
                 fallbackCopy(path);
             }
         }
-        
+
+        function copySidebarPath() {
+            const pathText = document.getElementById('pathText');
+            if (!pathText) return;
+            const path = pathText.dataset.fullPath || pathText.textContent;
+
+            function showFeedback() {
+                const btn = document.getElementById('sidebarCopyBtn');
+                const icon = document.getElementById('sidebarCopyIcon');
+                const text = document.getElementById('sidebarCopyText');
+                if (!btn) return;
+                btn.style.background = '#2d6a3a';
+                btn.style.color = '#d4ffd9';
+                icon.textContent = '✓';
+                text.textContent = 'Copied!';
+                setTimeout(() => {
+                    btn.style.background = '#3c3c3c';
+                    btn.style.color = '#ccc';
+                    icon.textContent = '📋';
+                    text.textContent = 'Copy path';
+                }, 2000);
+            }
+
+            function fallback(text) {
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.position = 'fixed';
+                ta.style.left = '-9999px';
+                document.body.appendChild(ta);
+                ta.select();
+                try { document.execCommand('copy'); showFeedback(); } catch (e) { alert('Path: ' + text); }
+                document.body.removeChild(ta);
+            }
+
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(path).then(showFeedback).catch(() => fallback(path));
+            } else {
+                fallback(path);
+            }
+        }
+
         // Keyboard shortcuts
         document.addEventListener('keydown', function(e) {
             // Ctrl+B or Cmd+B to toggle sidebar
@@ -8510,13 +9087,76 @@ Text with {<!-- -->{blanks}} here.</pre>
                 }
             }, 1000);
             
-            // Re-typeset MathJax after content is loaded
-            if (typeof MathJax !== 'undefined' && MathJax.typesetPromise) {
-                MathJax.typesetPromise().then(function() {
-                    // Process inline-math spans after initial typeset completes
-                    processInlineMath();
-                }).catch(function(err) {
-                    console.log('MathJax typeset failed: ' + err.message);
+            // Typeset MathJax — scope to .content so we never walk the page
+            // chrome (toolbar/sidebar/buttons) which contains supplementary-
+            // plane emoji that trip MathJax 3's splitText IndexSizeError.
+            // Retry on failure by typesetting each remaining raw $$...$$
+            // block's closest ancestor individually so one bad node doesn't
+            // block the rest.
+            //
+            // The MathJax script is loaded with `async`, so at DOMContentLoaded
+            // it may not be ready yet. A bare `if (typeof MathJax !== ...)`
+            // fails silently in that race and equations stay raw. We wait
+            // for MathJax to be fully loaded before triggering typeset.
+            function whenMathJaxReady(cb, attempt) {
+                attempt = attempt || 0;
+                if (typeof MathJax !== 'undefined' &&
+                    MathJax.startup && MathJax.startup.promise) {
+                    // Canonical MathJax 3 ready hook — fires once startup
+                    // (config + loader + chtml output) is fully done.
+                    MathJax.startup.promise.then(cb).catch(function (e) {
+                        console.log('MathJax startup rejected: ' + e.message);
+                    });
+                    return;
+                }
+                if (typeof MathJax !== 'undefined' && MathJax.typesetPromise) {
+                    // Older MathJax variant — typesetPromise is enough.
+                    cb();
+                    return;
+                }
+                if (attempt < 100) { // ~20s budget at 200ms steps
+                    setTimeout(function () { whenMathJaxReady(cb, attempt + 1); }, 200);
+                } else {
+                    console.log('MathJax never became ready — equations will not render');
+                }
+            }
+
+            whenMathJaxReady(function () {
+                var contentEl = document.querySelector('.content');
+                var typesetTarget = contentEl ? [contentEl] : undefined;
+                MathJax.typesetPromise(typesetTarget).then(processInlineMath).catch(function (err) {
+                    console.log('MathJax content typeset failed: ' + err.message + ' — typesetting per-block.');
+                    setTimeout(perBlockTypeset, 100);
+                });
+            });
+
+            function perBlockTypeset() {
+                var allEls = document.querySelectorAll('.content *');
+                var pending = [];
+                var seen = new Set();
+                allEls.forEach(function(el) {
+                    if (el.closest('mjx-container')) return;
+                    var t = el.textContent;
+                    if (t.indexOf('$$') < 0 && t.indexOf('\\\\(') < 0 && t.indexOf('\\\\[') < 0) return;
+                    var target = el;
+                    while (target && target.parentElement &&
+                           ['P','LI','TD','DIV'].indexOf(target.tagName) < 0) {
+                        target = target.parentElement;
+                    }
+                    if (!seen.has(target)) {
+                        seen.add(target);
+                        pending.push(target);
+                    }
+                });
+                if (pending.length === 0) { processInlineMath(); return; }
+                var done = 0;
+                pending.forEach(function(el) {
+                    MathJax.typesetPromise([el]).catch(function(e) {
+                        console.log('per-block typeset failed: ' + e.message);
+                    }).finally(function() {
+                        done++;
+                        if (done === pending.length) processInlineMath();
+                    });
                 });
             }
             
@@ -9240,6 +9880,28 @@ Text with {<!-- -->{blanks}} here.</pre>
             });
         });
         
+        // One shared player for audio embeds: tapping another button stops the first; tapping the
+        // playing one again replays it from the start (repeat-after-me practice).
+        let _embedAudio = null, _embedBtn = null;
+        function _embedFailed(btn) {
+            // Visible failure instead of a silent button (offline, wrong Wi-Fi, missing file)
+            btn.classList.remove('playing');
+            btn.classList.add('audio-failed');
+            btn.title = 'Could not play this audio - check that you are on the home Wi-Fi';
+            setTimeout(() => btn.classList.remove('audio-failed'), 3000);
+        }
+
+        function playEmbeddedAudio(btn) {
+            if (btn.dataset.transcript && window.openAudioPane) { window.openAudioPane(btn); return; }
+            if (_embedAudio) { _embedAudio.pause(); if (_embedBtn) _embedBtn.classList.remove('playing'); }
+            _embedAudio = new Audio(btn.dataset.src);
+            _embedBtn = btn;
+            btn.classList.add('playing');
+            _embedAudio.onended = () => btn.classList.remove('playing');
+            _embedAudio.onerror = () => _embedFailed(btn);
+            _embedAudio.play().catch(() => _embedFailed(btn));
+        }
+
         function openLightbox(src) {
             const lightbox = document.getElementById('imageLightbox');
             const img = document.getElementById('lightboxImage');
@@ -11216,6 +11878,81 @@ def review_page():
     return render_template_string(HTML_TEMPLATE, title=title, tree=tree, content=content, vault_name=vault_name, is_markdown=False)
 
 
+
+# --- Transcript under a directly opened audio file --------------------------
+# The side player (above) only opens from an audio EMBED inside a note. Opening
+# the .ogg itself from the tree used to show a bare player, so the voice notes
+# lost their transcript exactly where they are browsed most. Same sidecar
+# (``<audio>.transcript.json``), rendered as a quote callout under the player,
+# following the audio: the spoken line is highlighted and kept in view, a click
+# on a line seeks there, and a hand on the callout pauses the follow for 4 s.
+def audio_transcript_block(filepath):
+    tx = os.path.join(VAULT_PATH, filepath + '.transcript.json')
+    if not os.path.exists(tx):
+        return ''
+    try:
+        with open(tx, encoding='utf-8') as f:
+            segs = json.load(f).get('segments') or []
+    except Exception:
+        return ''
+    if not segs:
+        return ''
+    lines = ''.join(
+        f'<p class="atx-seg" data-start="{float(s.get("start", 0)):.2f}">'
+        f'{html.escape(str(s.get("text", "")).strip())}</p>'
+        for s in segs)
+    return '''
+<style>
+#atx{margin-top:18px}
+#atx .callout-content{max-height:55vh;overflow-y:auto;scroll-behavior:smooth;padding-right:6px}
+#atx .atx-seg{margin:0 0 .55em;padding:3px 8px;border-radius:6px;cursor:pointer;line-height:1.55;
+  opacity:.55;transition:opacity .2s,background .2s}
+#atx .atx-seg.done{opacity:.4}
+#atx .atx-seg.now{opacity:1;background:rgba(79,70,229,.22)}
+#atx .atx-seg:hover{opacity:.9}
+#atxFollow{display:none;margin-left:10px;font-size:12px;padding:2px 8px;border-radius:5px;
+  border:1px solid #555;background:none;color:inherit;cursor:pointer}
+#atxFollow.show{display:inline-block}
+</style>
+<div class="callout callout-quote" id="atx">
+  <div class="callout-title">Transcript <button type="button" id="atxFollow">↓ follow audio</button></div>
+  <div class="callout-content" id="atxBody">''' + lines + '''</div>
+</div>
+<script>
+(function(){
+  const a = document.getElementById('audioPlayer');
+  const box = document.getElementById('atxBody');
+  const follow = document.getElementById('atxFollow');
+  if (!a || !box) return;
+  const nodes = Array.from(box.querySelectorAll('.atx-seg'));
+  const starts = nodes.map(n => parseFloat(n.dataset.start) || 0);
+  let cur = -1, handAt = 0;
+  function show(n){
+    // Scroll the callout only, never the page: centre the line inside the box.
+    box.scrollTop = n.offsetTop - box.offsetTop - box.clientHeight / 2 + n.offsetHeight / 2;
+  }
+  function paint(){
+    const t = a.currentTime;
+    let i = -1;
+    for (let k = 0; k < starts.length; k++){ if (t >= starts[k]) i = k; else break; }
+    if (i === cur) return;
+    nodes.forEach((n, k) => { n.classList.toggle('now', k === i); n.classList.toggle('done', k < i); });
+    cur = i;
+    if (i < 0) return;
+    if (Date.now() - handAt > 4000){ show(nodes[i]); follow.classList.remove('show'); }
+    else follow.classList.add('show');
+  }
+  a.addEventListener('timeupdate', paint);
+  a.addEventListener('seeked', () => { handAt = 0; cur = -1; paint(); });
+  nodes.forEach((n, k) => n.addEventListener('click', () => {
+    a.currentTime = starts[k] + 0.01; handAt = 0; if (a.paused) a.play();
+  }));
+  ['wheel', 'touchmove'].forEach(ev => box.addEventListener(ev, () => { handAt = Date.now(); }, {passive: true}));
+  follow.onclick = () => { handAt = 0; follow.classList.remove('show'); if (cur >= 0) show(nodes[cur]); };
+})();
+</script>
+'''
+
 @app.route('/view/<path:filepath>')
 def view_file(filepath):
     """View a specific file or folder"""
@@ -11308,7 +12045,7 @@ def view_file(filepath):
             HTML_TEMPLATE,
             title=filename,
             tree=tree,
-            content=title_html + html_content + nav_html + PDF_PLUS_PANE_HTML,
+            content=title_html + html_content + nav_html + PDF_PLUS_PANE_HTML + AUDIO_PANE_HTML,
             vault_name=get_vault_name(),
             is_markdown=True,
             file_path=filepath,
@@ -12613,6 +13350,7 @@ def view_file(filepath):
                 </div>
             </div>
         </div>
+        ''' + audio_transcript_block(filepath) + '''
         '''
         return render_template_string(
             HTML_TEMPLATE,
@@ -14842,7 +15580,7 @@ def pwa_manifest():
 def service_worker():
     """Service worker for offline caching"""
     sw_code = '''
-const CACHE_NAME = 'obsidian-viewer-v2';
+const CACHE_NAME = 'obsidian-viewer-v4-' + VAULT_KEY;
 
 self.addEventListener('install', (event) => {
     console.log('[SW] Installing...');
@@ -14874,6 +15612,29 @@ self.addEventListener('fetch', (event) => {
         return;
     }
     
+    // Pages (navigations and /view/ notes) must never be served stale:
+    // go to the network first and fall back to cache only when offline.
+    // Vault files (/raw/, /pdf-crop/) too: an image edited in place keeps its
+    // URL, so cache-first served the old copy forever, and a hard refresh
+    // does not bypass a service worker.
+    const url = event.request.url;
+    const isPage = event.request.mode === 'navigate' || url.includes('/view/')
+        || url.includes('/raw/') || url.includes('/pdf-crop/');
+    if (isPage) {
+        event.respondWith(
+            fetch(event.request).then((response) => {
+                if (response && response.status === 200) {
+                    const copy = response.clone();
+                    caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
+                }
+                return response;
+            }).catch(() => caches.match(event.request).then((cached) => cached || new Response(
+                '<html><body style="font-family:sans-serif;padding:40px;text-align:center;"><h1>📴 Offline</h1><p>This page is not cached. Connect to the server and try again.</p></body></html>',
+                { headers: { 'Content-Type': 'text/html' } })))
+        );
+        return;
+    }
+
     event.respondWith(
         caches.match(event.request).then((cachedResponse) => {
             // Return cached version if available
@@ -14982,7 +15743,10 @@ self.addEventListener('message', (event) => {
     }
 });
 '''
-    return Response(sw_code, mimetype='application/javascript')
+    sw_code = "const VAULT_KEY = " + json.dumps(os.path.basename(str(VAULT_PATH).rstrip('/'))) + ";\n" + sw_code
+    resp = Response(sw_code, mimetype='application/javascript')
+    resp.headers['Cache-Control'] = 'no-store, max-age=0'
+    return resp
 
 
 # ============================================
@@ -17448,6 +18212,14 @@ Examples:
     
     # Load access log
     load_access_log()
+
+    # German course: Duolingo-style practice (german_practice.py; only if <vault>/Practice/exercises.json exists)
+    try:
+        import german_practice
+        if german_practice.register(app, VAULT_PATH):
+            print("🎯 German practice enabled at /practice/<lesson>")
+    except Exception as e:
+        print(f"⚠️  German practice not loaded: {e}")
     
     ip = get_local_ip()
     protocol = "https" if args.ssl else "http"
