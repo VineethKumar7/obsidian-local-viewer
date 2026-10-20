@@ -3,7 +3,7 @@ music only, full video, or video only (no sound).
 
 The download engine is Music Lab's (apps/music-lab/musiclab/channels.py), run on its own folder PER VAULT so vaults
 (and Music Lab) never mix: the German vault's downloads are only shown in the German vault. Files go to the data drive
-(/media/vineeth/ClawdData/vault-youtube/<vault>/<channel>/), never into the vault (it's a git repo and the system
+(/media/vineeth/ClawdData/vault-youtube/<vault name, e.g. "German">/<channel>/), never into the vault (it's a git repo and the system
 disk is nearly full); jobs are systemd --user units "vault-youtube-<vault>-<channel>"; no Claude video lessons.
 One Telegram message when a channel is done.
 """
@@ -28,11 +28,16 @@ def vault_slug(path) -> str:
     return re.sub(r"[^a-z0-9]+", "-", os.path.basename(os.path.normpath(str(path))).lower()).strip("-")[:40] or "vault"
 
 
+def vault_folder(path) -> str:
+    """The vault's own name for its folder on the drive: "German", "Jakarta EE" (only / and NUL can't be in a name)."""
+    return os.path.basename(os.path.normpath(str(path))).replace("/", "-").strip() or "vault"
+
+
 def _C():
     """The engine, set up for this vault (env is read once, at its first import in this process)."""
     if "channels" not in sys.modules:
         slug = vault_slug(_vault())
-        os.environ.setdefault("CHANNELS_ROOT", str(BASE / slug))
+        os.environ.setdefault("CHANNELS_ROOT", str(BASE / vault_folder(_vault())))
         os.environ.setdefault("CHANNELS_UNIT", f"vault-youtube-{slug}")
         os.environ.setdefault("CHANNELS_URL", f"{_lan_url()}youtube?c=")
     if str(ENGINE) not in sys.path:
