@@ -5386,6 +5386,7 @@ HTML_TEMPLATE = '''
                 </button>
                 <div id="offlineStatus" style="font-size: 10px; color: #888; margin-top: 6px; text-align: center;">Creates ZIP with HTML files</div>
             </div>
+            <a href="/youtube" style="display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 8px; padding: 8px 12px; font-size: 12px; background: #3c3c3c; color: #ddd; border-radius: 6px; text-decoration: none;">📺 YouTube downloader</a>
         </div>
         <div class="sidebar-content tree-loading" id="sidebarContent">
             {{ tree|safe }}
@@ -11496,6 +11497,14 @@ def view_folder(filepath, full_path):
     '''
     
     return render_template_string(HTML_TEMPLATE, title=folder_name, tree=tree, content=content, vault_name=get_vault_name(), is_markdown=False)
+
+
+# 📺 YouTube page: download a channel, or only some tabs/playlists, as music / video / video without sound
+# (youtube_page.py — Music Lab's channel engine, files on the data drive, never in the vault)
+import youtube_page
+youtube_page.register(app, lambda title, content: render_template_string(
+    HTML_TEMPLATE, title=title, tree=f'<ul>{get_file_tree(VAULT_PATH, VAULT_PATH)}</ul>', content=content,
+    vault_name=get_vault_name(), is_markdown=False))
 
 
 @app.route('/review')
