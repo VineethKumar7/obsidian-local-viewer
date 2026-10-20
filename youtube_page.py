@@ -14,6 +14,8 @@ from pathlib import Path
 
 from flask import Blueprint, abort, jsonify, request, send_file
 
+import yt_study
+
 ENGINE = Path.home() / "clawd/apps/music-lab/musiclab"
 BASE = Path("/media/vineeth/ClawdData/vault-youtube")
 os.environ.setdefault("CHANNELS_LESSONS", "0")
@@ -83,7 +85,10 @@ def api_lookup():
 def api_state(name):
     if not NAME.fullmatch(name):
         abort(404)
-    r = _C().state(name)
+    C = _C()
+    r = C.state(name)
+    if r:
+        r["study"] = yt_study.study_index(C.ROOT / name)        # 📖 written lesson / ✓ done, per video id
     return jsonify(r) if r else _err("no such channel", 404)
 
 
@@ -263,9 +268,10 @@ function page(C){
   pickInit(C);
   if (!view.tab) view.tab = C.counts.videos ? 'videos' : C.counts.shorts ? 'shorts' : 'playlists';
   const st = C.status || {}, pct = C.total ? Math.round(C.done / C.total * 100) : 0, ql = view.q.toLowerCase();
-  const vcard = e => { const ok = ['done', 'linked'].includes(e.state);
-    return `<div class="v ${e.state}"><div class="th"><img src="${esc(e.thumbnail)}" alt="" loading="lazy" referrerpolicy="no-referrer">${ok ? '' : `<span class="s">${ST[e.state] || e.state}${e.state === 'downloading' && st.pct != null ? ' ' + st.pct + ' %' : ''}</span>`}</div>
-      <div class="t">${esc(e.title)}</div>${ok ? `<div class="a"><button class="btn" data-play="${e.id}">▶ Play</button><a class="btn" href="/youtube/media/${C.name}/${e.id}?dl=1&title=${encodeURIComponent(e.title)}">⬇ Save</a></div>` : ''}</div>`; };
+  const vcard = e => { const ok = ['done', 'linked'].includes(e.state), sy = (C.study || {})[e.id];
+    const sl = `/youtube/study/${C.name}/${e.id}${view.tab === 'playlists' && view.pl ? '?pl=' + encodeURIComponent(view.pl) : ''}`;   // the video's own learning page
+    return `<div class="v ${e.state}"><a class="th" href="${ok ? sl : '#'}" style="display:block"><img src="${esc(e.thumbnail)}" alt="" loading="lazy" referrerpolicy="no-referrer">${ok ? (sy ? `<span class="s">${sy === 'done' ? '✓ done' : '📖 lesson'}</span>` : '') : `<span class="s">${ST[e.state] || e.state}${e.state === 'downloading' && st.pct != null ? ' ' + st.pct + ' %' : ''}</span>`}</a>
+      <div class="t">${ok ? `<a href="${sl}" style="color:inherit;text-decoration:none">${esc(e.title)}</a>` : esc(e.title)}</div>${ok ? `<div class="a"><button class="btn" data-play="${e.id}">▶ Play</button><a class="btn" href="/youtube/media/${C.name}/${e.id}?dl=1&title=${encodeURIComponent(e.title)}">⬇ Save</a></div>` : ''}</div>`; };
   const f = L => L.filter(e => !ql || e.title.toLowerCase().includes(ql));
   const grid = (L, none) => { const M = f(L); return M.length ? `<div class="vids">${M.slice(0, view.n).map(vcard).join('')}</div>`
     + (M.length > view.n ? `<p style="text-align:center"><button class="btn" id="more">Show ${Math.min(60, M.length - view.n)} more · ${M.length - view.n} left</button></p>` : '') : `<p class="m">${none}</p>`; };
@@ -330,3 +336,4 @@ def register(app, render, vault):
     _vault = vault
     app.register_blueprint(bp)
     app.add_url_rule("/youtube", "youtube_page", lambda: render("YouTube", PAGE))
+    yt_study.register(app, render, _C)
