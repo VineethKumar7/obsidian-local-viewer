@@ -44,7 +44,7 @@ def api_list():
 @bp.post("/youtube/api/lookup")
 def api_lookup():
     try:
-        return jsonify(_C().lookup(str((request.get_json(silent=True) or {}).get("url") or "")))
+        return jsonify(_C().lookup_any(str((request.get_json(silent=True) or {}).get("url") or "")))
     except ValueError as e:
         return _err(e)
 
@@ -157,20 +157,24 @@ const chan = () => new URLSearchParams(location.search).get('c');
 async function list(){
   let all = [], err = null;
   try { all = await api('channels'); } catch (e) { err = e.message; }
-  root.innerHTML = `<h1>📺 YouTube</h1><p class="m">Download a YouTube channel — all of it, or only the tabs and playlists you pick — as music only, full video, or video without sound. Files go to the data drive, not into the vault.</p>
-    <form class="box row" id="f"><input type="text" id="u" required placeholder="Paste a YouTube channel link — youtube.com/@name"><button class="btn p" id="fb">Look up channel</button><div id="fm" class="m" style="flex-basis:100%"></div></form>
+  root.innerHTML = `<h1>📺 YouTube</h1><p class="m">Download a YouTube channel or one playlist — paste a playlist link and its channel is found for you — as music only, full video, or video without sound. Files go to the data drive, not into the vault.</p>
+    <form class="box row" id="f"><input type="text" id="u" required placeholder="Paste a YouTube channel or playlist link"><button class="btn p" id="fb">Look up channel</button><div id="fm" class="m" style="flex-basis:100%"></div></form>
     ${err ? `<div class="box" style="border-color:var(--r);color:var(--r)">${esc(err)}</div>` : ''}
     ${all.length ? `<div class="cards">${all.map(c => `<a class="card" href="?c=${encodeURIComponent(c.name)}"><div class="cv">${c.covers.map(u => `<img src="${esc(u)}" alt="" loading="lazy" referrerpolicy="no-referrer">`).join('')}</div>
       <div class="b"><b>${esc(c.title)}</b><div class="m">${c.mode ? LABEL[c.mode] + ' · ' + esc(c.scope_text) : 'not started — choose what to download'}</div>
       ${c.mode ? `<div class="m">${c.running ? esc(c.status.stage || 'downloading') : c.paused ? 'paused' : esc(c.status.stage || '')} · ${c.done} of ${c.total}</div><div class="bar"><i style="width:${c.total ? Math.round(c.done / c.total * 100) : 0}%"></i></div>` : ''}</div></a>`).join('')}</div>` : '<p class="m">No channels yet.</p>'}`;
-  $('#f').onsubmit = async e => { e.preventDefault(); $('#fb').disabled = true; $('#fm').textContent = 'Reading the channel — saving every video, short, live stream and playlist link…';
-    try { const c = await api('lookup', {url: $('#u').value}); location.search = '?c=' + encodeURIComponent(c.name); }
+  $('#f').onsubmit = async e => { e.preventDefault(); $('#fb').disabled = true; $('#fm').textContent = /[?&]list=/.test($('#u').value) ? 'Reading the playlist and finding its channel…' : 'Reading the channel — saving every video, short, live stream and playlist link…';
+    try { const c = await api('lookup', {url: $('#u').value}); location.search = '?c=' + encodeURIComponent(c.name) + (c.playlist ? '&pl=' + encodeURIComponent(c.playlist) : ''); }
     catch (err) { $('#fm').textContent = err.message; $('#fm').style.color = 'var(--r)'; $('#fb').disabled = false; } };
   clearInterval(timer); if (all.some(c => c.running)) timer = setInterval(() => document.activeElement !== $('#u') && list(), 8000);
 }
 
 function pickInit(C){
   if (pick.name === C.name) return;
+  const pl = new URLSearchParams(location.search).get('pl');            // came from a playlist link: just that playlist
+  if (pl && C.playlists.some(p => p.id === pl)) {                     // a channel already downloading: add it to what's chosen
+    const sc = C.mode ? C.scope : {tabs: [], playlists: []};
+    pick = {name: C.name, all: !sc, tabs: new Set(sc ? sc.tabs : []), pls: new Set([...(sc ? sc.playlists : []), pl]), open: true, from: pl}; return; }
   const sc = C.scope;
   pick = {name: C.name, all: !sc, tabs: new Set(sc ? sc.tabs : ['videos', 'shorts', 'live'].filter(t => C.counts[t])), pls: new Set(sc ? sc.playlists : []), open: !C.mode};
 }
@@ -186,7 +190,10 @@ function picker(C){
   const sel = chosen(C), size = m => sel.mins * MB_MIN[m] / 1000, fits = m => size(m) < C.free_gb - 5, locked = C.mode && C.done > 0;
   const tabs = [['videos', 'Videos'], ['shorts', 'Shorts'], ['live', 'Live']].filter(([k]) => C.counts[k]);
   const unread = C.playlists.some(p => p.entries == null), q = (pick.q || '').toLowerCase();
-  return `<div class="box" id="ask"><b>What should I download?</b> <span class="m">Free on the data drive: ${gb(C.free_gb)}</span><br>
+  const from = pick.from && C.playlists.find(p => p.id === pick.from);
+  return `<div class="box" id="ask">${from ? `<p style="margin:0 0 10px">From your link: playlist <b>${esc(from.title)}</b> by <b>${esc(C.title)}</b> — ${pick.all ? 'it is already part of this channel’s whole-channel download.' : C.mode ? 'added to what this channel already downloads. Pick the format to save the change.' : 'only it is chosen below. Pick a format to start.'}</p>` : ''}
+    ${C.running ? '<p style="margin:0 0 10px;color:var(--r)">This channel is downloading right now — pause it first, then choose.</p>' : ''}
+    <b>What should I download?</b> <span class="m">Free on the data drive: ${gb(C.free_gb)}</span><br>
     <div class="seg"><button class="${pick.all ? 'on' : ''}" data-sc="all">Whole channel</button><button class="${pick.all ? '' : 'on'}" data-sc="pick">Pick tabs & playlists</button></div>
     ${pick.all ? '' : `${tabs.length ? `<div class="sub">Tabs</div><div class="tchips">${tabs.map(([k, l]) => `<button class="tchip ${pick.tabs.has(k) ? 'on' : ''}" data-pt="${k}">${pick.tabs.has(k) ? '✓ ' : ''}${l}<span class="m">${C.counts[k]}</span></button>`).join('')}</div>` : ''}
       ${C.playlists.length ? `<div class="sub">Playlists · ${pick.pls.size} of ${C.playlists.length} chosen <span id="plr" style="text-transform:none;letter-spacing:0">${pick.err ? '· ' + esc(pick.err) : unread ? '· reading what each playlist holds…' : ''}</span></div>
@@ -213,7 +220,8 @@ function wirePicker(C){
   if (!pick.all && !pick.err && !pick.reading && C.playlists.some(p => p.entries == null)) { pick.reading = true;
     api(`channels/${C.name}/playlist-links`, {}).catch(e => { pick.err = e.message; }).then(() => { pick.reading = false; if ($('#ask')) load(); }); }
   root.querySelectorAll('[data-m]').forEach(b => b.onclick = async () => { root.querySelectorAll('#ask button').forEach(x => x.disabled = true);
-    try { await api(`channels/${C.name}/start`, {mode: b.dataset.m, scope: pick.all ? null : {tabs: [...pick.tabs], playlists: [...pick.pls]}}); pick.open = false; }
+    try { await api(`channels/${C.name}/start`, {mode: b.dataset.m, scope: pick.all ? null : {tabs: [...pick.tabs], playlists: [...pick.pls]}}); pick.open = false; pick.from = null;
+      history.replaceState(null, '', '?c=' + encodeURIComponent(C.name)); }
     catch (e) { alert(e.message); } setTimeout(load, 1200); });
   if ($('#keep')) $('#keep').onclick = e => { e.preventDefault(); pick.open = false; pick.name = null; load(); };
   if ($('#forget')) $('#forget').onclick = async e => { e.preventDefault(); await api(`channels/${C.name}/forget`, {}).catch(() => {}); location.search = ''; };
@@ -242,7 +250,7 @@ function page(C){
   } else body = grid(C.tabs[view.tab] || [], 'Nothing here.');
   root.innerHTML = `<p><a href="/youtube">‹ All channels</a></p>
     <div class="row"><div style="flex:1;min-width:200px"><h1>${esc(C.title)}</h1><div class="m">${esc(C.handle || '')} · <a href="${esc(C.url)}" target="_blank" rel="noopener noreferrer">on YouTube ↗</a></div></div>
-      ${C.mode && !pick.open ? (C.running ? '<button class="btn" id="pause">⏸ Pause</button>' : C.done < C.total ? `<button class="btn p" id="resume">▶ ${C.paused ? 'Resume' : 'Continue'}</button>` : '') : ''}</div>
+      ${C.running ? '<button class="btn" id="pause">⏸ Pause</button>' : C.mode && !pick.open ? (C.done < C.total ? `<button class="btn p" id="resume">▶ ${C.paused ? 'Resume' : 'Continue'}</button>` : '') : ''}</div>
     ${!C.mode || pick.open ? picker(C) : `<div class="box"><div class="row" style="justify-content:space-between"><b>${LABEL[C.mode]} · ${esc(C.scope_text)} · ${esc(C.blocked ? '🚦 rate limited by YouTube' : C.paused && !C.running ? 'paused' : st.stage || '')}</b>
         <span class="m">${C.done} of ${C.total} · ${pct} %${st.next_at && C.blocked ? ' · next try ' + esc(st.next_at) : ''}</span></div><div class="bar" style="height:8px"><i style="width:${pct}%"></i></div>
       <div class="m" style="margin-top:8px">${C.running ? 'Pause to change what to download.' : '<a href="#" id="change">Change what to download</a>'}${C.blocked && !C.running ? ' · <a href="#" id="now">Try now</a>' : ''}</div>
