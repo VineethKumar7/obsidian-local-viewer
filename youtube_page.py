@@ -110,9 +110,21 @@ PAGE = r'''
 .ytp .card .b{padding:10px}.ytp .bar{height:6px;background:var(--l);border-radius:3px;overflow:hidden;margin-top:6px}.ytp .bar i{display:block;height:100%;background:var(--a)}
 .ytp .chips{display:flex;gap:6px;flex-wrap:wrap}.ytp .chip{padding:6px 12px;border-radius:16px;border:1px solid var(--l);background:transparent;color:inherit;cursor:pointer;font:inherit}
 .ytp .chip.on{border-color:var(--a);color:var(--a)}
-.ytp .chk{display:flex;gap:8px;align-items:center;padding:3px 0;margin:0;line-height:1.3;cursor:pointer}.ytp .chk img{width:56px;height:32px;object-fit:cover;border-radius:4px}
-.ytp .pls{max-height:300px;overflow:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:2px 14px}
-.ytp .fmt{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:10px}
+.ytp .seg{display:inline-flex;border:1px solid var(--l);border-radius:8px;overflow:hidden;margin-top:10px}
+.ytp .seg button{padding:8px 14px;border:none;background:transparent;color:inherit;cursor:pointer;font:inherit}.ytp .seg button.on{background:var(--a);color:#fff}
+.ytp .sub{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--m);margin:16px 0 6px}
+.ytp .tchips{display:flex;gap:8px;flex-wrap:wrap}.ytp .tchip{padding:6px 12px;border-radius:16px;border:1px solid var(--l);background:transparent;color:inherit;cursor:pointer;font:inherit}
+.ytp .tchip.on{border-color:var(--a);background:rgba(31,165,148,.12)}.ytp .tchip .m{margin-left:4px}
+.ytp .plbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:6px}.ytp .plbar input{flex:1;min-width:180px}
+.ytp .pls{max-height:380px;overflow:auto;border:1px solid var(--l);border-radius:8px}
+.ytp .pl{display:flex;gap:10px;align-items:center;padding:7px 10px;margin:0;cursor:pointer;border-bottom:1px solid var(--l)}.ytp .pl:last-child{border-bottom:none}
+.ytp .pl:hover{background:rgba(128,128,128,.08)}.ytp .pl.on{background:rgba(31,165,148,.12)}.ytp .pl input{margin:0;flex:none}
+.ytp .pl .pth{width:64px;height:36px;flex:none;border-radius:4px;background:rgba(128,128,128,.2) center/cover no-repeat}
+.ytp .pl .pt{flex:1;min-width:0;line-height:1.3}.ytp .pl .ptt{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.ytp .pl .pn{display:block;color:var(--m);font-size:12px}
+@media (max-width:600px){.ytp .pl .pth{width:48px;height:27px}.ytp .pl{padding:7px 8px;gap:8px}}
+.ytp .sum{margin:14px 0 0;font-weight:600}
+.ytp .fmt{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-top:10px}
 .ytp .fmt button{text-align:left;padding:12px;border:1px solid var(--l);border-radius:8px;background:rgba(128,128,128,.08);color:inherit;font:inherit;cursor:pointer}
 .ytp .fmt button:disabled{opacity:.45;cursor:default}.ytp .fmt button.sel{outline:2px solid var(--a)}
 .ytp .tabs{display:flex;gap:4px;flex-wrap:wrap;border-bottom:1px solid var(--l);margin:16px 0 12px}
@@ -139,7 +151,7 @@ const MODES = [['audio', '🎵 Music only', 'Audio of each video (.m4a)'], ['vid
 const LABEL = {audio: '🎵 Music only', video: '🎬 Full video', silent: '🎞 Video only (no sound)'};
 const MB_MIN = {audio: 1.0, video: 18.0, silent: 17.0};
 const ST = {off: 'not chosen', done: '✓', linked: '✓', downloading: '⬇', waiting: 'waiting', retry: '⟳ retry', blocked: '🚦 blocked', gone: 'unavailable'};
-let timer, pick = {name: null}, view = {tab: null, pl: null, q: ''};
+let timer, pick = {name: null}, view = {tab: null, pl: null, q: '', n: 60};      // n: cards shown (a big channel at once is ~200 000 px tall)
 const chan = () => new URLSearchParams(location.search).get('c');
 
 async function list(){
@@ -168,26 +180,38 @@ function chosen(C){
   const dur = {}; lists.flat().forEach(e => dur[e.id] = dur[e.id] || e.duration_s || (e.tab === 'shorts' ? 40 : 240));
   return {n: Object.keys(dur).length, mins: Object.values(dur).reduce((a, b) => a + b, 0) / 60};
 }
+const plThumb = p => p.entries?.[0]?.thumbnail || p.thumbnail || '';    // a playlist's own cover often 404s
+const plMatch = (p, q) => !q || p.title.toLowerCase().includes(q);
 function picker(C){
   const sel = chosen(C), size = m => sel.mins * MB_MIN[m] / 1000, fits = m => size(m) < C.free_gb - 5, locked = C.mode && C.done > 0;
   const tabs = [['videos', 'Videos'], ['shorts', 'Shorts'], ['live', 'Live']].filter(([k]) => C.counts[k]);
-  const unread = C.playlists.some(p => p.entries == null);
-  return `<div class="box" id="ask"><b>What should I download?</b> <span class="m">Free on the data drive: ${gb(C.free_gb)}</span>
-    <div class="chips" style="margin-top:10px"><button class="chip ${pick.all ? 'on' : ''}" data-sc="all">Whole channel</button><button class="chip ${pick.all ? '' : 'on'}" data-sc="pick">Only some tabs or playlists</button></div>
-    ${pick.all ? '' : `${tabs.length ? `<div class="m" style="margin:12px 0 4px">Tabs</div>${tabs.map(([k, l]) => `<label class="chk"><input type="checkbox" data-pt="${k}" ${pick.tabs.has(k) ? 'checked' : ''}> ${l} <span class="m">${C.counts[k]}</span></label>`).join('')}` : ''}
-      ${C.playlists.length ? `<div class="m" style="margin:12px 0 4px">Playlists <span id="plr">${pick.err ? '· ' + esc(pick.err) : unread ? '· reading what each playlist holds…' : ''}</span></div>
-        <div class="pls">${C.playlists.map(p => `<label class="chk"><input type="checkbox" data-pp="${esc(p.id)}" ${pick.pls.has(p.id) ? 'checked' : ''}>${p.thumbnail ? `<img src="${esc(p.thumbnail)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ''}<span>${esc(p.title)} <span class="m">${p.entries ? p.entries.length + ' videos' : ''}</span></span></label>`).join('')}</div>` : '<p class="m">This channel has no public playlists.</p>'}`}
-    <p class="m" style="margin:12px 0 0">${sel.n ? `${sel.n} video${sel.n === 1 ? '' : 's'} · about ${(sel.mins / 60).toFixed(1)} h` : 'Nothing chosen yet.'}</p>
+  const unread = C.playlists.some(p => p.entries == null), q = (pick.q || '').toLowerCase();
+  return `<div class="box" id="ask"><b>What should I download?</b> <span class="m">Free on the data drive: ${gb(C.free_gb)}</span><br>
+    <div class="seg"><button class="${pick.all ? 'on' : ''}" data-sc="all">Whole channel</button><button class="${pick.all ? '' : 'on'}" data-sc="pick">Pick tabs & playlists</button></div>
+    ${pick.all ? '' : `${tabs.length ? `<div class="sub">Tabs</div><div class="tchips">${tabs.map(([k, l]) => `<button class="tchip ${pick.tabs.has(k) ? 'on' : ''}" data-pt="${k}">${pick.tabs.has(k) ? '✓ ' : ''}${l}<span class="m">${C.counts[k]}</span></button>`).join('')}</div>` : ''}
+      ${C.playlists.length ? `<div class="sub">Playlists · ${pick.pls.size} of ${C.playlists.length} chosen <span id="plr" style="text-transform:none;letter-spacing:0">${pick.err ? '· ' + esc(pick.err) : unread ? '· reading what each playlist holds…' : ''}</span></div>
+        <div class="plbar"><input type="text" id="plq" placeholder="Search ${C.playlists.length} playlists…" value="${esc(pick.q || '')}"><button class="btn" id="plall">Select shown</button><button class="btn" id="plnone">Clear</button></div>
+        <div class="pls">${C.playlists.map(p => `<label class="pl ${pick.pls.has(p.id) ? 'on' : ''}" data-plt="${esc(p.title.toLowerCase())}" style="${plMatch(p, q) ? '' : 'display:none'}"><input type="checkbox" data-pp="${esc(p.id)}" ${pick.pls.has(p.id) ? 'checked' : ''}>
+          <span class="pth" style="background-image:url('${esc(plThumb(p))}')"></span><span class="pt"><span class="ptt">${esc(p.title)}</span>${p.entries ? `<span class="pn">${p.entries.length} videos</span>` : ''}</span></label>`).join('')}
+          <p class="m" id="plnone-msg" style="padding:10px;margin:0;${C.playlists.some(p => plMatch(p, q)) ? 'display:none' : ''}">No playlist matches.</p></div>` : '<p class="m">This channel has no public playlists.</p>'}`}
+    <p class="sum">${sel.n ? `${sel.n} video${sel.n === 1 ? '' : 's'} · about ${(sel.mins / 60).toFixed(1)} h` : 'Nothing chosen yet.'}</p>
     <div class="fmt">${MODES.map(([m, l, d]) => `<button data-m="${m}" class="${C.mode === m ? 'sel' : ''}" ${!sel.n || !fits(m) || (locked && m !== C.mode) ? 'disabled' : ''}><b>${l}</b><div class="m">${d} · about ${gb(size(m))}${!fits(m) ? ' — not enough space' : locked && m !== C.mode ? ' — this channel is already ' + LABEL[C.mode].toLowerCase() : ''}</div></button>`).join('')}</div>
     <p class="m" style="margin:10px 0 0">${C.mode ? 'Files already downloaded stay, whatever you choose. <a href="#" id="keep">Keep it as it is</a>' : '<a href="#" id="forget">Cancel</a>'}</p></div>`;
 }
 function wirePicker(C){
-  const redraw = () => { const y = scrollY; page(C); scrollTo(0, y); };
+  const redraw = () => { const y = scrollY, ls = $('.pls')?.scrollTop, f = document.activeElement?.id; page(C); scrollTo(0, y);
+    if ($('.pls') && ls) $('.pls').scrollTop = ls; if (f === 'plq') { const q = $('#plq'); q.focus(); q.setSelectionRange(q.value.length, q.value.length); } };
   root.querySelectorAll('[data-sc]').forEach(b => b.onclick = () => { pick.all = b.dataset.sc === 'all'; redraw(); });
-  root.querySelectorAll('[data-pt]').forEach(b => b.onchange = () => { pick.tabs[b.checked ? 'add' : 'delete'](b.dataset.pt); redraw(); });
+  root.querySelectorAll('[data-pt]').forEach(b => b.onclick = () => { const k = b.dataset.pt; pick.tabs.has(k) ? pick.tabs.delete(k) : pick.tabs.add(k); redraw(); });
   root.querySelectorAll('[data-pp]').forEach(b => b.onchange = () => { pick.pls[b.checked ? 'add' : 'delete'](b.dataset.pp); redraw(); });
+  if ($('#plq')) $('#plq').oninput = e => { pick.q = e.target.value; const q = pick.q.toLowerCase(); let n = 0;   // filter in place: no redraw, keeps focus
+    root.querySelectorAll('.pl').forEach(r => { const ok = !q || r.dataset.plt.includes(q); r.style.display = ok ? '' : 'none'; n += ok; });
+    $('#plnone-msg').style.display = n ? 'none' : ''; };
+  const shown = () => C.playlists.filter(p => plMatch(p, (pick.q || '').toLowerCase())).map(p => p.id);
+  if ($('#plall')) $('#plall').onclick = () => { shown().forEach(id => pick.pls.add(id)); redraw(); };
+  if ($('#plnone')) $('#plnone').onclick = () => { (pick.q ? shown() : [...pick.pls]).forEach(id => pick.pls.delete(id)); redraw(); };
   if (!pick.all && !pick.err && !pick.reading && C.playlists.some(p => p.entries == null)) { pick.reading = true;
-    api(`channels/${C.name}/playlist-links`, {}).catch(e => { pick.err = e.message; }).then(() => { pick.reading = false; load(); }); }
+    api(`channels/${C.name}/playlist-links`, {}).catch(e => { pick.err = e.message; }).then(() => { pick.reading = false; if ($('#ask')) load(); }); }
   root.querySelectorAll('[data-m]').forEach(b => b.onclick = async () => { root.querySelectorAll('#ask button').forEach(x => x.disabled = true);
     try { await api(`channels/${C.name}/start`, {mode: b.dataset.m, scope: pick.all ? null : {tabs: [...pick.tabs], playlists: [...pick.pls]}}); pick.open = false; }
     catch (e) { alert(e.message); } setTimeout(load, 1200); });
@@ -207,13 +231,15 @@ function page(C){
     return `<div class="v ${e.state}"><div class="th"><img src="${esc(e.thumbnail)}" alt="" loading="lazy" referrerpolicy="no-referrer">${ok ? '' : `<span class="s">${ST[e.state] || e.state}${e.state === 'downloading' && st.pct != null ? ' ' + st.pct + ' %' : ''}</span>`}</div>
       <div class="t">${esc(e.title)}</div>${ok ? `<div class="a"><button class="btn" data-play="${e.id}">▶ Play</button><a class="btn" href="/youtube/media/${C.name}/${e.id}?dl=1&title=${encodeURIComponent(e.title)}">⬇ Save</a></div>` : ''}</div>`; };
   const f = L => L.filter(e => !ql || e.title.toLowerCase().includes(ql));
+  const grid = (L, none) => { const M = f(L); return M.length ? `<div class="vids">${M.slice(0, view.n).map(vcard).join('')}</div>`
+    + (M.length > view.n ? `<p style="text-align:center"><button class="btn" id="more">Show ${Math.min(60, M.length - view.n)} more · ${M.length - view.n} left</button></p>` : '') : `<p class="m">${none}</p>`; };
   let body;
   if (view.tab === 'playlists') { const P = C.playlists.find(p => p.id === view.pl);
-    body = P ? `<button class="btn" id="plb">‹ All playlists</button><h3>${esc(P.title)}</h3><div class="vids">${f(P.entries || []).map(vcard).join('') || '<p class="m">Links not saved yet.</p>'}</div>`
-      : C.playlists.length ? `<div class="vids">${C.playlists.map(p => { const n = p.entries?.length, d = (p.entries || []).filter(e => ['done', 'linked'].includes(e.state)).length;
-          return `<div class="v" data-pl="${esc(p.id)}" style="cursor:pointer"><div class="th">${p.thumbnail ? `<img src="${esc(p.thumbnail)}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ''}<span class="s">▤ ${n ?? ''}</span></div><div class="t">${esc(p.title)}</div><div class="m">${n != null ? `${d} of ${n} downloaded` : ''}</div></div>`; }).join('')}</div>`
+    body = P ? `<button class="btn" id="plb">‹ All playlists</button><h3>${esc(P.title)}</h3>${grid(P.entries || [], P.entries ? 'Nothing here.' : 'Links not saved yet.')}`
+      : C.playlists.length ? `<div class="vids">${C.playlists.filter(p => plMatch(p, ql)).map(p => { const n = p.entries?.length, d = (p.entries || []).filter(e => ['done', 'linked'].includes(e.state)).length;
+          return `<div class="v" data-pl="${esc(p.id)}" style="cursor:pointer"><div class="th">${plThumb(p) ? `<img src="${esc(plThumb(p))}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ''}<span class="s">▤ ${n ?? ''}</span></div><div class="t">${esc(p.title)}</div><div class="m">${n != null ? `${d} of ${n} downloaded` : ''}</div></div>`; }).join('')}</div>`
       : '<p class="m">This channel has no public playlists.</p>';
-  } else body = `<div class="vids">${f(C.tabs[view.tab] || []).map(vcard).join('') || '<p class="m">Nothing here.</p>'}</div>`;
+  } else body = grid(C.tabs[view.tab] || [], 'Nothing here.');
   root.innerHTML = `<p><a href="/youtube">‹ All channels</a></p>
     <div class="row"><div style="flex:1;min-width:200px"><h1>${esc(C.title)}</h1><div class="m">${esc(C.handle || '')} · <a href="${esc(C.url)}" target="_blank" rel="noopener noreferrer">on YouTube ↗</a></div></div>
       ${C.mode && !pick.open ? (C.running ? '<button class="btn" id="pause">⏸ Pause</button>' : C.done < C.total ? `<button class="btn p" id="resume">▶ ${C.paused ? 'Resume' : 'Continue'}</button>` : '') : ''}</div>
@@ -222,14 +248,15 @@ function page(C){
       <div class="m" style="margin-top:8px">${C.running ? 'Pause to change what to download.' : '<a href="#" id="change">Change what to download</a>'}${C.blocked && !C.running ? ' · <a href="#" id="now">Try now</a>' : ''}</div>
       ${C.log.length ? `<details style="margin-top:6px"><summary class="m">Log</summary><pre class="m" style="white-space:pre-wrap">${C.log.map(esc).join('\n')}</pre></details>` : ''}</div>`}
     <div class="tabs">${[['videos', 'Videos'], ['shorts', 'Shorts'], ['live', 'Live'], ['playlists', 'Playlists']].filter(([k]) => k === 'playlists' || C.counts[k]).map(([k, l]) => `<button class="${view.tab === k ? 'on' : ''}" data-tab="${k}">${l} <span class="m">${C.counts[k]}</span></button>`).join('')}</div>
-    <input type="text" id="q" placeholder="Search titles…" value="${esc(view.q)}" style="max-width:340px;margin-bottom:12px">
+    <input type="text" id="q" placeholder="${view.tab === 'playlists' && !view.pl ? 'Search playlists…' : 'Search titles…'}" value="${esc(view.q)}" style="max-width:340px;margin-bottom:12px">
     ${body}`;
   if ($('#ask')) wirePicker(C);
-  root.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { view.tab = b.dataset.tab; view.pl = null; page(C); });
-  root.querySelectorAll('[data-pl]').forEach(b => b.onclick = () => { view.pl = b.dataset.pl; page(C); });
+  root.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { view.tab = b.dataset.tab; view.pl = null; view.n = 60; page(C); });
+  root.querySelectorAll('[data-pl]').forEach(b => b.onclick = () => { view.pl = b.dataset.pl; view.n = 60; page(C); });
+  if ($('#more')) $('#more').onclick = () => { const y = scrollY; view.n += 60; page(C); scrollTo(0, y); };
   root.querySelectorAll('[data-play]').forEach(b => b.onclick = () => play(C, [...Object.values(C.tabs).flat(), ...C.playlists.flatMap(p => p.entries || [])].find(e => e.id === b.dataset.play)));
   if ($('#plb')) $('#plb').onclick = () => { view.pl = null; page(C); };
-  $('#q').oninput = e => { view.q = e.target.value; page(C); const q = $('#q'); q.focus(); q.setSelectionRange(q.value.length, q.value.length); };
+  $('#q').oninput = e => { view.q = e.target.value; view.n = 60; page(C); const q = $('#q'); q.focus(); q.setSelectionRange(q.value.length, q.value.length); };
   if ($('#pause')) $('#pause').onclick = async () => { $('#pause').disabled = true; $('#pause').textContent = 'Pausing after this batch…'; await api(`channels/${C.name}/pause`, {}); };
   if ($('#resume')) $('#resume').onclick = async () => { $('#resume').disabled = true; await api(`channels/${C.name}/resume`, {}).catch(e => alert(e.message)); setTimeout(load, 1500); };
   if ($('#now')) $('#now').onclick = async e => { e.preventDefault(); await api(`channels/${C.name}/retry`, {at: 'now'}).catch(err => alert(err.message)); setTimeout(load, 1500); };
