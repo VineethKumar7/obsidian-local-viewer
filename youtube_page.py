@@ -1,10 +1,11 @@
 """📺 YouTube page of the vault viewer (/youtube) — download a YouTube channel, or only some of its tabs / playlists, as
 music only, full video, or video only (no sound).
 
-The download engine is Music Lab's (apps/music-lab/musiclab/channels.py), run on its own folder so the two apps
-never mix: files go to the data drive (/media/vineeth/ClawdData/vault-youtube/<channel>/), never into the vault
-(it's a git repo and the system disk is nearly full), with jobs as systemd --user units "vault-youtube-<channel>"
-and no Claude video lessons. One Telegram message when a channel is done.
+The download engine is Music Lab's (apps/music-lab/musiclab/channels.py), run on its own folder PER VAULT so vaults
+(and Music Lab) never mix: the German vault's downloads are only shown in the German vault. Files go to the data drive
+(/media/vineeth/ClawdData/vault-youtube/<vault>/<channel>/), never into the vault (it's a git repo and the system
+disk is nearly full); jobs are systemd --user units "vault-youtube-<vault>-<channel>"; no Claude video lessons.
+One Telegram message when a channel is done.
 """
 import os
 import re
@@ -14,19 +15,43 @@ from pathlib import Path
 from flask import Blueprint, abort, jsonify, request, send_file
 
 ENGINE = Path.home() / "clawd/apps/music-lab/musiclab"
-os.environ.setdefault("CHANNELS_ROOT", "/media/vineeth/ClawdData/vault-youtube")
-os.environ.setdefault("CHANNELS_UNIT", "vault-youtube")
+BASE = Path("/media/vineeth/ClawdData/vault-youtube")
 os.environ.setdefault("CHANNELS_LESSONS", "0")
+_vault = lambda: None            # set by register(): the vault this viewer serves
 
 bp = Blueprint("youtube", __name__)
 NAME = re.compile(r"[a-z0-9-]+")
 
 
+def vault_slug(path) -> str:
+    """"…/Language_Learning/German" → "german", "…/Jakarta EE" → "jakarta-ee"."""
+    return re.sub(r"[^a-z0-9]+", "-", os.path.basename(os.path.normpath(str(path))).lower()).strip("-")[:40] or "vault"
+
+
 def _C():
+    """The engine, set up for this vault (env is read once, at its first import in this process)."""
+    if "channels" not in sys.modules:
+        slug = vault_slug(_vault())
+        os.environ.setdefault("CHANNELS_ROOT", str(BASE / slug))
+        os.environ.setdefault("CHANNELS_UNIT", f"vault-youtube-{slug}")
+        os.environ.setdefault("CHANNELS_URL", f"{_lan_url()}youtube?c=")
     if str(ENGINE) not in sys.path:
         sys.path.insert(0, str(ENGINE))
     import channels
     return channels
+
+
+def _lan_url() -> str:
+    """http://<LAN IP>:<this viewer's port>/ for the Telegram link (request.host may be localhost)."""
+    import socket
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
+            s.connect(("192.168.178.1", 80))
+            ip = s.getsockname()[0]
+    except OSError:
+        ip = "localhost"
+    port = request.host.rsplit(":", 1)[-1] if ":" in request.host else "80"
+    return f"{request.scheme}://{ip}:{port}/"
 
 
 def _err(e, code=400):
@@ -191,7 +216,6 @@ function picker(C){
   const unread = C.playlists.some(p => p.entries == null), q = (pick.q || '').toLowerCase();
   const from = pick.from && C.playlists.find(p => p.id === pick.from);
   return `<div class="box" id="ask">${from ? `<p style="margin:0 0 10px">From your link: playlist <b>${esc(from.title)}</b> by <b>${esc(C.title)}</b> — only it is chosen below${C.mode ? ' (instead of what this channel downloaded before — files you have stay)' : ''}. Pick a format to start.</p>` : ''}
-    ${C.running ? '<p style="margin:0 0 10px;color:var(--r)">This channel is downloading right now — pause it first, then choose.</p>' : ''}
     <b>What should I download?</b> <span class="m">Free on the data drive: ${gb(C.free_gb)}</span><br>
     <div class="seg"><button class="${pick.all ? 'on' : ''}" data-sc="all">Whole channel</button><button class="${pick.all ? '' : 'on'}" data-sc="pick">Pick tabs & playlists</button></div>
     ${pick.all ? '' : `${tabs.length ? `<div class="sub">Tabs</div><div class="tchips">${tabs.map(([k, l]) => `<button class="tchip ${pick.tabs.has(k) ? 'on' : ''}" data-pt="${k}">${pick.tabs.has(k) ? '✓ ' : ''}${l}<span class="m">${C.counts[k]}</span></button>`).join('')}</div>` : ''}
@@ -242,9 +266,14 @@ function page(C){
     + (M.length > view.n ? `<p style="text-align:center"><button class="btn" id="more">Show ${Math.min(60, M.length - view.n)} more · ${M.length - view.n} left</button></p>` : '') : `<p class="m">${none}</p>`; };
   let body;
   if (view.tab === 'playlists') { const P = C.playlists.find(p => p.id === view.pl);
-    body = P ? `<button class="btn" id="plb">‹ All playlists</button><h3>${esc(P.title)}</h3>${grid(P.entries || [], P.entries ? 'Nothing here.' : 'Links not saved yet.')}`
+    const inc = P && (C.mode ? !C.scope || C.scope.playlists.includes(P.id) : false);
+    body = P ? `<button class="btn" id="plb">‹ All playlists</button><h3>${esc(P.title)}</h3>
+        <div class="box row" style="padding:10px 14px;margin:0 0 14px">${!C.mode ? `<span style="flex:1">Not downloading anything from this channel yet.</span><button class="btn p" id="plinc">⬇ Download this playlist</button>`
+          : !C.scope ? '<span>✓ Included — the whole channel is being downloaded.</span>'
+          : inc ? `<span style="flex:1">✓ <b>Included</b> in the download (${LABEL[C.mode].toLowerCase()}).</span><button class="btn" id="plinc">Remove from download</button>`
+          : `<span style="flex:1">Not included in the download.</span><button class="btn p" id="plinc">＋ Include in download</button>`}</div>${grid(P.entries || [], P.entries ? 'Nothing here.' : 'Links not saved yet.')}`
       : C.playlists.length ? `<div class="vids">${C.playlists.filter(p => plMatch(p, ql)).map(p => { const n = p.entries?.length, d = (p.entries || []).filter(e => ['done', 'linked'].includes(e.state)).length;
-          return `<div class="v" data-pl="${esc(p.id)}" style="cursor:pointer"><div class="th">${plThumb(p) ? `<img src="${esc(plThumb(p))}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ''}<span class="s">▤ ${n ?? ''}</span></div><div class="t">${esc(p.title)}</div><div class="m">${n != null ? `${d} of ${n} downloaded` : ''}</div></div>`; }).join('')}</div>`
+          return `<div class="v" data-pl="${esc(p.id)}" style="cursor:pointer"><div class="th">${plThumb(p) ? `<img src="${esc(plThumb(p))}" alt="" loading="lazy" referrerpolicy="no-referrer">` : ''}<span class="s">▤ ${n ?? ''}</span>${C.mode && (!C.scope || C.scope.playlists.includes(p.id)) ? '<span class="s" style="left:auto;right:6px;background:var(--a)">⬇ included</span>' : ''}</div><div class="t">${esc(p.title)}</div><div class="m">${n != null ? `${d} of ${n} downloaded` : ''}</div></div>`; }).join('')}</div>`
       : '<p class="m">This channel has no public playlists.</p>';
   } else body = grid(C.tabs[view.tab] || [], 'Nothing here.');
   root.innerHTML = `<p><a href="/youtube">‹ All channels</a></p>
@@ -252,7 +281,7 @@ function page(C){
       ${C.running ? '<button class="btn" id="pause">⏸ Pause</button>' : C.mode && !pick.open ? (C.done < C.total ? `<button class="btn p" id="resume">▶ ${C.paused ? 'Resume' : 'Continue'}</button>` : '') : ''}</div>
     ${!C.mode || pick.open ? picker(C) : `<div class="box"><div class="row" style="justify-content:space-between"><b>${LABEL[C.mode]} · ${esc(C.scope_text)} · ${esc(C.blocked ? '🚦 rate limited by YouTube' : C.paused && !C.running ? 'paused' : st.stage || '')}</b>
         <span class="m">${C.done} of ${C.total} · ${pct} %${st.next_at && C.blocked ? ' · next try ' + esc(st.next_at) : ''}</span></div><div class="bar" style="height:8px"><i style="width:${pct}%"></i></div>
-      <div class="m" style="margin-top:8px">${C.running ? 'Pause to change what to download.' : '<a href="#" id="change">Change what to download</a>'}${C.blocked && !C.running ? ' · <a href="#" id="now">Try now</a>' : ''}</div>
+      <div class="m" style="margin-top:8px"><a href="#" id="change">Change what to download</a>${C.blocked && !C.running ? ' · <a href="#" id="now">Try now</a>' : ''}</div>
       ${C.log.length ? `<details style="margin-top:6px"><summary class="m">Log</summary><pre class="m" style="white-space:pre-wrap">${C.log.map(esc).join('\n')}</pre></details>` : ''}</div>`}
     <div class="tabs">${[['videos', 'Videos'], ['shorts', 'Shorts'], ['live', 'Live'], ['playlists', 'Playlists']].filter(([k]) => k === 'playlists' || C.counts[k]).map(([k, l]) => `<button class="${view.tab === k ? 'on' : ''}" data-tab="${k}">${l} <span class="m">${C.counts[k]}</span></button>`).join('')}</div>
     <input type="text" id="q" placeholder="${view.tab === 'playlists' && !view.pl ? 'Search playlists…' : 'Search titles…'}" value="${esc(view.q)}" style="max-width:340px;margin-bottom:12px">
@@ -263,6 +292,13 @@ function page(C){
   if ($('#more')) $('#more').onclick = () => { const y = scrollY; view.n += 60; page(C); scrollTo(0, y); };
   root.querySelectorAll('[data-play]').forEach(b => b.onclick = () => play(C, [...Object.values(C.tabs).flat(), ...C.playlists.flatMap(p => p.entries || [])].find(e => e.id === b.dataset.play)));
   if ($('#plb')) $('#plb').onclick = () => { view.pl = null; page(C); };
+  if ($('#plinc')) $('#plinc').onclick = async () => {
+    if (!C.mode) { pick = {name: C.name, all: false, tabs: new Set(), pls: new Set([view.pl]), open: true, from: view.pl}; scrollTo(0, 0); return page(C); }
+    const sc = C.scope, pls = new Set(sc.playlists); pls.has(view.pl) ? pls.delete(view.pl) : pls.add(view.pl);
+    if (!sc.tabs.length && !pls.size) return alert('That is the only thing chosen — use Pause instead, or choose something else first.');
+    $('#plinc').disabled = true;
+    try { await api(`channels/${C.name}/start`, {mode: C.mode, scope: {tabs: sc.tabs, playlists: [...pls]}}); } catch (e) { alert(e.message); }
+    pick.name = null; setTimeout(load, 1000); };
   $('#q').oninput = e => { view.q = e.target.value; view.n = 60; page(C); const q = $('#q'); q.focus(); q.setSelectionRange(q.value.length, q.value.length); };
   if ($('#pause')) $('#pause').onclick = async () => { $('#pause').disabled = true; $('#pause').textContent = 'Pausing after this batch…'; await api(`channels/${C.name}/pause`, {}); };
   if ($('#resume')) $('#resume').onclick = async () => { $('#resume').disabled = true; await api(`channels/${C.name}/resume`, {}).catch(e => alert(e.message)); setTimeout(load, 1500); };
@@ -282,7 +318,10 @@ load();
 '''
 
 
-def register(app, render):
-    """render(title, content_html) → the viewer's normal page (sidebar + file tree) around content."""
+def register(app, render, vault):
+    """render(title, content_html) → the viewer's normal page (sidebar + file tree) around content;
+    vault() → the vault folder this viewer serves (known only after argument parsing)."""
+    global _vault
+    _vault = vault
     app.register_blueprint(bp)
     app.add_url_rule("/youtube", "youtube_page", lambda: render("YouTube", PAGE))

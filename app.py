@@ -11500,11 +11500,11 @@ def view_folder(filepath, full_path):
 
 
 # 📺 YouTube page: download a channel, or only some tabs/playlists, as music / video / video without sound
-# (youtube_page.py — Music Lab's channel engine, files on the data drive, never in the vault)
+# (youtube_page.py — Music Lab's channel engine; each vault has its own downloads on the data drive, never in the vault)
 import youtube_page
 youtube_page.register(app, lambda title, content: render_template_string(
     HTML_TEMPLATE, title=title, tree=f'<ul>{get_file_tree(VAULT_PATH, VAULT_PATH)}</ul>', content=content,
-    vault_name=get_vault_name(), is_markdown=False))
+    vault_name=get_vault_name(), is_markdown=False), lambda: VAULT_PATH)
 
 
 @app.route('/review')
