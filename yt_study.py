@@ -6,6 +6,7 @@ Data, all on the data drive next to the downloads (<vault folder>/<channel>/), n
   info/<id>.info.json           YouTube's details (title, chapters, description) — written by the download engine
   transcripts/<id>.whisper.json local Whisper transcript (tools/german/yt/transcribe_a1.py), or YouTube's captions
   frames/<id>/index.json + jpgs  slides cut from YouTube's storyboard (tools/german/yt/frames_a1.py)
+  frames/<id>/big/<t>.jpg        the same slides enlarged 4× for the slide viewer (tools/german/yt/frames_big.py)
   study/<id>.json               the written lesson (schema below); a video without one still gets sound/slides/transcript
   study/progress.json           {id: "YYYY-MM-DD"} for the videos marked done
 
@@ -121,7 +122,8 @@ def register(app, render, C):
         d = chan(name, vid)
         if not re.fullmatch(r"\d+\.jpg", file) or not (d / "frames" / vid / file).exists():
             abort(404)
-        return send_file(d / "frames" / vid / file, max_age=86400)
+        big = d / "frames" / vid / "big" / file
+        return send_file(big if request.args.get("big") and big.exists() else d / "frames" / vid / file, max_age=86400)
 
 
 PAGE = r'''
@@ -171,14 +173,21 @@ body.dark-theme .yts{--bg:#252526}
 .yts .sl{position:relative;border-radius:8px;overflow:hidden;cursor:pointer;border:2px solid transparent;background:#111;padding:0}
 .yts .sl img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover}.yts .sl.now{border-color:var(--a)}
 .yts .sl span{position:absolute;left:6px;bottom:6px;background:rgba(0,0,0,.75);color:#fff;font-size:11.5px;padding:1px 6px;border-radius:4px}
+.yts .lb{position:fixed;inset:0;z-index:10000;background:rgba(10,12,14,.97);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px;gap:12px;color:#eee}
+.yts .lb img{width:min(96vw,1100px,calc((100vh - 220px) * 16 / 9));aspect-ratio:16/9;border-radius:8px;background:#111;object-fit:contain}
+.yts .lb .lbw{max-width:min(96vw,1100px);max-height:24vh;overflow:auto;text-align:center;font-size:15px}
+.yts .lb .lbw b{color:var(--o);font-size:18px}.yts .lb .lbbar{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.yts .lb .btn{background:#2a2d31;color:#eee;border-color:#555}
 .yts .q{margin-bottom:14px}.yts .q .opts{display:grid;gap:6px;margin-top:6px}
 .yts .opt{text-align:left;padding:10px 12px;border-radius:8px;border:1px solid var(--l);background:none;color:inherit;font:inherit;cursor:pointer}
 .yts .opt.right{border-color:var(--g);background:rgba(63,179,127,.15)}.yts .opt.wrong{border-color:var(--r);background:rgba(224,85,85,.13)}
 .yts .why{font-size:13.5px;color:var(--m);margin-top:6px}
-.yts .fc{perspective:900px;max-width:420px;margin:0 auto}
-.yts .fci{position:relative;height:180px;transition:transform .45s;transform-style:preserve-3d;cursor:pointer}.yts .fci.flip{transform:rotateY(180deg)}
-.yts .fcf{position:absolute;inset:0;backface-visibility:hidden;border:1px solid var(--l);border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px;text-align:center;background:rgba(128,128,128,.09)}
-.yts .fcf.b{transform:rotateY(180deg)}.yts .fcf .big{font-size:24px;font-weight:650}.yts .fcf .big.de{color:var(--o)}
+.yts .fc{max-width:460px;margin:0 auto}
+.yts .fci{cursor:pointer;user-select:none}
+.yts .fcf{min-height:180px;border:1px solid var(--l);border-radius:14px;display:flex;flex-direction:column;gap:6px;align-items:center;justify-content:center;padding:18px;text-align:center;background:rgba(128,128,128,.09)}
+.yts .fcf.b,.yts .fci.flip .fcf.f{display:none}.yts .fci.flip .fcf.b{display:flex;animation:fcturn .28s ease-out}
+@keyframes fcturn{from{transform:perspective(900px) rotateY(-90deg);opacity:.3}to{transform:none;opacity:1}}
+.yts .fcf .big{font-size:22px;font-weight:650;line-height:1.3}.yts .fcf .big.de{color:var(--o)}
 .yts .fcbar{display:flex;gap:8px;justify-content:center;margin-top:12px;flex-wrap:wrap}
 .yts .sp{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid var(--l)}.yts .sp:last-child{border:none}
 .yts .sp details summary{cursor:pointer;color:var(--a);font-size:13.5px}.yts .sp .ans{color:var(--o);font-weight:600}
@@ -251,8 +260,8 @@ function render(){
       ${s.table ? `<div class="tblw"><table>${s.table.head ? `<tr>${s.table.head.map(h => `<th>${md(h)}</th>`).join('')}</tr>` : ''}${s.table.rows.map(r => `<tr>${r.map(c => `<td>${md(c)}</td>`).join('')}</tr>`).join('')}</table></div>` : ''}
     </div>`).join('')}</section>` : ''}
 
-  ${D.slides.length ? `<section id="s-slides"><h2>🖼 Slides <span class="m">what the video shows — tap one to hear that moment</span></h2>
-    <div class="slides">${D.slides.map(s => `<button class="sl" data-t="${s.t}" data-e="${s.end}"><img src="${esc(s.src)}" alt="" loading="lazy"><span>${mmss(s.t)}</span></button>`).join('')}</div></section>` : ''}
+  ${D.slides.length ? `<section id="s-slides"><h2>🖼 Slides <span class="m">what the video shows — tap one to see it big and hear that moment</span></h2>
+    <div class="slides">${D.slides.map((s, i) => `<button class="sl" data-i="${i}"><img src="${esc(s.src)}" alt="" loading="lazy"><span>${mmss(s.t)}</span></button>`).join('')}</div></section>` : ''}
 
   ${L && (L.quiz?.length || W.length || L.speak?.length) ? `<section id="s-practice"><h2>🏋️ Practice</h2>
     ${L.quiz?.length ? `<div class="box"><h3>Quiz <span class="m" id="qscore"></span></h3><div id="quiz"></div></div>` : ''}
@@ -279,24 +288,32 @@ function render(){
   if (W.length) cards(W);
 }
 
+function setBtn(b, on){   // a playing ▶ turns into ■ (tap it again to stop)
+  if (!b) return; b.classList.toggle('on', on);
+  if (b.dataset.lbl == null) b.dataset.lbl = b.textContent;
+  b.textContent = on ? (b.classList.contains('play') ? '■' : '■ Stop') : b.dataset.lbl;
+}
 function play(t, end, btn){
   if (!audio) return;
-  if (playingBtn) playingBtn.classList.remove('on');
-  playingBtn = btn || null; if (btn) btn.classList.add('on');
+  if (btn && btn === playingBtn && !audio.paused) { audio.pause(); return; }   // second tap = stop
+  const old = playingBtn; playingBtn = null; setBtn(old, false);
   stopAt = end ? +end : null;
   audio.currentTime = +t; audio.play();
+  playingBtn = btn || null; setBtn(btn, true);
 }
 function wire(){
   audio = document.getElementById('au');
   const pp = document.getElementById('pp'), seek = document.getElementById('seek'), cur = document.getElementById('cur');
-  root.querySelectorAll('[data-t]').forEach(b => b.addEventListener('click', () => {
+  root.querySelectorAll('button[data-t], .ln').forEach(b => b.addEventListener('click', () => {   // not .sec: a ▶ inside a section must not restart it
     const t = +b.dataset.t, e = b.dataset.e;
-    // a word / slide plays only its own bit (to the next word when no end is written); chapters & lines keep going
+    // a word plays only its own bit (its exact end from words_ts.py, else up to the next word); chapters & lines keep going
     let end = e ? +e : null;
     if (b.classList.contains('play') && !e) { const all = [...root.querySelectorAll('.play')].map(x => +x.dataset.t).filter(x => x > t); end = all.length ? Math.min(Math.min(...all), t + 8) : t + 5; }
-    play(t, b.classList.contains('play') || b.classList.contains('sl') ? end : null, b.classList.contains('play') ? b : null);
+    play(t, b.classList.contains('play') ? end : null, b.classList.contains('play') ? b : null);
   }));
-  const go = document.getElementById('go'); if (go) go.onclick = () => play(audio.currentTime || 0);
+  root.querySelectorAll('.sl').forEach(b => b.onclick = () => slide(+b.dataset.i));
+  const go = document.getElementById('go');
+  if (go) go.onclick = () => audio && !audio.paused && !playingBtn ? audio.pause() : play(audio.currentTime || 0);
   document.getElementById('done').onclick = async () => {
     const r = await fetch(`/youtube/study-api/${name}/${vid}/done`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({done: !D.done})}).then(r => r.json());
     D.done = r.done; if (D.playlist) D.playlist.done += r.done ? 1 : -1; const y = scrollY; render(); scrollTo(0, y);
@@ -310,7 +327,8 @@ function wire(){
   fit(); addEventListener('resize', fit); new ResizeObserver(fit).observe(root);
   const rate = document.getElementById('rate'); rate.onchange = () => audio.playbackRate = +rate.value;
   pp.onclick = () => audio.paused ? audio.play() : audio.pause();
-  audio.onplay = () => pp.textContent = '❚❚'; audio.onpause = () => { pp.textContent = '▶'; if (playingBtn) playingBtn.classList.remove('on'); };
+  audio.onplay = () => { pp.textContent = '❚❚'; if (go && !playingBtn) go.textContent = '❚❚ Pause'; };
+  audio.onpause = () => { pp.textContent = '▶'; if (go) go.textContent = '▶ Listen'; const b = playingBtn; playingBtn = null; setBtn(b, false); };
   seek.oninput = () => { stopAt = null; audio.currentTime = +seek.value; };
   const lines = [...root.querySelectorAll('.ln')], chs = [...root.querySelectorAll('.chap')], sls = [...root.querySelectorAll('.sl')], trl = document.getElementById('trl');
   const ytl = document.getElementById('yt');
@@ -323,11 +341,34 @@ function wire(){
     const c = D.chapters.findLastIndex(c => c.start_time <= t);
     chs.forEach((b, i) => b.classList.toggle('now', i === c));
     document.getElementById('nowch').textContent = c >= 0 ? D.chapters[c].title : '';
-    sls.forEach(b => b.classList.toggle('now', +b.dataset.t <= t && t < +b.dataset.e));
+    sls.forEach(b => { const s = D.slides[+b.dataset.i]; b.classList.toggle('now', s.t <= t && t < s.end); });
     const li = D.transcript.lines.findLastIndex(l => l.t <= t + 0.2);
     if (li !== lastLine) { lastLine = li; lines.forEach((x, i) => x.classList.toggle('now', i === li));
       if (li >= 0 && trl && !audio.paused) { const el = lines[li]; trl.scrollTop = el.offsetTop - trl.offsetTop - trl.clientHeight / 3; } }
   };
+}
+
+function slide(i){   // big slide + the words taught while it is on screen; ‹ › / arrow keys step, Esc closes
+  document.querySelector('.yts .lb')?.remove();
+  const S = D.slides, s = S[i]; if (!s) return;
+  const said = words(D.lesson).filter(w => w.t != null && w.t >= s.t - 1 && w.t < s.end);
+  const lines = D.transcript.lines.filter(l => l.end > s.t && l.t < s.end);
+  const lb = document.createElement('div'); lb.className = 'lb';
+  lb.innerHTML = `<img src="${esc(s.src)}?big=1" alt="">
+    <div class="lbw">${said.length ? said.map(w => `<div><b>${esc(w.de)}</b> — ${md(w.en)}</div>`).join('') : lines.map(l => esc(l.text)).join(' ')}</div>
+    <div class="lbbar"><button class="btn" id="lbp">‹</button><button class="btn p" id="lbh">▶ Hear it</button><span class="m" style="align-self:center">${i + 1} / ${S.length} · ${mmss(s.t)}</span>
+      <button class="btn" id="lbn">›</button><button class="btn" id="lbx">✕ Close</button></div>`;
+  root.appendChild(lb);
+  const h = lb.querySelector('#lbh');
+  const close = () => { if (playingBtn === h && !audio.paused) audio.pause(); lb.remove(); removeEventListener('keydown', key); };
+  const key = e => { if (e.key === 'Escape') close(); else if (e.key === 'ArrowRight') { close(); slide(i + 1); } else if (e.key === 'ArrowLeft') { close(); slide(i - 1); } };
+  addEventListener('keydown', key);
+  lb.onclick = e => { if (e.target === lb) close(); };
+  lb.querySelector('#lbx').onclick = close;
+  lb.querySelector('#lbp').onclick = () => { close(); slide(Math.max(0, i - 1)); };
+  lb.querySelector('#lbn').onclick = () => { close(); slide(Math.min(S.length - 1, i + 1)); };
+  h.onclick = () => play(s.t, s.end, h);
+  play(s.t, s.end, h);
 }
 
 function shuffle(a){ a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
@@ -350,11 +391,11 @@ function cards(W){
     const c = deck[k], front = dir === 'en' ? `<div class="big">${md(c.en)}</div><div class="m">say it in German · tap to turn</div>` : `<div class="big de">${esc(c.de)}</div><div class="m">what does it mean? · tap to turn</div>`;
     const back = `<div class="big de">${esc(c.de)}</div><div>${md(c.en)}</div>${c.note ? `<div class="m">${md(c.note)}</div>` : ''}`;
     document.getElementById('fcn').textContent = `${k + 1} / ${deck.length}${again.length ? ` · ${again.length} to repeat` : ''}`;
-    box.innerHTML = `<div class="fc"><div class="fci" id="fci"><div class="fcf">${front}</div><div class="fcf b">${back}</div></div></div>
+    box.innerHTML = `<div class="fc"><div class="fci" id="fci"><div class="fcf f">${front}</div><div class="fcf b">${back}</div></div></div>
       <div class="fcbar">${c.t != null ? `<button class="btn" id="fch">▶ Hear it</button>` : ''}<button class="btn" id="fcx">✗ Again</button><button class="btn p" id="fco">✓ Knew it</button>
       <button class="btn" id="fcd" title="Switch direction">${dir === 'en' ? 'EN → DE' : 'DE → EN'}</button></div>`;
     document.getElementById('fci').onclick = e => e.currentTarget.classList.toggle('flip');
-    const h = document.getElementById('fch'); if (h) h.onclick = () => { const all = W.map(x => x.t).filter(x => x > c.t); play(c.t, c.end ?? (all.length ? Math.min(Math.min(...all), c.t + 8) : c.t + 5)); };
+    const h = document.getElementById('fch'); if (h) h.onclick = () => { const all = W.map(x => x.t).filter(x => x > c.t); play(c.t, c.end ?? (all.length ? Math.min(Math.min(...all), c.t + 8) : c.t + 5), h); };
     document.getElementById('fcx').onclick = () => { again.push(c); k++; show(); };
     document.getElementById('fco').onclick = () => { k++; show(); };
     document.getElementById('fcd').onclick = () => { dir = dir === 'en' ? 'de' : 'en'; show(); };
