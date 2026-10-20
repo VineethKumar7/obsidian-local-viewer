@@ -172,11 +172,10 @@ async function list(){
 function pickInit(C){
   if (pick.name === C.name) return;
   const pl = new URLSearchParams(location.search).get('pl');            // came from a playlist link: just that playlist
-  if (pl && C.playlists.some(p => p.id === pl)) {                     // a channel already downloading: add it to what's chosen
-    const sc = C.mode ? C.scope : {tabs: [], playlists: []};
-    pick = {name: C.name, all: !sc, tabs: new Set(sc ? sc.tabs : []), pls: new Set([...(sc ? sc.playlists : []), pl]), open: true, from: pl}; return; }
+  if (pl && C.playlists.some(p => p.id === pl)) {                     // a shared playlist = ONLY that playlist (adding it to the
+    pick = {name: C.name, all: false, tabs: new Set(), pls: new Set([pl]), open: true, from: pl}; return; }   // old choice queued 1,869 videos)
   const sc = C.scope;
-  pick = {name: C.name, all: !sc, tabs: new Set(sc ? sc.tabs : ['videos', 'shorts', 'live'].filter(t => C.counts[t])), pls: new Set(sc ? sc.playlists : []), open: !C.mode};
+  pick = {name: C.name, all: !sc, tabs: new Set(sc ? sc.tabs : []), pls: new Set(sc ? sc.playlists : []), open: !C.mode};   // "pick" starts empty
 }
 function chosen(C){
   const lists = pick.all ? [...Object.values(C.tabs), ...C.playlists.map(p => p.entries || [])]
@@ -191,7 +190,7 @@ function picker(C){
   const tabs = [['videos', 'Videos'], ['shorts', 'Shorts'], ['live', 'Live']].filter(([k]) => C.counts[k]);
   const unread = C.playlists.some(p => p.entries == null), q = (pick.q || '').toLowerCase();
   const from = pick.from && C.playlists.find(p => p.id === pick.from);
-  return `<div class="box" id="ask">${from ? `<p style="margin:0 0 10px">From your link: playlist <b>${esc(from.title)}</b> by <b>${esc(C.title)}</b> — ${pick.all ? 'it is already part of this channel’s whole-channel download.' : C.mode ? 'added to what this channel already downloads. Pick the format to save the change.' : 'only it is chosen below. Pick a format to start.'}</p>` : ''}
+  return `<div class="box" id="ask">${from ? `<p style="margin:0 0 10px">From your link: playlist <b>${esc(from.title)}</b> by <b>${esc(C.title)}</b> — only it is chosen below${C.mode ? ' (instead of what this channel downloaded before — files you have stay)' : ''}. Pick a format to start.</p>` : ''}
     ${C.running ? '<p style="margin:0 0 10px;color:var(--r)">This channel is downloading right now — pause it first, then choose.</p>' : ''}
     <b>What should I download?</b> <span class="m">Free on the data drive: ${gb(C.free_gb)}</span><br>
     <div class="seg"><button class="${pick.all ? 'on' : ''}" data-sc="all">Whole channel</button><button class="${pick.all ? '' : 'on'}" data-sc="pick">Pick tabs & playlists</button></div>
