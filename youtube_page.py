@@ -194,7 +194,7 @@ async function list(){
   try { all = await api('channels'); } catch (e) { err = e.message; }
   root.innerHTML = `<h1>📺 YouTube</h1><p class="m">Download a YouTube channel or one playlist — paste a playlist link and its channel is found for you — as music only, full video, or video without sound. Files go to the data drive, not into the vault.</p>
     <form class="box row" id="f"><input type="text" id="u" required placeholder="Paste a YouTube channel or playlist link"><button class="btn p" id="fb">Look up channel</button><div id="fm" class="m" style="flex-basis:100%"></div></form>
-    ${err ? `<div class="box" style="border-color:var(--r);color:var(--r)">${esc(err)}</div>` : ''}
+    ${err ? `<div class="box" style="border-color:var(--r);color:var(--r)">${esc(err)}${/data drive/.test(err) ? ` <button class="btn" id="retry">⟳ Retry now</button><div class="m">Trying again every 5 seconds…</div>` : ''}</div>` : ''}
     ${all.length ? `<div class="cards">${all.map(c => `<a class="card" href="?c=${encodeURIComponent(c.name)}"><div class="cv">${c.covers.map(u => `<img src="${esc(u)}" alt="" loading="lazy" referrerpolicy="no-referrer">`).join('')}</div>
       <div class="b"><b>${esc(c.title)}</b><div class="m">${c.mode ? LABEL[c.mode] + ' · ' + esc(c.scope_text) : 'not started — choose what to download'}</div>
       ${c.mode ? `<div class="m">${c.running ? esc(c.status.stage || 'downloading') : c.paused ? 'paused' : esc(c.status.stage || '')} · ${c.done} of ${c.total}</div><div class="bar"><i style="width:${c.total ? Math.round(c.done / c.total * 100) : 0}%"></i></div>` : ''}</div></a>`).join('')}</div>` : '<p class="m">No channels yet.</p>'}`;
@@ -202,6 +202,7 @@ async function list(){
     try { const c = await api('lookup', {url: $('#u').value}); location.search = '?c=' + encodeURIComponent(c.name) + (c.playlist ? '&pl=' + encodeURIComponent(c.playlist) : ''); }
     catch (err) { $('#fm').textContent = err.message; $('#fm').style.color = 'var(--r)'; $('#fb').disabled = false; } };
   clearInterval(timer); if (all.some(c => c.running)) timer = setInterval(() => document.activeElement !== $('#u') && list(), 8000);
+  if (err && /data drive/.test(err)) { $('#retry').onclick = list; timer = setInterval(() => document.activeElement !== $('#u') && list(), 5000); }   // drive just plugged in / still mounting
 }
 
 function pickInit(C){
@@ -321,7 +322,9 @@ async function load(){
   const n = chan();
   if (!n) return list();
   try { page(await api('channels/' + encodeURIComponent(n))); }
-  catch (e) { root.innerHTML = `<p><a href="/youtube">‹ All channels</a></p><p style="color:var(--r)">${esc(e.message)}</p>`; }
+  catch (e) { const drive = /data drive/.test(e.message);
+    root.innerHTML = `<p><a href="/youtube">‹ All channels</a></p><p style="color:var(--r)">${esc(e.message)}${drive ? ` <button class="btn" id="retry">⟳ Retry now</button>` : ''}</p>${drive ? '<p class="m">Trying again every 5 seconds…</p>' : ''}`;
+    if (drive) { $('#retry').onclick = load; clearInterval(timer); timer = setInterval(load, 5000); } }
 }
 load();
 })();
