@@ -5542,6 +5542,7 @@ HTML_TEMPLATE = '''
                 <div id="offlineStatus" style="font-size: 10px; color: #888; margin-top: 6px; text-align: center;">Creates ZIP with HTML files</div>
             </div>
             <a href="/youtube" style="display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 8px; padding: 8px 12px; font-size: 12px; background: #3c3c3c; color: #ddd; border-radius: 6px; text-decoration: none;">📺 YouTube downloader</a>
+            <a href="/#studyDashboard" style="display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 8px; padding: 8px 12px; font-size: 12px; background: #3c3c3c; color: #ddd; border-radius: 6px; text-decoration: none;">📊 Study dashboard</a>
         </div>
         <div class="sidebar-content tree-loading" id="sidebarContent">
             {{ tree|safe }}
