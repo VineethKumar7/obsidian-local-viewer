@@ -15,6 +15,7 @@ import socket
 import markdown
 import tempfile
 import subprocess
+from urllib.parse import quote
 
 try:
     import fitz  # PyMuPDF — used by /pdf-crop and PDF++ thumbnail embeds
@@ -400,6 +401,74 @@ def log_request_ip():
     # Save periodically (every 10 requests)
     if sum(d['count'] for d in _access_log['ips'].values()) % 10 == 0:
         save_access_log()
+
+@app.before_request
+def require_profile():
+    """Vaults with profiles ask "who is learning?" before the first page (pages only; API calls and media pass)."""
+    if not PROFILES or current_profile() or request.method != 'GET' or request.path.startswith('/profile'):
+        return
+    if 'text/html' not in request.headers.get('Accept', ''):  # page loads only (fetch() and media don't ask for HTML)
+        return
+    return redirect('/profile?next=' + quote(request.full_path.rstrip('?'), safe=''))
+
+def _safe_next(nxt):
+    return nxt if nxt and nxt.startswith('/') and not nxt.startswith('//') else '/'
+
+@app.route('/profile')
+def profile_chooser():
+    if not PROFILES:
+        abort(404)
+    nxt = _safe_next(request.args.get('next'))
+    cur = current_profile()
+    cards = ''.join(
+        f'<a class="pf{" cur" if p["id"] == cur else ""}" href="/profile/set?id={quote(p["id"])}&next={quote(nxt, safe="")}">'
+        f'<span class="av" style="background:{html.escape(p.get("color", "#7c3aed"))}">{html.escape(p["name"][:1].upper())}</span>'
+        f'<span class="nm">{html.escape(p["name"])}</span>{"<span class=now>current</span>" if p["id"] == cur else ""}</a>'
+        for p in PROFILES)
+    return f"""<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Who is learning?</title><style>
+:root{{color-scheme:dark}}*{{box-sizing:border-box}}
+body{{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;background:#181818;color:#e8e8e8;
+font:17px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;padding:16px}}
+h1{{font-size:1.6em;text-align:center;margin:0 0 28px}}
+.row{{display:flex;flex-wrap:wrap;gap:20px;justify-content:center}}
+.pf{{display:flex;flex-direction:column;align-items:center;gap:12px;width:170px;padding:26px 12px;border-radius:20px;background:#232323;
+border:2px solid #333;color:#e8e8e8;text-decoration:none;transition:transform .15s,border-color .15s}}
+.pf:hover{{transform:translateY(-3px);border-color:#7c3aed}}.pf.cur{{border-color:#7c3aed}}
+.av{{width:84px;height:84px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:40px;font-weight:700;color:#fff}}
+.nm{{font-size:1.15em;font-weight:600}}.now{{font-size:.75em;color:#a78bfa}}
+</style></head><body><main><h1>Who is learning?</h1><div class="row">{cards}</div></main></body></html>"""
+
+@app.route('/profile/set')
+def profile_set():
+    pid = request.args.get('id')
+    if not any(p['id'] == pid for p in PROFILES):
+        abort(400)
+    resp = redirect(_safe_next(request.args.get('next')))
+    resp.set_cookie(PROFILE_COOKIE, pid, max_age=400 * 24 * 3600, samesite='Lax')
+    return resp
+
+@app.after_request
+def add_profile_badge(resp):
+    """A round profile button on every page; tapping it goes back to "Who is learning?"."""
+    pid = current_profile()
+    if not pid or resp.status_code != 200 or resp.mimetype != 'text/html' or resp.direct_passthrough:
+        return resp
+    if request.path.startswith('/practice/'):  # full-screen exercises: the badge would sit on the bottom button
+        return resp
+    p = next(p for p in PROFILES if p['id'] == pid)
+    body = resp.get_data(as_text=True)
+    i = body.rfind('</body>')
+    if i < 0:
+        return resp
+    nxt = quote(request.full_path.rstrip('?'), safe='')
+    badge = (f'<a id="profileBadge" href="/profile?next={nxt}" title="{html.escape(p["name"])} — tap to switch" '
+             f'style="position:fixed;left:14px;bottom:14px;z-index:99999;width:42px;height:42px;border-radius:50%;'
+             f'background:{html.escape(p.get("color", "#7c3aed"))};color:#fff;display:flex;align-items:center;justify-content:center;'
+             f'font:700 19px/1 -apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;text-decoration:none;'
+             f'box-shadow:0 2px 10px rgba(0,0,0,.45);border:2px solid rgba(255,255,255,.85)">{html.escape(p["name"][:1].upper())}</a>')
+    resp.set_data(body[:i] + badge + body[i:])
+    return resp
 
 # Cache for file lookups (populated on first request)
 _file_cache = {}
@@ -1180,19 +1249,73 @@ def get_metadata_path():
     """Get the path to the metadata JSON file"""
     return os.path.join(VAULT_PATH, 'obsidian-viewer-meta.json')
 
+# ============================================
+# PROFILES (several people learning from one vault)
+# ============================================
+# Opt-in per vault: <vault>/.obsidian-viewer/profiles.json = [{"id": "vineeth", "name": "Vineeth", "color": "#7c3aed"}, ...].
+# The chosen profile lives in a cookie. Each profile keeps its own "completed" ticks, flashcard SRS, study sessions and
+# settings, and page overrides (pages/<vault path>, e.g. a per-person Today note) under .obsidian-viewer/profiles/<id>/.
+PROFILES = []
+PROFILE_COOKIE = 'viewer_profile'
+
+def load_profiles():
+    try:
+        with open(os.path.join(VAULT_PATH, '.obsidian-viewer', 'profiles.json'), encoding='utf-8') as f:
+            return [p for p in json.load(f) if re.fullmatch(r'[a-z0-9_-]+', p.get('id', ''))]
+    except (OSError, ValueError):
+        return []
+
+def current_profile():
+    """The profile id of this request, or None (no profiles in this vault / none chosen / outside a request)."""
+    from flask import has_request_context
+    if not PROFILES or not has_request_context():
+        return None
+    pid = request.cookies.get(PROFILE_COOKIE)
+    return pid if any(p['id'] == pid for p in PROFILES) else None
+
+def profile_dir(pid):
+    path = os.path.join(VAULT_PATH, '.obsidian-viewer', 'profiles', pid)
+    os.makedirs(path, exist_ok=True)
+    return path
+
+def _read_json(path, default):
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return default
+
 def load_all_metadata():
-    """Load all file metadata from JSON file"""
-    meta_path = get_metadata_path()
-    if os.path.exists(meta_path):
-        try:
-            with open(meta_path, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except (json.JSONDecodeError, IOError):
-            return {}
-    return {}
+    """Load all file metadata from JSON file ("completed" comes from the current profile, when there is one)"""
+    meta = _read_json(get_metadata_path(), {})
+    pid = current_profile()
+    if pid:
+        done = _read_json(os.path.join(profile_dir(pid), 'completed.json'), {})
+        for path, entry in list(meta.items()):
+            if isinstance(entry, dict):
+                meta[path] = {**entry, 'completed': bool(done.get(path))}
+        for path, value in done.items():
+            meta.setdefault(path, {'completed': bool(value), 'created_date': '', 'source': '', 'revision_count': 0,
+                                   'summary': '', 'one_para_summary': ''})
+    return meta
 
 def save_all_metadata(metadata):
-    """Save all metadata to JSON file"""
+    """Save all metadata to JSON file (with a profile, its "completed" ticks go to the profile's own file)"""
+    pid = current_profile()
+    if pid:
+        shared = _read_json(get_metadata_path(), {})
+        done = {}
+        for path, entry in metadata.items():
+            if not isinstance(entry, dict):
+                shared[path] = entry
+                continue
+            if entry.get('completed'):
+                done[path] = True
+            old = shared.get(path)
+            shared[path] = {**entry, 'completed': old.get('completed', False) if isinstance(old, dict) else False}
+        with open(os.path.join(profile_dir(pid), 'completed.json'), 'w', encoding='utf-8') as f:
+            json.dump(done, f, indent=2, ensure_ascii=False)
+        metadata = shared
     meta_path = get_metadata_path()
     with open(meta_path, 'w', encoding='utf-8') as f:
         json.dump(metadata, f, indent=2, ensure_ascii=False)
@@ -1224,6 +1347,11 @@ def set_file_metadata(filepath, metadata):
 def get_srs_filepath(filepath):
     """Get SRS data file path - stored alongside the markdown file"""
     # filepath is relative to VAULT_PATH, e.g. "Week 1/Ethernet.md"
+    pid = current_profile()
+    if pid:  # each profile has its own cards: .obsidian-viewer/profiles/<id>/srs/<filepath>.srs.json
+        full_path = os.path.join(profile_dir(pid), 'srs', filepath)
+        os.makedirs(os.path.dirname(full_path), exist_ok=True)
+        return full_path + '.srs.json'
     full_path = os.path.join(VAULT_PATH, filepath)
     # Store as Ethernet.md.srs.json in same directory
     return full_path + '.srs.json'
@@ -1235,9 +1363,11 @@ def scan_all_srs_files(folder_path=None):
         folder_path: Optional relative path to filter by folder (e.g., "1 Week - Introduction")
     """
     srs_files = []
-    search_path = VAULT_PATH
+    pid = current_profile()
+    root_path = os.path.join(profile_dir(pid), 'srs') if pid else VAULT_PATH
+    search_path = root_path
     if folder_path:
-        search_path = os.path.join(VAULT_PATH, folder_path)
+        search_path = os.path.join(root_path, folder_path)
         if not os.path.exists(search_path):
             return []
     
@@ -1251,7 +1381,7 @@ def scan_all_srs_files(folder_path=None):
                     with open(srs_path, 'r', encoding='utf-8') as f:
                         data = json.load(f)
                         # Add relative path for context
-                        data['_relativePath'] = os.path.relpath(srs_path, VAULT_PATH)
+                        data['_relativePath'] = os.path.relpath(srs_path, root_path)
                         srs_files.append(data)
                 except (json.JSONDecodeError, IOError):
                     pass
@@ -1282,7 +1412,8 @@ def save_srs_data(filepath, data):
 
 def get_study_sessions_path():
     """Get path to study sessions log"""
-    sessions_dir = os.path.join(VAULT_PATH, '.obsidian-viewer')
+    pid = current_profile()
+    sessions_dir = profile_dir(pid) if pid else os.path.join(VAULT_PATH, '.obsidian-viewer')
     os.makedirs(sessions_dir, exist_ok=True)
     return os.path.join(sessions_dir, 'sessions.json')
 
@@ -1327,7 +1458,8 @@ def save_study_sessions(data):
 
 def get_study_settings_path():
     """Get path to study settings"""
-    settings_dir = os.path.join(VAULT_PATH, '.obsidian-viewer')
+    pid = current_profile()
+    settings_dir = profile_dir(pid) if pid else os.path.join(VAULT_PATH, '.obsidian-viewer')
     os.makedirs(settings_dir, exist_ok=True)
     return os.path.join(settings_dir, 'settings.json')
 
@@ -12012,7 +12144,9 @@ def view_file(filepath):
     filename = os.path.basename(filepath)
     
     if ext == 'md':
-        with open(full_path, 'r', encoding='utf-8') as f:
+        pid = current_profile()
+        override = os.path.join(profile_dir(pid), 'pages', filepath) if pid else None
+        with open(override if override and os.path.isfile(override) else full_path, 'r', encoding='utf-8') as f:
             md_content = f.read()
         
         # Get metadata from JSON (info panel saves here) - takes priority
@@ -18286,6 +18420,15 @@ Examples:
     
     # Load access log
     load_access_log()
+
+    # Profiles: several people learning from one vault (opt-in via .obsidian-viewer/profiles.json)
+    global PROFILES
+    PROFILES = load_profiles()
+    app.config['VIEWER_PROFILE'] = current_profile
+    app.config['PROFILE_DIR'] = profile_dir
+    app.config['FILE_METADATA'] = (get_file_metadata, set_file_metadata)
+    if PROFILES:
+        print("👥 Profiles: " + ", ".join(p['name'] for p in PROFILES))
 
     # German course: Duolingo-style practice (german_practice.py; only if <vault>/Practice/exercises.json exists)
     try:

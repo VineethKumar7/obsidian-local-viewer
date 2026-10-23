@@ -36,11 +36,21 @@ def _j(p: Path, default=None):
         return default
 
 
+def progress_file(d: Path) -> Path:
+    """study/progress.json, or study/progress-<id>.json when the vault has profiles (app.py VIEWER_PROFILE)."""
+    try:
+        from flask import current_app
+        pid = current_app.config.get("VIEWER_PROFILE", lambda: None)()
+    except RuntimeError:  # outside a request
+        pid = None
+    return d / "study" / (f"progress-{pid}.json" if pid else "progress.json")
+
+
 def study_index(d: Path) -> dict:
     """{id: "lesson" | "done"} for the channel page's cards."""
     s = d / "study"
-    out = {f.stem: "lesson" for f in s.glob("*.json") if f.stem != "progress"} if s.exists() else {}
-    for v in (_j(s / "progress.json", {}) or {}):
+    out = {f.stem: "lesson" for f in s.glob("*.json") if not f.stem.startswith("progress")} if s.exists() else {}
+    for v in (_j(progress_file(d), {}) or {}):
         out[v] = "done"
     return out
 
@@ -85,7 +95,7 @@ def register(app, render, C):
         f = Ch.file(name, vid)
         T = Ch.transcript(name, vid)
         fr = _j(d / "frames" / vid / "index.json", {}) or {}
-        prog = _j(d / "study" / "progress.json", {}) or {}
+        prog = _j(progress_file(d), {}) or {}
         ctx = _context(d, vid, request.args.get("pl"))
         if ctx:
             ids = [e["id"] for p in (_j(d / "channel.json", {}) or {}).get("playlists") or [] if p["id"] == ctx["id"]
@@ -106,7 +116,7 @@ def register(app, render, C):
     def yt_study_done(name, vid):
         d = chan(name, vid)
         (d / "study").mkdir(exist_ok=True)
-        p = d / "study" / "progress.json"
+        p = progress_file(d)
         prog = _j(p, {}) or {}
         if (request.get_json(silent=True) or {}).get("done", True):
             prog[vid] = datetime.date.today().isoformat()

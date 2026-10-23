@@ -29,13 +29,23 @@ sys.path.insert(0, str(GERMAN_TOOLS))
 import practice_state  # noqa: E402
 
 _lock = threading.Lock()
-_state_file = None
 _vault = None
+_app = None
+
+
+def _profile():
+	"""The viewer profile of this request (app.py VIEWER_PROFILE), or None when the vault has no profiles."""
+	return _app.config.get("VIEWER_PROFILE", lambda: None)() if _app else None
+
+
+def _state_file():
+	pid = _profile()
+	return practice_state.state_path(pid) if pid else _vault / "Practice" / "state.json"
 
 
 def study_activity():
 	"""Practice answers in the shape app.py's study dashboard merges in (EXTRA_STUDY_ACTIVITY)."""
-	s = practice_state.load(_state_file)
+	s = practice_state.load(_state_file())
 	st = practice_state.summary(s)
 	return {"days": practice_state.activity(s), "goal": st["goal"], "unit": "XP", "today": st["xp_today"],
 		"streak": st["streak"], "due": st["due"], "mistakes": st["mistakes"], "reviewUrl": "/practice/review"}
@@ -49,13 +59,10 @@ def _short(iso):
 def home_panel():
 	"""HTML for the viewer's start page (app.py EXTRA_HOME_HTML): reviews due, today's lesson, lessons to revisit."""
 	lessons = json.loads((_vault / "Practice" / "exercises.json").read_text(encoding="utf-8"))["lessons"]
-	try:
-		meta = json.loads((_vault / "obsidian-viewer-meta.json").read_text(encoding="utf-8"))
-	except (OSError, ValueError):
-		meta = {}
-	done = [l["id"] for l in lessons if (meta.get(l["note"]) or {}).get("completed")]
+	get_meta = _app.config["FILE_METADATA"][0]  # profile-aware "completed" (app.py)
+	done = [l["id"] for l in lessons if get_meta(l["note"]).get("completed")]
 	by_id = {l["id"]: l for l in lessons}
-	s = practice_state.load(_state_file)
+	s = practice_state.load(_state_file())
 	st = practice_state.summary(s)
 	seen = [x for x in practice_state.lessons_seen(s, done) if x["lesson"] in by_id]
 	view = lambda note: "/view/" + quote(note)
@@ -110,10 +117,8 @@ def register(app, vault_path):
 	data_file = vault / "Practice" / "exercises.json"
 	if not data_file.exists():
 		return False
-	state_file = vault / "Practice" / "state.json"
-	global _state_file, _vault
-	_state_file, _vault = state_file, vault
-	meta_file = vault / "obsidian-viewer-meta.json"
+	global _vault, _app
+	_vault, _app = vault, app
 	bp = Blueprint("german_practice", __name__)
 
 	def lesson_note(lesson_id):
@@ -132,15 +137,15 @@ def register(app, vault_path):
 	@bp.route("/practice/api/state")
 	def state():
 		with _lock:
-			return jsonify(state_reply(practice_state.load(state_file)))
+			return jsonify(state_reply(practice_state.load(_state_file())))
 
 	@bp.route("/practice/api/answer", methods=["POST"])
 	def answer():
 		body = request.get_json(force=True)
 		with _lock:
-			s = practice_state.load(state_file)
+			s = practice_state.load(_state_file())
 			gained = practice_state.record_answer(s, str(body["item"]), bool(body["correct"]))
-			practice_state.save(s, state_file)
+			practice_state.save(s, _state_file())
 			return jsonify({"xp": gained, **state_reply(s)})
 
 	@bp.route("/practice/api/finish", methods=["POST"])
@@ -148,20 +153,13 @@ def register(app, vault_path):
 		body = request.get_json(force=True)
 		lesson = str(body.get("lesson", "review"))
 		with _lock:
-			s = practice_state.load(state_file)
+			s = practice_state.load(_state_file())
 			bonus = practice_state.finish_session(s, lesson, int(body.get("correct", 0)), int(body.get("total", 0)))
-			practice_state.save(s, state_file)
+			practice_state.save(s, _state_file())
 			note = lesson_note(lesson) if lesson != "review" else None
-			if note:  # finishing the practice = lesson done (same field as the viewer's ⓘ "Completed")
-				try:
-					meta = json.loads(meta_file.read_text(encoding="utf-8"))
-				except (OSError, ValueError):
-					meta = {}
-				entry = meta.get(note) or {"completed": False, "created_date": "", "source": "", "revision_count": 0,
-					"summary": "", "one_para_summary": ""}
-				entry["completed"] = True
-				meta[note] = entry
-				meta_file.write_text(json.dumps(meta, indent=2, ensure_ascii=False), encoding="utf-8")
+			if note:  # finishing the practice = lesson done (same field as the viewer's ⓘ "Completed", per profile)
+				get_meta, set_meta = app.config["FILE_METADATA"]
+				set_meta(note, {**get_meta(note), "completed": True})
 			reply = {"bonus": bonus, **state_reply(s)}
 		# refresh "00 - Today" + course map right away instead of waiting for the timer
 		subprocess.Popen([sys.executable, str(GERMAN_TOOLS / "build_course.py"), "--today"],
@@ -174,9 +172,9 @@ def register(app, vault_path):
 		if g not in (5, 10, 20, 30, 50):
 			abort(400)
 		with _lock:
-			s = practice_state.load(state_file)
+			s = practice_state.load(_state_file())
 			s["goal"] = g
-			practice_state.save(s, state_file)
+			practice_state.save(s, _state_file())
 			return jsonify(state_reply(s))
 
 	@bp.route("/practice/api/revisit", methods=["POST"])
@@ -185,9 +183,9 @@ def register(app, vault_path):
 		if not lesson_note(lesson):
 			abort(404)
 		with _lock:
-			s = practice_state.load(state_file)
+			s = practice_state.load(_state_file())
 			practice_state.revisit(s, lesson)
-			practice_state.save(s, state_file)
+			practice_state.save(s, _state_file())
 		subprocess.Popen([sys.executable, str(GERMAN_TOOLS / "build_course.py"), "--today"],
 			stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
 		return jsonify({"ok": True})
