@@ -1286,6 +1286,29 @@ def get_study_sessions_path():
     os.makedirs(sessions_dir, exist_ok=True)
     return os.path.join(sessions_dir, 'sessions.json')
 
+# Optional extra activity source (set by german_practice.register): callable -> {"days": {date: {cards, correct, wrong,
+# hours: {HH: [ok, bad]}}}, "goal", "unit", "today", "streak", "due"} merged into the study dashboard.
+EXTRA_STUDY_ACTIVITY = None
+# Optional start-page panel (set by german_practice.register): callable -> HTML shown above the study dashboard.
+EXTRA_HOME_HTML = None
+
+def merge_extra_activity(sessions, extra):
+    """Add another tracker's answers into the flashcard session history (copy; the file on disk is untouched)."""
+    merged = {d: dict(v) for d, v in sessions.items()}
+    for date, a in extra['days'].items():
+        s = merged.setdefault(date, {'cardsReviewed': 0, 'correct': 0, 'wrong': 0, 'timeSpentMs': 0})
+        s['cardsReviewed'] = s.get('cardsReviewed', 0) + a['cards']
+        s['correct'] = s.get('correct', 0) + a['correct']
+        s['wrong'] = s.get('wrong', 0) + a['wrong']
+        hourly = {h: dict(v) for h, v in s.get('hourly', {}).items()}
+        for h, (ok, bad) in a.get('hours', {}).items():
+            slot = hourly.setdefault(h, {'cards': 0, 'correct': 0, 'wrong': 0})
+            slot['cards'] += ok + bad
+            slot['correct'] += ok
+            slot['wrong'] += bad
+        s['hourly'] = hourly
+    return merged
+
 def load_study_sessions():
     """Load study session history"""
     path = get_study_sessions_path()
@@ -7558,7 +7581,7 @@ HTTP is a ==stateless== protocol.</pre>
                 heatmapHtml += `<div class="heatmap-day level-${level}" title="${date}: ${count} cards"></div>`;
             }
             
-            const progressPct = Math.min(100, (d.today.reviewed / d.today.goal) * 100);
+            const progressPct = Math.min(100, ((d.today.progress ?? d.today.reviewed) / d.today.goal) * 100);
             
             // Build chart for current view
             const viewData = d[currentDashboardView] || d.daily;
@@ -7623,7 +7646,7 @@ HTTP is a ==stateless== protocol.</pre>
                     </div>
                     <div class="progress-label">
                         <span>${d.today.reviewed} reviewed (${d.today.correct} ✓ / ${d.today.wrong} ✗)</span>
-                        <span>Goal: ${d.today.goal}</span>
+                        <span>${d.today.unit ? `${d.today.progress} / ${d.today.goal} ${d.today.unit}` : `Goal: ${d.today.goal}`}</span>
                     </div>
                 </div>
                 
@@ -10223,6 +10246,11 @@ def index():
     
     # Load all metadata once for completion tracking
     all_metadata = load_all_metadata()
+    try:
+        home_extra = EXTRA_HOME_HTML() if EXTRA_HOME_HTML else ''
+    except Exception as e:
+        print(f"⚠️ Start-page panel failed: {e}")
+        home_extra = ''
     
     # Get folder structure for dashboard
     folders = []
@@ -10803,6 +10831,7 @@ def index():
             </div>
         </div>
         
+        {home_extra}
         <!-- Study Dashboard Section -->
         <div class="study-dashboard" id="studyDashboard">
             <div class="study-loading">Loading study stats...</div>
@@ -10861,7 +10890,7 @@ def index():
                 heatmapHtml += `<div class="study-heatmap-day level-${{level}}" data-date="${{date}}" data-count="${{count}}"></div>`;
             }}
             
-            const progressPct = Math.min(100, (d.today.reviewed / d.today.goal) * 100);
+            const progressPct = Math.min(100, ((d.today.progress ?? d.today.reviewed) / d.today.goal) * 100);
             
             // Build chart for current view
             const viewData = d[currentStudyView] || d.daily;
@@ -10915,7 +10944,7 @@ def index():
                     </div>
                     <div class="study-progress-label">
                         <span>${{d.today.reviewed}} reviewed (${{d.today.correct}} ✓ / ${{d.today.wrong}} ✗)</span>
-                        <span>Goal: ${{d.today.goal}}</span>
+                        <span>${{d.today.unit ? `${{d.today.progress}} / ${{d.today.goal}} ${{d.today.unit}}` : `Goal: ${{d.today.goal}}`}}</span>
                     </div>
                 </div>
                 
@@ -10942,10 +10971,10 @@ def index():
                 <div id="heatmapTooltip" class="heatmap-tooltip"></div>
                 
                 <div class="study-actions">
-                    <button class="study-btn primary" onclick="startVaultReview('due')" ${{d.dueCount === 0 ? 'disabled' : ''}}>
+                    <button class="study-btn primary" onclick="${{d.reviewUrl ? `location.href='${{d.reviewUrl}}'` : "startVaultReview('due')"}}" ${{d.dueCount === 0 ? 'disabled' : ''}}>
                         📚 Review Due Cards (${{d.dueCount}})
                     </button>
-                    <button class="study-btn secondary" onclick="startVaultReview('weak')" ${{d.weakCards === 0 ? 'disabled' : ''}}>
+                    <button class="study-btn secondary" onclick="${{d.reviewUrl ? `location.href='${{d.reviewUrl}}'` : "startVaultReview('weak')"}}" ${{d.weakCards === 0 ? 'disabled' : ''}}>
                         🎯 Review Mistakes (${{d.weakCards}})
                     </button>
                 </div>
@@ -15956,7 +15985,7 @@ def api_set_srs_mode(filepath):
 def log_study_session(filepath, card_type, correct):
     """Log a study event to session history"""
     sessions = load_study_sessions()
-    now = datetime.utcnow()
+    now = datetime.now()  # local time, so evening study lands on the right day
     today = now.strftime('%Y-%m-%d')
     hour = now.strftime('%H')
     
@@ -16008,13 +16037,16 @@ def api_study_dashboard(folder_path=None):
         sessions = load_study_sessions()
         settings = load_study_settings()
         view = request.args.get('view', 'day')  # day, week, month
+        extra = EXTRA_STUDY_ACTIVITY() if EXTRA_STUDY_ACTIVITY else None
+        if extra:
+            sessions = merge_extra_activity(sessions, extra)
         
-        today = datetime.utcnow().strftime('%Y-%m-%d')
+        today = datetime.now().strftime('%Y-%m-%d')
         today_data = sessions.get(today, {'cardsReviewed': 0, 'correct': 0, 'wrong': 0})
         
         # Calculate streak (vault-wide, not folder-specific)
         streak = 0
-        check_date = datetime.utcnow()
+        check_date = datetime.now()
         while True:
             date_str = check_date.strftime('%Y-%m-%d')
             if date_str in sessions and sessions[date_str].get('cardsReviewed', 0) >= settings.get('dailyGoal', 50):
@@ -16050,14 +16082,14 @@ def api_study_dashboard(folder_path=None):
         # Build heatmap (last 30 days)
         heatmap = {}
         for i in range(30):
-            date = (datetime.utcnow() - timedelta(days=i)).strftime('%Y-%m-%d')
+            date = (datetime.now() - timedelta(days=i)).strftime('%Y-%m-%d')
             if date in sessions:
                 heatmap[date] = sessions[date].get('cardsReviewed', 0)
             else:
                 heatmap[date] = 0
         
         # Build time-based views
-        now = datetime.utcnow()
+        now = datetime.now()
         
         # Hourly view - today's activity by hour
         hourly_data = []
@@ -16144,16 +16176,22 @@ def api_study_dashboard(folder_path=None):
                 'timeMs': total_time
             })
         
+        today_info = {
+            'reviewed': today_data.get('cardsReviewed', 0),
+            'correct': today_data.get('correct', 0),
+            'wrong': today_data.get('wrong', 0),
+            'goal': settings.get('dailyGoal', 50)
+        }
+        if extra:  # the extra tracker's own goal (e.g. 10 XP) replaces the flashcard card goal
+            today_info.update(goal=extra['goal'], progress=extra['today'], unit=extra['unit'])
+            streak = max(streak, extra['streak'])
+            due_count += extra['due']
+            weak_cards += extra['mistakes']
         return jsonify({
             'success': True,
             'folderPath': folder_path,
             'dashboard': {
-                'today': {
-                    'reviewed': today_data.get('cardsReviewed', 0),
-                    'correct': today_data.get('correct', 0),
-                    'wrong': today_data.get('wrong', 0),
-                    'goal': settings.get('dailyGoal', 50)
-                },
+                'today': today_info,
                 'streak': streak,
                 'dueCount': due_count,
                 'totalCards': total_cards,
@@ -16161,6 +16199,7 @@ def api_study_dashboard(folder_path=None):
                 'weakCards': weak_cards,
                 'masteryPercent': round((mastered_cards / total_cards * 100) if total_cards > 0 else 0, 1),
                 'heatmap': heatmap,
+                'reviewUrl': extra['reviewUrl'] if extra else None,
                 'hourly': hourly_data,
                 'daily': daily_data,
                 'weekly': weekly_data,
@@ -18210,7 +18249,7 @@ def get_local_ip():
         return '127.0.0.1'
 
 def main():
-    global VAULT_PATH
+    global VAULT_PATH, EXTRA_STUDY_ACTIVITY, EXTRA_HOME_HTML
     
     parser = argparse.ArgumentParser(
         description='View your Obsidian vault from any device on your local network',
@@ -18252,6 +18291,8 @@ Examples:
     try:
         import german_practice
         if german_practice.register(app, VAULT_PATH):
+            EXTRA_STUDY_ACTIVITY = german_practice.study_activity
+            EXTRA_HOME_HTML = german_practice.home_panel
             print("🎯 German practice enabled at /practice/<lesson>")
     except Exception as e:
         print(f"⚠️  German practice not loaded: {e}")
