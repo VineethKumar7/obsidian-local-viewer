@@ -2539,6 +2539,8 @@ HTML_TEMPLATE = '''
         .toolbar button:active { transform: translateY(0); }
         .toolbar button.secondary { background: #555; }
         .toolbar button.secondary:hover { background: #444; }
+        .toolbar button.done-toggle.done { background: #16a34a; }
+        .toolbar button.done-toggle.done:hover { background: #15803d; }
 
         /* ===== Reading progress (page-scroll percentage) ===== */
         .reading-progress-bar {
@@ -5281,6 +5283,9 @@ HTML_TEMPLATE = '''
     </button>
     
     <div class="toolbar">
+        {% if is_markdown %}
+        <button class="secondary done-toggle{% if is_completed %} done{% endif %}" id="doneToggle" onclick="toggleDone()" title="Mark this note as completed">{% if is_completed %}✅{% else %}☐{% endif %} <span class="btn-text">Done</span></button>
+        {% endif %}
         <button class="secondary theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Toggle Dark/Light Theme">🌙</button>
         <button class="secondary" onclick="toggleFullscreen()" title="Toggle Fullscreen">⛶</button>
         <div class="toolbar-menu">
@@ -6744,6 +6749,34 @@ HTML_TEMPLATE = '''
         // METADATA FUNCTIONS
         // ============================================
         const metadataFilePath = {{ file_path|default("")|tojson }};
+
+        // Navbar "Done" toggle: flips only "completed" (POST merges into the existing metadata)
+        async function toggleDone() {
+            const btn = document.getElementById('doneToggle');
+            if (!btn || !metadataFilePath) return;
+            const done = !btn.classList.contains('done');
+            try {
+                const response = await fetch('/api/metadata/' + encodeURIComponent(metadataFilePath), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ completed: done })
+                });
+                const data = await response.json();
+                if (!data.success) throw new Error(data.error || 'save failed');
+            } catch (err) {
+                console.error('Failed to toggle completed:', err);
+                return;
+            }
+            btn.classList.toggle('done', done);
+            btn.firstChild.textContent = done ? '✅ ' : '☐ ';
+            const badge = document.querySelector('.meta-badges .meta-badge.completed, .meta-badges .meta-badge.incomplete');
+            if (badge) {
+                badge.className = 'meta-badge ' + (done ? 'completed' : 'incomplete');
+                badge.textContent = done ? '✅ Completed' : '📝 In Progress';
+            }
+            const box = document.getElementById('metaCompleted');
+            if (box) box.checked = done;
+        }
         
         function openMetadataModal() {
             const modal = document.getElementById('metadataModal');
@@ -12221,6 +12254,7 @@ def view_file(filepath):
             content=title_html + html_content + nav_html + PDF_PLUS_PANE_HTML + AUDIO_PANE_HTML,
             vault_name=get_vault_name(),
             is_markdown=True,
+            is_completed=bool(display_meta['completed']),
             file_path=filepath,
             full_path=os.path.join(VAULT_PATH, filepath)
         )
