@@ -12234,6 +12234,11 @@ def view_file(filepath):
                     if fm_data:
                         frontmatter_meta['completed'] = fm_data.get('completed', False)
                         frontmatter_meta['revision_count'] = fm_data.get('revision_count', 0)
+                        # `viewer_page: /some/page` = this note is the Obsidian copy of a richer viewer page: open that
+                        # instead (every link to the note lands there). ?note=1 still shows the markdown.
+                        page = fm_data.get('viewer_page')
+                        if isinstance(page, str) and page.startswith('/') and not page.startswith('//') and not request.args.get('note'):
+                            return redirect(page)
                 except:
                     pass
                 md_content = parts[2]

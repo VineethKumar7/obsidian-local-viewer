@@ -70,6 +70,16 @@ def _context(d: Path, vid: str, pl: str | None):
             "prev": lite(E[k - 1] if k else None), "next": lite(E[k + 1] if k + 1 < len(E) else None)}
 
 
+def _lesson(d: Path, vid: str):
+    """study/<id>.json plus the course lessons that teach the same thing (study/course-notes.json, from build_course.py)."""
+    L = _j(d / "study" / f"{vid}.json")
+    extra = (_j(d / "study" / "course-notes.json", {}) or {}).get(vid) or []
+    if L is not None and (extra or L.get("notes")):
+        # the video's own vault note opens this very page, so it is left out
+        L["notes"] = [n for n in dict.fromkeys((L.get("notes") or []) + extra) if not n.startswith("Videos/")]
+    return L
+
+
 def _course(d: Path, pl: str, prog: dict) -> list:
     """Every video of the playlist for the side panel: [{"id", "n", "title", "de", "en", "done"}] (de/en from its written lesson)."""
     ch = _j(d / "channel.json", {}) or {}
@@ -120,7 +130,7 @@ def register(app, render, C):
             "description": (info.get("description") or "")[:3000],
             "media": f"/youtube/media/{name}/{vid}" if f else None, "ext": f.suffix[1:] if f else None,
             "thumbnail": f"https://i.ytimg.com/vi/{vid}/hqdefault.jpg",
-            "lesson": _j(d / "study" / f"{vid}.json"),
+            "lesson": _lesson(d, vid),
             "slides": [{**s, "src": f"/youtube/frames/{name}/{vid}/{s['file']}"} for s in fr.get("slides") or []],
             "transcript": {"kind": T.get("kind"), "lang": T.get("lang"), "lines": T.get("lines") or []},
             "playlist": ctx, "done": prog.get(vid)})
@@ -298,7 +308,7 @@ function render(){
     ${L?.summary ? `<div class="box"><h2>📝 What this lesson teaches</h2><div class="sum">${md(L.summary)}</div></div>` : !L ? `<div class="box empty">No written lesson for this video yet — the sound, slides and transcript are below.</div>` : ''}
     ${ch.length ? `<div class="box"><h2>📑 Chapters</h2><div class="chaps">${ch.map((c, i) => `<button class="chap" data-t="${c.start_time}" data-ci="${i}"><span class="ts">${mmss(c.start_time)}</span>${esc(c.title)}</button>`).join('')}</div></div>` : ''}
     ${L?.tips?.length ? `<div class="box"><h2>💡 Remember</h2><ul class="tips">${L.tips.map(t => `<li>${md(t)}</li>`).join('')}</ul></div>` : ''}
-    ${L?.notes?.length ? `<div class="box"><h2>🔗 In your notes</h2><ul>${L.notes.map(n => `<li><a href="/view/${n.split('/').map(encodeURIComponent).join('/')}">${esc(n.replace(/\.md$/, '').split('/').pop())}</a></li>`).join('')}</ul></div>` : ''}
+    ${L?.notes?.length ? `<div class="box"><h2>📚 Same topic in your course lessons</h2><ul>${L.notes.map(n => `<li><a href="/view/${n.split('/').map(encodeURIComponent).join('/')}">${esc(n.replace(/\.md$/, '').split('/').pop())}</a></li>`).join('')}</ul></div>` : ''}
   </section>
 
   ${L?.sections?.length ? `<section id="s-learn"><h2>📚 Learn</h2>${L.sections.map(s => `<div class="box sec"${s.t != null ? ` data-t="${s.t}"` : ''}>
