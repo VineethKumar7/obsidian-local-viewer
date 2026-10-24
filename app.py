@@ -11734,6 +11734,13 @@ def view_folder(filepath, full_path):
 # 📺 YouTube page: download a channel, or only some tabs/playlists, as music / video / video without sound
 # (youtube_page.py — Music Lab's channel engine; each vault has its own downloads on the data drive, never in the vault)
 import youtube_page
+def note_footer(filepath):
+    """📍 Navigation + 🕸️ Connections of a vault note, for pages that stand in for a note (yt_study via NOTE_FOOTER)."""
+    if not filepath or not os.path.isfile(os.path.join(VAULT_PATH, filepath)):
+        return ''
+    return render_page_navigation(get_page_navigation(filepath), os.path.dirname(filepath)) + graph_view.local_html(filepath)
+
+app.config['NOTE_FOOTER'] = note_footer
 youtube_page.register(app, lambda title, content: render_template_string(
     HTML_TEMPLATE, title=title, tree=f'<ul>{get_file_tree(VAULT_PATH, VAULT_PATH)}</ul>', content=content,
     vault_name=get_vault_name(), is_markdown=False), lambda: VAULT_PATH)

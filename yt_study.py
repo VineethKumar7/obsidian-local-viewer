@@ -107,7 +107,11 @@ def register(app, render, C):
     def yt_study_page(name, vid):
         d = chan(name, vid)
         info = _j(d / "info" / f"{vid}.info.json", {}) or {}
-        return render(info.get("title") or vid, PAGE)
+        # the video's vault note (written by build_course.py): its 📍 Navigation + 🕸️ Connections go under the page
+        note = (_j(d / "study" / "vault-notes.json", {}) or {}).get(vid)
+        footer = app.config.get("NOTE_FOOTER")
+        foot = f'<div class="yts-foot">{footer(note)}</div>' if note and footer else ""
+        return render(info.get("title") or vid, PAGE + foot)
 
     @app.get("/youtube/study-api/<name>/<vid>")
     def yt_study_api(name, vid):
@@ -238,6 +242,7 @@ body.dark-theme .yts{--bg:#252526}
 .yts .dock .now{font-size:12.5px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .yts .dock select{background:transparent;color:inherit;border:1px solid var(--l);border-radius:6px;padding:4px}
 .yts .empty{color:var(--m);font-style:italic}
+.yts-foot{max-width:1320px;margin:-80px auto 0;padding:0 16px 120px}
 /* course panel: every video of the playlist, this one highlighted (right column on wide screens, a drawer on narrow ones) */
 .yts.side{max-width:1320px;display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:28px;align-items:start}
 .yts .ytmain{min-width:0}
