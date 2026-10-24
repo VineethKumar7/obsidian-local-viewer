@@ -12,9 +12,12 @@ Routes (registered by app.py via register(app, vault_path)):
   POST /practice/api/revisit      {lesson}                   -> a phrases-only replay counts as a revisit (Today check-ins)
   GET  /practice/api/lesson/<id>                             -> one lesson's items (the inline Practice box on lesson notes)
   GET  /practice/checkin/<id>?next=/path                     -> "✓ Done" on a due check-in: counts as a revisit, back to next
+  GET  /practice/mistakes          practice session over the mistakes list (items not yet right today)
+  GET  /practice/mistakes/cards    the same items as flip flashcards (✗ Again / ✓ Knew it)
 The study dashboard (📊 in the viewer) also counts these answers: app.py calls study_activity().
 Progress lives in <vault>/Practice/state.json (logic shared with the Today page: tools/german/practice_state.py).
 """
+import datetime
 import json
 import re
 import os
@@ -51,7 +54,49 @@ def study_activity():
 	s = practice_state.load(_state_file())
 	st = practice_state.summary(s)
 	return {"days": practice_state.activity(s), "goal": st["goal"], "unit": "XP", "today": st["xp_today"],
-		"streak": st["streak"], "due": st["due"], "mistakes": st["mistakes"], "reviewUrl": "/practice/review"}
+		"streak": st["streak"], "due": st["due"], "mistakes": st["mistakes"], "reviewUrl": "/practice/review",
+		"mistakesUrl": "/practice/mistakes", "mistakesList": _mistakes_list(s, st)}
+
+
+_items = {"mtime": None, "map": {}}
+
+
+def _item_map():
+	"""exercises.json item id -> item (with its lesson id), cached until the file changes."""
+	f = _vault / "Practice" / "exercises.json"
+	m = f.stat().st_mtime
+	if _items["mtime"] != m:
+		_items["map"] = {it["id"]: it for l in json.loads(f.read_text(encoding="utf-8"))["lessons"] for it in l["items"]}
+		_items["mtime"] = m
+	return _items["map"]
+
+
+def _show(it):
+	"""(German, English) of any exercise item, for the mistakes list."""
+	k = it["kind"]
+	if k == "card":
+		return it["a"], it["q"]
+	if k == "mcq":
+		return it["correct"], it["q"]
+	if k == "cloze":
+		return re.sub(r"\{\{(.+?)\}\}", r"\1", it["text"]), it.get("en", "")
+	return it.get("de", ""), it.get("en", "")
+
+
+def _mistakes_list(s, st):
+	items = _item_map()
+	week_ago = practice_state.today(datetime.date.today() - datetime.timedelta(days=6))
+	rows = []
+	for m in practice_state.misses(s):
+		it = items.get(m["item"])
+		if not it:  # item removed from the course
+			continue
+		de, en = _show(it)
+		rows.append({"id": m["item"], "de": de, "en": en, "lesson": m["item"].split(":")[0], "ok": m["ok"], "times": m["times"],
+			"last": _short(m["last"]), "from": m.get("from", "practice"), "doneToday": m["done_today"]})
+	return {"items": rows, "run": practice_state.MISS_RUN, "today": sum(1 for r in rows if not r["doneToday"]),
+		"fixedWeek": sum(1 for f in s["fixed"] if f["date"] >= week_ago),
+		"practiceUrl": "/practice/mistakes", "cardsUrl": "/practice/mistakes/cards"}
 
 
 def _short(iso):
@@ -165,7 +210,8 @@ def register(app, vault_path):
 		return None
 
 	def state_reply(s):
-		return {"summary": practice_state.summary(s), "due": practice_state.due_items(s)}
+		return {"summary": practice_state.summary(s), "due": practice_state.due_items(s),
+			"mistakes": [m["item"] for m in practice_state.misses(s) if not m["done_today"]]}
 
 	@bp.route("/practice/api/data")
 	def data():
@@ -181,7 +227,8 @@ def register(app, vault_path):
 		body = request.get_json(force=True)
 		with _lock:
 			s = practice_state.load(_state_file())
-			gained = practice_state.record_answer(s, str(body["item"]), bool(body["correct"]))
+			source = "flashcard" if body.get("source") == "flashcard" else "practice"
+			gained = practice_state.record_answer(s, str(body["item"]), bool(body["correct"]), source=source)
 			practice_state.save(s, _state_file())
 			return jsonify({"xp": gained, **state_reply(s)})
 
@@ -229,6 +276,12 @@ def register(app, vault_path):
 
 	@bp.route("/practice/api/lesson/<lesson_id>")
 	def lesson_data(lesson_id):
+		if lesson_id == "mistakes":  # the mistakes list still to practise today, as one pseudo-lesson
+			with _lock:
+				s = practice_state.load(_state_file())
+			items = _item_map()
+			return jsonify({"id": "mistakes", "title": "Mistakes to fix",
+				"items": [items[m["item"]] for m in practice_state.misses(s) if not m["done_today"] and m["item"] in items]})
 		les = next((l for l in json.loads(data_file.read_text(encoding="utf-8"))["lessons"] if l["id"] == lesson_id), None)
 		if not les:
 			abort(404)
@@ -256,9 +309,13 @@ def register(app, vault_path):
 			abort(404)
 		return PHRASES_PAGE.replace("__LESSON__", json.dumps(lesson_id)), 200, {"Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store"}
 
+	@bp.route("/practice/mistakes/cards")
+	def mistake_cards():
+		return CARDS_PAGE, 200, {"Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store"}
+
 	@bp.route("/practice/<lesson_id>")
 	def page(lesson_id):
-		if lesson_id != "review" and not lesson_note(lesson_id):
+		if lesson_id not in ("review", "mistakes") and not lesson_note(lesson_id):
 			abort(404)
 		return PAGE.replace("__LESSON__", json.dumps(lesson_id)), 200, {"Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store"}
 
@@ -443,16 +500,19 @@ function buildLessonQueue(les) {
   for (const k of ['tiles','gap','listen','type']) while (q.length < 15 && pools[k].length) q.push(pools[k].shift());
   return q.slice(0, 16);
 }
-function buildReviewQueue(due) {
+function buildReviewQueue(due, max = 15) {
   const q = [];
   due.forEach((id, n) => {
     const it = ITEM[id]; if (!it) return;
-    if (it.kind === 'cloze') q.push(exGap(it, 0));
+    if (it.kind === 'card') { const c = cardAsPhrase(it); if (usable(c.de)) q.push(exTiles(c)); }  // a flashcard → build it from word tiles
+    else if (it.kind === 'cloze') q.push(exGap(it, 0));
     else if (it.kind === 'mcq') q.push(exMcq(it));
     else if (it.kind === 'phrase' || it.kind === 'line') q.push(usable(it.de) ? (n % 3 === 0 ? exType(it) : n % 3 === 1 ? exTiles(it) : exListen(it, ALL)) : exListen(it, ALL));
   });
-  return q.slice(0, 15);
+  return q.slice(0, max);
 }
+// a flashcard as a phrase (EN prompt → German), with the audio of the phrase that has the same German, if any
+const cardAsPhrase = c => { const p = ALL.find(x => x.de === c.a && x.a); return { id: c.id, kind: 'phrase', de: c.a, en: c.q, a: p && p.a, s: p && p.s }; };
 
 // ---------- rendering ----------
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -569,10 +629,10 @@ async function renderEnd() {
   fanfare(); showXP();
   const s = summary || { xp_today: 0, goal: 10, streak: 0, due: 0 };
   const pct = Math.min(100, Math.round(100 * s.xp_today / s.goal));
-  const les = LESSON === 'review' ? null : LESS[LESSON];
+  const les = LESSON === 'review' || LESSON === 'mistakes' ? null : LESS[LESSON];
   const list = DATA.lessons, pos = les ? list.indexOf(les) : -1, next = pos >= 0 ? list[pos + 1] : null;
   const viewUrl = n => '/view/' + n.split('/').map(encodeURIComponent).join('/');
-  $('#main').innerHTML = `<div class="end"><h2>${LESSON === 'review' ? 'Review done!' : 'Lektion geschafft! 🎉'}</h2>
+  $('#main').innerHTML = `<div class="end"><h2>${LESSON === 'review' ? 'Review done!' : LESSON === 'mistakes' ? 'Mistakes practised! 💪' : 'Lektion geschafft! 🎉'}</h2>
     <div class="ring" style="background:conic-gradient(var(--acc) ${pct}%, var(--line) 0)"><span>${s.xp_today}/${s.goal} XP</span></div>
     <div>${s.met_today ? '✅ Daily goal reached' : `${s.goal - s.xp_today} XP to today's goal`}</div>
     <div class="stats"><div class="stat"><b>+${sessionXP}</b>XP this round</div><div class="stat"><b>${correctCount}/${answered}</b>right first time</div><div class="stat"><b>🔥 ${s.streak}</b>day streak${s.freeze_used ? ' 🧊' : ''}</div></div>
@@ -592,7 +652,11 @@ async function setGoal(g) { const r = await fetch('/practice/api/goal', { method
   DATA.lessons.forEach(l => { LESS[l.id] = l; l.items.forEach(it => { ITEM[it.id] = it; ALL.push(it); }); });
   const st = await fetch('/practice/api/state').then(r => r.json());
   summary = st.summary; showXP();
-  if (LESSON === 'review') {
+  if (LESSON === 'mistakes') {
+    queue = buildReviewQueue(st.mistakes, 30);
+    if (!queue.length) { $('#foot').style.display = 'none'; $('#main').innerHTML = `<div class="end"><h2>No mistakes left for today 🎉</h2><p>Each one comes back tomorrow until you get it right ${3} days in a row.</p><div class="links"><a class="go" href="/#studyDashboard">Study dashboard</a><a class="go sec" href="/practice/mistakes/cards">🃏 Flashcards</a></div></div>`; return; }
+    $('#exit').href = '/#studyDashboard';
+  } else if (LESSON === 'review') {
     queue = buildReviewQueue(st.due);
     if (!queue.length) { $('#foot').style.display = 'none'; $('#main').innerHTML = '<div class="end"><h2>Nothing to review right now 🎉</h2><p>Practise a lesson and the words you miss come back here at the right time.</p><div class="links"><a class="go" href="/view/00%20-%20Today.md">Today page</a></div></div>'; return; }
   } else {
@@ -600,7 +664,7 @@ async function setGoal(g) { const r = await fetch('/practice/api/goal', { method
     $('#exit').href = '/view/' + les.note.split('/').map(encodeURIComponent).join('/');
     queue = buildLessonQueue(les);
   }
-  $('#main').innerHTML = `<div class="end"><h2>${LESSON === 'review' ? '🔁 Review' : esc(LESSON + ' · ' + LESS[LESSON].title)}</h2><p>${queue.length} quick exercises · about 5 minutes</p><p class="hint">Sound on 🔊 — you'll hear every sentence.</p></div>`;
+  $('#main').innerHTML = `<div class="end"><h2>${LESSON === 'review' ? '🔁 Review' : LESSON === 'mistakes' ? '😬 Mistakes to fix' : esc(LESSON + ' · ' + LESS[LESSON].title)}</h2><p>${queue.length} quick exercises · about 5 minutes</p><p class="hint">Sound on 🔊 — you'll hear every sentence.</p></div>`;
   const go = $('#go'); go.disabled = false; go.textContent = 'Start'; checked = true; idx = -1;
 })();
 </script></body></html>
@@ -716,7 +780,7 @@ const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&
 const shuffle = a => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 let player = null;
 const play = src => { if (!src) return; if (player) player.pause(); player = new Audio('/raw/' + src.split('/').map(encodeURIComponent).join('/')); player.play().catch(() => {}); };
-const record = (item, correct) => fetch('/practice/api/answer', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({item, correct})}).catch(() => {});
+const record = (item, correct, source) => fetch('/practice/api/answer', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({item, correct, source})}).catch(() => {});
 const line = (de, en, cls = '') => `<div class="${cls}"><span class="de">${esc(de)}</span>${en ? ` — <span class="en">${esc(en)}</span>` : ''}</div>`;
 
 fetch('/practice/api/lesson/' + encodeURIComponent(LESSON)).then(r => r.ok ? r.json() : Promise.reject(r.status)).then(L => {
@@ -730,10 +794,12 @@ fetch('/practice/api/lesson/' + encodeURIComponent(LESSON)).then(r => r.ok ? r.j
   }));
   items.filter(x => x.kind === 'mcq').forEach(m => Q.push({id: m.id, html: esc(m.q), opts: m.mean || [m.correct, ...m.wrong].map(o => ({opt: o, de: o, en: ''})), answer: m.correct}));
   const ph = {}; items.forEach(x => { if (x.de && x.a) ph[x.de] = x.a; });
-  const W = items.filter(x => x.kind === 'card').map(c => ({en: c.q, de: c.a, a: ph[c.a]}));
+  const W = items.filter(x => x.kind === 'card').map(c => ({id: c.id, en: c.q, de: c.a, a: ph[c.a]}));
+  if (LESSON === 'mistakes') items.filter(x => (x.kind === 'phrase' || x.kind === 'line') && x.de).forEach(x => W.push({id: x.id, en: x.en, de: x.de, a: x.a}));
   box.innerHTML = (Q.length ? `<div class="box"><h3>Quiz <span class="m" id="gpwqs"></span></h3><div id="gpwq"></div></div>` : '')
     + (W.length ? `<div class="box"><h3>Flashcards <span class="m" id="gpwfn"></span></h3><div id="gpwfc"></div></div>` : '')
-    + `<p><a class="btn p" href="/practice/${encodeURIComponent(LESSON)}">🎯 Full practice session</a> <span class="m">listening, word tiles, typing — and it ticks the lesson Completed</span></p>`;
+    + (LESSON === 'mistakes' ? (Q.length || W.length ? '' : '<p>No mistakes left for today 🎉</p>') + `<p><a class="btn p" href="/practice/mistakes">🎯 Practice lesson</a> <a class="btn" href="/#studyDashboard">📊 Study dashboard</a></p>`
+      : `<p><a class="btn p" href="/practice/${encodeURIComponent(LESSON)}">🎯 Full practice session</a> <span class="m">listening, word tiles, typing — and it ticks the lesson Completed</span></p>`);
   if (Q.length) quiz(shuffle(Q));
   if (W.length) cards(W);
 }).catch(e => box.innerHTML = `<p class="m">Couldn't load the practice (${esc(e)}).</p>`);
@@ -771,12 +837,33 @@ function cards(W) {
       <button class="btn" id="gpwfd" title="Switch direction">${dir === 'en' ? 'EN → DE' : 'DE → EN'}</button></div>`;
     document.getElementById('gpwfi').onclick = e => { e.currentTarget.classList.toggle('flip'); if (e.currentTarget.classList.contains('flip') && dir === 'en') play(c.a); };
     const h = document.getElementById('gpwfh'); if (h) h.onclick = () => play(c.a);
-    document.getElementById('gpwfx').onclick = () => { again.push(c); k++; show(); };
-    document.getElementById('gpwfo').onclick = () => { k++; show(); };
+    // every ✗ Again puts the card on the mistakes list (study dashboard); ✓ Knew it counts towards taking it off
+    document.getElementById('gpwfx').onclick = () => { record(c.id, false, 'flashcard'); again.push(c); k++; show(); };
+    document.getElementById('gpwfo').onclick = () => { record(c.id, true, 'flashcard'); k++; show(); };
     document.getElementById('gpwfd').onclick = () => { dir = dir === 'en' ? 'de' : 'en'; show(); };
   };
   show();
 }
 })();
 </script>
+"""
+
+
+# /practice/mistakes/cards: the inline Practice box (quiz + flashcards) over the mistakes list, on its own page
+CARDS_PAGE = """<!doctype html>
+<html lang="de"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mistakes · Flashcards</title>
+<style>
+html,body{margin:0;background:#fff;color:#1f2328;font:17px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+@media (prefers-color-scheme:dark){html,body{background:#121212;color:#e0e0e0}}
+.wrap{max-width:720px;margin:0 auto;padding:12px 16px calc(24px + env(safe-area-inset-bottom))}
+.top{display:flex;align-items:center;gap:12px}.top a{font-size:26px;color:#888;text-decoration:none;padding:4px 8px}
+.top h1{font-size:21px;margin:0}
+</style></head><body><div class="wrap">
+<div class="top"><a href="/#studyDashboard" aria-label="Close">✕</a><h1>😬 Mistakes to fix</h1></div>
+<p style="color:#888;font-size:15px">Everything you missed or marked ✗ Again. Each one leaves the list after you get it right on 3 days in a row.</p>
+""" + NOTE_WIDGET.replace("__LESSON__", '"mistakes"').replace('<h2 id="flashcards">🏋️ Practice</h2>', "") + """
+<script>if (matchMedia('(prefers-color-scheme: dark)').matches) document.body.classList.add('dark-theme');</script>
+</div></body></html>
 """

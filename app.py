@@ -11144,11 +11144,44 @@ def index():
                     <button class="study-btn primary" onclick="${{d.reviewUrl ? `location.href='${{d.reviewUrl}}'` : "startVaultReview('due')"}}" ${{d.dueCount === 0 ? 'disabled' : ''}}>
                         📚 Review Due Cards (${{d.dueCount}})
                     </button>
-                    <button class="study-btn secondary" onclick="${{d.reviewUrl ? `location.href='${{d.reviewUrl}}'` : "startVaultReview('weak')"}}" ${{d.weakCards === 0 ? 'disabled' : ''}}>
+                    <button class="study-btn secondary" onclick="${{d.mistakesUrl || d.reviewUrl ? `location.href='${{d.mistakesUrl || d.reviewUrl}}'` : "startVaultReview('weak')"}}" ${{d.weakCards === 0 ? 'disabled' : ''}}>
                         🎯 Review Mistakes (${{d.weakCards}})
                     </button>
                 </div>
+                ${{d.mistakes ? renderMistakesList(d.mistakes) : ''}}
             `;
+        }}
+
+        // "Mistakes to fix" (extra tracker, e.g. German practice): each item stays until it is right N days in a row
+        function renderMistakesList(m) {{
+            const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({{'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}}[c]));
+            const dots = x => Array.from({{length: m.run}}, (_, i) => `<span class="mk-dot ${{i < x.ok ? 'on' : ''}}"></span>`).join('');
+            const rows = m.items.map(x => `
+                <div class="mk-row ${{x.doneToday ? 'done' : ''}}">
+                    <div class="mk-text"><div class="mk-de">${{esc(x.de)}}</div><div class="mk-en">${{esc(x.en)}}</div>
+                        <div class="mk-meta">${{x.from === 'flashcard' ? '🃏 flashcard' : '🎯 practice'}} · ${{esc(x.lesson)}} · missed ${{x.times}}× · last ${{esc(x.last)}}</div></div>
+                    <div class="mk-prog" title="${{x.ok}} of ${{m.run}} right in a row${{x.doneToday ? ' — done for today' : ''}}">${{dots(x)}}${{x.doneToday ? '<small>✓ today</small>' : ''}}</div>
+                </div>`).join('');
+            return `
+                <div class="mk">
+                    <h3>😬 Mistakes to fix <span>${{m.items.length}} on the list · ${{m.today}} to practise today · leaves after ${{m.run}} right days in a row${{m.fixedWeek ? ` · ${{m.fixedWeek}} fixed this week 🎉` : ''}}</span></h3>
+                    ${{m.items.length ? `<div class="mk-acts">
+                        <a class="study-btn primary" href="${{m.practiceUrl}}">🎯 Practice lesson (${{m.today}})</a>
+                        <a class="study-btn secondary" href="${{m.cardsUrl}}">🃏 Flashcards (${{m.today}})</a></div>
+                        <div class="mk-list">${{rows}}</div>` : '<div class="mk-empty">No mistakes on the list ✅ — anything you miss or mark ✗ Again shows up here.</div>'}}
+                </div>`;
+        }}
+        {{
+            const st = document.createElement('style');
+            st.textContent = `.mk{{margin-top:24px}}.mk h3{{margin:0 0 12px;color:#e0e0e0;display:flex;flex-wrap:wrap;gap:8px;align-items:baseline}}.mk h3 span{{font-size:.75em;font-weight:400;color:#9a9a9a}}
+.mk-acts{{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}}.mk-acts a{{text-decoration:none;text-align:center}}
+.mk-list{{max-height:420px;overflow-y:auto;border:1px solid #3c3c3c;border-radius:10px}}
+.mk-row{{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 14px;border-top:1px solid #333}}.mk-row:first-child{{border-top:none}}
+.mk-row.done{{opacity:.55}}.mk-text{{min-width:0}}.mk-de{{font-weight:600}}.mk-en{{color:#9a9a9a;font-size:.92em}}.mk-meta{{color:#777;font-size:.78em;margin-top:2px}}
+.mk-prog{{display:flex;gap:4px;align-items:center;flex-shrink:0}}.mk-prog small{{color:#4ade80;margin-left:4px;font-size:.75em}}
+.mk-dot{{width:10px;height:10px;border-radius:50%;border:2px solid #6b7280}}.mk-dot.on{{background:#22c55e;border-color:#22c55e}}
+.mk-empty{{color:#9a9a9a;padding:6px 0}}`;
+            document.head.appendChild(st);
         }}
         
         function switchStudyView(view) {{
@@ -16376,6 +16409,8 @@ def api_study_dashboard(folder_path=None):
                 'masteryPercent': round((mastered_cards / total_cards * 100) if total_cards > 0 else 0, 1),
                 'heatmap': heatmap,
                 'reviewUrl': extra['reviewUrl'] if extra else None,
+                'mistakes': extra.get('mistakesList') if extra else None,
+                'mistakesUrl': extra.get('mistakesUrl') if extra else None,
                 'hourly': hourly_data,
                 'daily': daily_data,
                 'weekly': weekly_data,
