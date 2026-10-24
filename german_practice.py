@@ -248,6 +248,12 @@ footer{position:sticky;bottom:0;padding-top:10px;background:var(--bg)}
 .fb b{display:block;font-size:20px;margin-bottom:4px}
 .fb .sol{color:var(--ink)}
 .fb .play{border:none;background:none;font-size:22px;vertical-align:middle;padding:0 6px}
+.fb{max-height:46vh;overflow-y:auto}
+.fb .mean{color:var(--ink);font-size:16px;margin-top:8px;line-height:1.35}
+.fb .mean .de{font-weight:600}.fb .mean .en{color:var(--mut)}
+.fb .mean.pick{border-left:3px solid var(--bad);padding-left:8px}
+.fb .mean.right{border-left:3px solid var(--acc);padding-left:8px}
+.fb .mean small{display:block;color:var(--mut);font-size:13px;text-transform:uppercase;letter-spacing:.4px}
 .go{width:100%;font-size:19px;font-weight:700;letter-spacing:.5px;padding:16px;border-radius:16px;border:none;background:var(--acc);color:#fff;box-shadow:0 4px 0 #46a302;text-transform:uppercase}
 .go:disabled{background:var(--line);color:var(--mut);box-shadow:none}
 .go.bad{background:var(--bad);box-shadow:0 4px 0 #b4282d}
@@ -351,6 +357,7 @@ function exListen(it, lessonItems) {
 function exGap(it, gapIndex) {
   const pool = ALL.filter(x => x.kind === 'cloze').flatMap(x => x.answers);
   const ans = it.answers[gapIndex];
+  if (it.gaps && it.gaps[gapIndex]) return { type: 'gap', it, gapIndex, options: shuffle(it.gaps[gapIndex].map(o => o.opt)) };  // fixed options, each with a meaning
   return { type: 'gap', it, gapIndex, options: shuffle([ans, ...distractors(ans, pool)]) };
 }
 const exMcq = it => ({ type: 'mcq', it, options: shuffle([it.correct, ...it.wrong]) });
@@ -366,7 +373,8 @@ function buildLessonQueue(les) {
   const gaps = items.filter(x => x.kind === 'cloze').flatMap(x => x.answers.map((_, i) => exGap(x, i)));
   const mcqs = items.filter(x => x.kind === 'mcq').map(exMcq);
   const pairSrc = shuffle([...items.filter(x => x.kind === 'phrase' && x.de.length <= 28 && x.en.length <= 32), ...items.filter(x => x.kind === 'card' && x.a.length <= 28 && x.q.length <= 32).map(c => ({ id: c.id, de: c.a, en: c.q }))]);
-  const match = pairSrc.length >= 4 ? [exMatch(pairSrc.slice(0, 4))] : [];
+  const pairs = [...new Map(pairSrc.map(x => [x.de, x])).values()].filter((x, i, xs) => xs.findIndex(y => y.en === x.en) === i);  // a phrase is also a card
+  const match = pairs.length >= 4 ? [exMatch(pairs.slice(0, 4))] : [];
   // easy → hard, mixed: listen, tiles, gap, type, mcq, tiles, match, listen, type, tiles, gap, mcq, type, tiles, listen, gap
   const order = ['listen','tiles','gap','type','mcq','tiles','match','listen','type','tiles','gap','mcq','type','tiles','listen','gap'];
   const pools = { listen, tiles, gap: gaps, type: typed, mcq: mcqs, match };
@@ -449,17 +457,44 @@ $('#go').onclick = () => {
   else if (e.type === 'mcq') { ok = e.options[sel] === e.it.correct; sol = e.it.correct; }
   else if (e.type === 'gap') { ok = e.options[sel] === e.it.answers[e.gapIndex]; sol = e.it.text.replace(/\{\{(.+?)\}\}/g, '$1'); }
   else if (e.type === 'match') { ok = matchErr === 0; sol = matchErr ? 'You got there — the mixed-up pairs come back in your reviews.' : ''; }
+  const means = meanings(e, ok);
   checked = true;
   if (!e.retry) { answered++; if (ok) correctCount++; }
   if (e.type !== 'match') recordItem(e.it.id, ok, e.retry);
   else if (!e.retry) e.items.forEach(x => recordItem(x.id, true, true));
   if (!ok && !e.retry && e.type !== 'match') queue.push({ ...e, retry: true });
   const fb = $('#fb'), go = $('#go');
-  if (ok) { ding(); fb.className = 'fb ok'; fb.innerHTML = `<b>${['Richtig!','Super!','Genau!','Toll!','Prima!'][Math.floor(Math.random()*5)]}</b>${note ? `<div class="sol">${esc(note)} ${esc(sol)}</div>` : ''}`; go.className = 'go'; }
-  else { buzz(); fb.className = 'fb bad'; fb.innerHTML = `<b>Not quite</b><div class="sol">Correct: ${esc(sol)} ${audio ? `<button class="play" onclick="play('${audio}')">🔊</button>` : ''}</div>${e.retry ? '' : '<div class="hint">It comes back at the end.</div>'}`; go.className = 'go bad'; }
+  if (ok) { ding(); fb.className = 'fb ok'; fb.innerHTML = `<b>${['Richtig!','Super!','Genau!','Toll!','Prima!'][Math.floor(Math.random()*5)]}</b>${note ? `<div class="sol">${esc(note)} ${esc(sol)}</div>` : ''}${means}`; go.className = 'go'; }
+  else { buzz(); fb.className = 'fb bad'; fb.innerHTML = `<b>Not quite</b>${means || `<div class="sol">Correct: ${esc(sol)}</div>`}${audio ? `<button class="play" onclick="play('${audio}')">🔊</button>` : ''}${e.retry ? '' : '<div class="hint">It comes back at the end.</div>'}`; go.className = 'go bad'; }
   if (audio && e.type !== 'listen') play(audio);
   go.textContent = 'Continue'; go.disabled = false;
 };
+// ---------- meanings: what the right answer, and the one picked, actually say ----------
+function meanLine(label, de, en, cls) {
+  if (!de && !en) return '';
+  return `<div class="mean ${cls}"><small>${label}</small>${de ? `<span class="de">${esc(de)}</span>` : ''}${de && en ? ' — ' : ''}${en ? `<span class="en">${esc(en)}</span>` : ''}</div>`;
+}
+function meanings(e, ok) {
+  const right = (de, en) => meanLine(ok ? 'Meaning' : 'Correct', de, en, 'right');
+  if (e.type === 'tiles') return right(e.it.de, e.it.en) + (ok ? '' : meanLine('You wrote', built.map(i => e.bank[i]).join(' '), '', 'pick'));
+  if (e.type === 'type') return right(e.it.de, e.it.en) + (ok ? '' : meanLine('You typed', $('#inp').value.trim(), '', 'pick'));
+  if (e.type === 'listen') {
+    if (ok) return right(e.it.de, e.it.en);
+    const other = ALL.find(x => x.en === e.options[sel] && x.de);
+    return right(e.it.de, e.it.en) + meanLine('You picked', other ? other.de : '', e.options[sel], 'pick');
+  }
+  if (e.type === 'mcq' && e.it.mean) {
+    const c = e.it.mean[0], p = e.it.mean.find(o => o.opt === e.options[sel]);
+    return right(c.de, c.en) + (ok || !p ? '' : meanLine('You picked', p.de, p.en, 'pick'));
+  }
+  if (e.type === 'gap' && e.it.gaps) {
+    const g = e.it.gaps[e.gapIndex], c = g[0], p = g.find(o => o.opt === e.options[sel]);
+    return right(c.de, e.it.en || c.en) + (ok || !p ? '' : meanLine('You picked', p.de, p.en, 'pick'));
+  }
+  if (e.type === 'match') return [...new Map(e.items.map(x => [x.de, x])).values()].map(x => meanLine('', x.de, x.en, 'right')).join('');
+  return '';
+}
+
 function recordItem(id, correct, silent) {
   if (silent && correct === true && current && current.type !== 'match') return; // retries don't count twice
   fetch('/practice/api/answer', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ item: id, correct }) })
