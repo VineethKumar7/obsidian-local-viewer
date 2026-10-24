@@ -70,6 +70,18 @@ def _context(d: Path, vid: str, pl: str | None):
             "prev": lite(E[k - 1] if k else None), "next": lite(E[k + 1] if k + 1 < len(E) else None)}
 
 
+def _course(d: Path, pl: str, prog: dict) -> list:
+    """Every video of the playlist for the side panel: [{"id", "n", "title", "de", "en", "done"}] (de/en from its written lesson)."""
+    ch = _j(d / "channel.json", {}) or {}
+    E = next((p["entries"] for p in ch.get("playlists") or [] if p["id"] == pl), [])
+    out = []
+    for k, e in enumerate(E):
+        L = _j(d / "study" / f"{e['id']}.json", {}) or {}
+        out.append({"id": e["id"], "n": L.get("n", k + 1), "title": e.get("title") or e["id"], "de": L.get("de"),
+                    "en": L.get("en"), "done": e["id"] in prog})
+    return out
+
+
 def register(app, render, C):
     """C() → the download engine (channels module) set up for this vault."""
 
@@ -101,6 +113,7 @@ def register(app, render, C):
             ids = [e["id"] for p in (_j(d / "channel.json", {}) or {}).get("playlists") or [] if p["id"] == ctx["id"]
                    for e in p["entries"]]
             ctx["done"] = sum(v in prog for v in ids)
+            ctx["all"] = _course(d, ctx["id"], prog)
         return jsonify({
             "id": vid, "channel": name, "title": info.get("title") or vid, "duration": info.get("duration"),
             "upload_date": info.get("upload_date"), "chapters": info.get("chapters") or [],
@@ -215,6 +228,29 @@ body.dark-theme .yts{--bg:#252526}
 .yts .dock .now{font-size:12.5px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .yts .dock select{background:transparent;color:inherit;border:1px solid var(--l);border-radius:6px;padding:4px}
 .yts .empty{color:var(--m);font-style:italic}
+/* course panel: every video of the playlist, this one highlighted (right column on wide screens, a drawer on narrow ones) */
+.yts.side{max-width:1320px;display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:28px;align-items:start}
+.yts .ytmain{min-width:0}
+.yts .yside{position:sticky;top:8px;max-height:calc(100vh - 100px);display:flex;flex-direction:column;border:1px solid var(--l);border-radius:12px;background:var(--bg);overflow:hidden}
+.yts .yside h3{margin:0;padding:12px 14px 4px;font-size:15px}.yts .yside .m{padding:0 14px 8px;display:block}
+.yts .yside .bar{margin:0 14px 10px;max-width:none}
+.yts .ylist{overflow-y:auto;padding:0 6px 8px;flex:1}
+.yts .yv{display:flex;gap:10px;align-items:flex-start;padding:7px 8px;border-radius:8px;color:inherit !important;text-decoration:none;font-size:13.5px;line-height:1.3}
+.yts .yv:hover{background:rgba(128,128,128,.12)}
+.yts .yv.cur{background:var(--a2);outline:1px solid var(--a)}
+.yts .yv .num{flex:none;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:12.5px;border:1.5px solid var(--l)}
+.yts .yv.cur .num{background:var(--a);border-color:var(--a);color:#fff}.yts .yv.done .num{border-color:var(--g);color:var(--g)}
+.yts .yv.cur.done .num{color:#fff}
+.yts .yv .tt{min-width:0}.yts .yv .tde{font-weight:600}.yts .yv .ten{color:var(--m);font-size:12px}
+.yts .yv .ok{margin-left:auto;color:var(--g);flex:none}
+.yts .yopen,.yts .yclose{display:none}
+@media (max-width:1000px){
+  .yts.side{display:block;max-width:980px}
+  .yts .yside{position:fixed;top:0;right:0;bottom:0;width:min(340px,88vw);max-height:none;z-index:10000;border-radius:0;transform:translateX(105%);transition:transform .25s;box-shadow:-8px 0 30px rgba(0,0,0,.35)}
+  .yts .yside.open{transform:none}
+  .yts .yopen{display:inline-flex;margin-left:auto;padding:5px 10px;font-size:13px}
+  .yts .yclose{display:block;position:absolute;top:8px;right:8px;border:none;background:none;color:inherit;font-size:22px;cursor:pointer}
+}
 @media (max-width:700px){.yts .hero{grid-template-columns:1fr}.yts h1{font-size:24px}.yts .dock .now{display:none}.yts .pn{grid-template-columns:1fr}}
 </style>
 <div class="yts" id="yts"><p class="m">Loading…</p></div>
@@ -240,8 +276,11 @@ function render(){
   const secs = [['ov', 'Overview'], ...(L?.sections?.length ? [['learn', 'Learn']] : []), ...(D.slides.length ? [['slides', 'Slides']] : []),
     ...(L && (L.quiz?.length || W.length || L.speak?.length) ? [['practice', 'Practice']] : []), ['transcript', 'Transcript']];
   const ytAt = t => `https://www.youtube.com/watch?v=${vid}&t=${Math.floor(t || 0)}s`;
-  root.innerHTML = `
-  <div class="crumbs"><a href="/youtube?c=${encodeURIComponent(name)}">‹ ${esc(name)}</a>${P ? `<span class="m">· ${esc(P.title)}</span>` : ''}</div>
+  const A = P?.all || [];
+  root.classList.toggle('side', A.length > 1);
+  root.innerHTML = `<div class="ytmain">
+  <div class="crumbs"><a href="/youtube?c=${encodeURIComponent(name)}">‹ ${esc(name)}</a>${P ? `<span class="m">· ${esc(P.title)}</span>` : ''}
+    ${A.length > 1 ? `<button class="btn yopen" id="yopen">📚 ${P.index} / ${P.count} · all videos</button>` : ''}</div>
   <div class="hero"><img src="${esc(D.thumbnail)}" alt="" referrerpolicy="no-referrer">
     <div>${L?.n != null ? `<span class="badge">${esc(L.level || '')} · LESSON ${esc(L.n)}</span>` : P ? `<span class="badge">${P.index} / ${P.count}</span>` : ''}
       <h1>${L?.de ? `<span class="de">${esc(L.de)}</span>` : esc(D.title)}</h1>${L?.en ? `<div class="en">${esc(L.en)}</div>` : ''}
@@ -292,8 +331,21 @@ function render(){
     <input type="range" id="seek" min="0" max="${D.duration || 0}" step="1" value="0"><span class="ts">${mmss(D.duration)}</span>
     <span class="now m" id="nowch"></span>
     <select id="rate" title="Speed">${[0.6, 0.75, 0.9, 1, 1.25].map(r => `<option ${r === 1 ? 'selected' : ''} value="${r}">${r}×</option>`).join('')}</select>
-    <audio id="au" preload="metadata" src="${esc(D.media)}"></audio></div>` : ''}`;
+    <audio id="au" preload="metadata" src="${esc(D.media)}"></audio></div>` : ''}</div>
+  ${A.length > 1 ? `<aside class="yside" id="yside"><button class="yclose" id="yclose" aria-label="Close">✕</button>
+    <h3>📚 ${esc(P.title)}</h3><span class="m">Video ${P.index} of ${P.count} · ${P.done} done</span>
+    <div class="bar"><i style="width:${Math.round(P.done / P.count * 100)}%"></i></div>
+    <div class="ylist">${A.map(e => `<a class="yv${e.id === vid ? ' cur' : ''}${e.done ? ' done' : ''}" href="${link(e)}"${e.id === vid ? ' aria-current="page"' : ''}>
+      <span class="num">${esc(e.n)}</span><span class="tt">${e.de ? `<div class="tde">${esc(e.de)}</div><div class="ten">${esc(e.en || e.title)}</div>` : `<div>${esc(e.title)}</div>`}</span>${e.done ? '<span class="ok">✓</span>' : ''}</a>`).join('')}</div></aside>` : ''}`;
   wire();
+  const side = document.getElementById('yside');
+  if (side) {
+    const cur = side.querySelector('.yv.cur'), list = side.querySelector('.ylist');
+    if (cur) list.scrollTop = cur.offsetTop - list.clientHeight / 2 + cur.offsetHeight / 2;   // this video in the middle of the list
+    document.getElementById('yopen').onclick = () => side.classList.add('open');
+    document.getElementById('yclose').onclick = () => side.classList.remove('open');
+    document.addEventListener('click', e => { if (side.classList.contains('open') && !side.contains(e.target) && e.target.id !== 'yopen') side.classList.remove('open'); });   // tap outside closes the drawer
+  }
   if (L?.quiz?.length) quiz(L.quiz);
   if (W.length) cards(W);
 }
@@ -326,14 +378,14 @@ function wire(){
   if (go) go.onclick = () => audio && !audio.paused && !playingBtn ? audio.pause() : play(audio.currentTime || 0);
   document.getElementById('done').onclick = async () => {
     const r = await fetch(`/youtube/study-api/${name}/${vid}/done`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({done: !D.done})}).then(r => r.json());
-    D.done = r.done; if (D.playlist) D.playlist.done += r.done ? 1 : -1; const y = scrollY; render(); scrollTo(0, y);
+    D.done = r.done; if (D.playlist) { D.playlist.done += r.done ? 1 : -1; const me = (D.playlist.all || []).find(e => e.id === vid); if (me) me.done = !!r.done; } const y = scrollY; render(); scrollTo(0, y);
   };
   const nav = document.getElementById('nav'), tabs = [...nav.querySelectorAll('a')];
   const spy = () => { let on = tabs[0]; for (const a of tabs) { const s = document.getElementById('s-' + a.dataset.k); if (s && s.getBoundingClientRect().top < 120) on = a; } tabs.forEach(a => a.classList.toggle('on', a === on)); };
   document.addEventListener('scroll', spy, {passive: true, capture: true}); spy();   // the viewer scrolls an inner pane, not the window
   if (!audio) return;
   const dock = root.querySelector('.dock');   // fixed to the screen, but as wide as the page column (the sidebar can open/close)
-  const fit = () => { const r = root.getBoundingClientRect(); dock.style.left = r.left + 16 + 'px'; dock.style.width = r.width - 32 - (innerWidth < 700 ? 52 : 0) + 'px'; };   // phone: clear the viewer's round buttons
+  const fit = () => { const r = root.querySelector('.ytmain').getBoundingClientRect(); dock.style.left = r.left + 'px'; dock.style.width = r.width - (innerWidth < 700 ? 52 : 0) + 'px'; };   // phone: clear the viewer's round buttons
   fit(); addEventListener('resize', fit); new ResizeObserver(fit).observe(root);
   const rate = document.getElementById('rate'); rate.onchange = () => audio.playbackRate = +rate.value;
   pp.onclick = () => audio.paused ? audio.play() : audio.pause();
