@@ -10,6 +10,7 @@ Routes (registered by app.py via register(app, vault_path)):
   POST /practice/api/goal         {goal}                     -> change the daily XP goal
   GET  /practice/phrases/<id>     "🔊 Phrases only": every phrase + story line of a lesson, played one after another
   POST /practice/api/revisit      {lesson}                   -> a phrases-only replay counts as a revisit (Today check-ins)
+  GET  /practice/checkin/<id>?next=/path                     -> "✓ Done" on a due check-in: counts as a revisit, back to next
 The study dashboard (📊 in the viewer) also counts these answers: app.py calls study_activity().
 Progress lives in <vault>/Practice/state.json (logic shared with the Today page: tools/german/practice_state.py).
 """
@@ -22,7 +23,7 @@ from html import escape
 from pathlib import Path
 from urllib.parse import quote
 
-from flask import Blueprint, abort, jsonify, request, send_file
+from flask import Blueprint, abort, jsonify, redirect, request, send_file
 
 GERMAN_TOOLS = Path.home() / "clawd" / "tools" / "german"
 sys.path.insert(0, str(GERMAN_TOOLS))
@@ -76,6 +77,7 @@ def home_panel():
 		top.append(f'<a class="gp-big" href="{view(nxt["note"])}">🎯 Today <b>{name(nxt)}</b><small>{escape(nxt["goal"])}</small></a>')
 	top.append('<a class="gp-big" href="/view/00%20-%20Phrasebook.md">📒 Phrasebook<small>every phrase so far, with audio</small></a>')
 
+	done_btn = lambda x, l: f'<a class="gp-done" href="/practice/checkin/{l["id"]}?next=/" title="Mark today\'s check-in as done">✓ Done</a>' if x["due"] else ''
 	rows = []
 	for x in sorted(seen, key=lambda x: not x["due"])[:8]:
 		l = by_id[x["lesson"]]
@@ -84,7 +86,7 @@ def home_panel():
 			info.append(f"{x['score'][0]}/{x['score'][1]}")
 		badge = '<span class="gp-badge">check-in today</span>' if x["due"] else f'<span class="gp-next">back on {_short(x["checkin"])}</span>'
 		rows.append(f'<div class="gp-row"><div class="gp-name"><b>{name(l)}</b> {badge}<small>{" · ".join(info)}</small></div>'
-			f'<div class="gp-acts"><a href="{view(l["note"])}">📖 Reread</a><a href="/practice/{l["id"]}">🎯 Practise again</a>'
+			f'<div class="gp-acts">{done_btn(x, l)}<a href="{view(l["note"])}">📖 Reread</a><a href="/practice/{l["id"]}">🎯 Practise again</a>'
 			f'<a href="/practice/phrases/{l["id"]}">🔊 Phrases only</a></div></div>')
 	if not rows:
 		rows.append('<div class="gp-empty">Lessons you finish show up here, so you can come back to them.</div>')
@@ -101,6 +103,7 @@ def home_panel():
 .gp-acts{{display:flex;flex-wrap:wrap;gap:8px}}
 .gp .gp-acts a{{padding:8px 12px;border-radius:10px;background:#252526;border:1px solid #3c3c3c;color:#e0e0e0 !important;text-decoration:none;font-size:.9em;white-space:nowrap}}
 .gp-acts a:hover{{border-color:#7c3aed}}
+.gp .gp-acts a.gp-done{{background:#16a34a;border-color:#16a34a;color:#fff !important;font-weight:600}}
 .gp-badge{{align-self:flex-start;padding:1px 8px;border-radius:99px;background:#22c55e30;color:#4ade80;font-size:.75em;font-weight:600}}
 .gp-next{{align-self:flex-start;color:#8a8a8a;font-size:.8em}}.gp-empty{{color:#9a9a9a}}
 </style>
@@ -189,6 +192,22 @@ def register(app, vault_path):
 		subprocess.Popen([sys.executable, str(GERMAN_TOOLS / "build_course.py"), "--today"],
 			stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
 		return jsonify({"ok": True})
+
+	@bp.route("/practice/checkin/<lesson_id>")
+	def checkin(lesson_id):
+		if not lesson_note(lesson_id):
+			abort(404)
+		with _lock:
+			s = practice_state.load(_state_file())
+			practice_state.revisit(s, lesson_id)
+			practice_state.save(s, _state_file())
+		try:  # synchronous (~1 s) so the Today page we go back to already shows the next check-in date
+			subprocess.run([sys.executable, str(GERMAN_TOOLS / "build_course.py"), "--today"],
+				stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=30)
+		except subprocess.TimeoutExpired:
+			pass
+		nxt = request.args.get("next", "/")
+		return redirect(nxt if nxt.startswith("/") and not nxt.startswith("//") else "/")
 
 	@bp.route("/practice/phrases/<lesson_id>")
 	def phrases(lesson_id):
