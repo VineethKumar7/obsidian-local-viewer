@@ -16,6 +16,7 @@ import markdown
 import tempfile
 import subprocess
 from urllib.parse import quote
+import graph_view  # Obsidian-style graph view (local + whole vault)
 
 try:
     import fitz  # PyMuPDF — used by /pdf-crop and PDF++ thumbnail embeds
@@ -11004,6 +11005,7 @@ def index():
         <div class="study-dashboard" id="studyDashboard">
             <div class="study-loading">Loading study stats...</div>
         </div>
+        {graph_view.vault_html()}
         
         <div class="folder-grid">
             {''.join(folder_cards)}
@@ -12256,7 +12258,7 @@ def view_file(filepath):
             HTML_TEMPLATE,
             title=filename,
             tree=tree,
-            content=title_html + html_content + nav_html + PDF_PLUS_PANE_HTML + AUDIO_PANE_HTML,
+            content=title_html + html_content + nav_html + graph_view.local_html(filepath) + PDF_PLUS_PANE_HTML + AUDIO_PANE_HTML,
             vault_name=get_vault_name(),
             is_markdown=True,
             is_completed=bool(display_meta['completed']),
@@ -18469,6 +18471,8 @@ Examples:
     app.config['FILE_METADATA'] = (get_file_metadata, set_file_metadata)
     if PROFILES:
         print("👥 Profiles: " + ", ".join(p['name'] for p in PROFILES))
+
+    graph_view.register(app, VAULT_PATH)  # Obsidian-style graph: /api/graph, local graph under notes, vault graph on the start page
 
     # German course: Duolingo-style practice (german_practice.py; only if <vault>/Practice/exercises.json exists)
     try:
