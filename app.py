@@ -1422,6 +1422,8 @@ def get_study_sessions_path():
 EXTRA_STUDY_ACTIVITY = None
 # Optional start-page panel (set by german_practice.register): callable -> HTML shown above the study dashboard.
 EXTRA_HOME_HTML = None
+# Optional note rewriter (set by german_practice.register): callable(vault path, html) -> html for a rendered markdown note.
+EXTRA_NOTE_HTML = None
 
 def merge_extra_activity(sessions, extra):
     """Add another tracker's answers into the flashcard session history (copy; the file on disk is untouched)."""
@@ -12238,6 +12240,9 @@ def view_file(filepath):
         current_dir = os.path.dirname(filepath)
         html_content = convert_obsidian_links(html_content, current_dir)
         
+        if EXTRA_NOTE_HTML:
+            html_content = EXTRA_NOTE_HTML(filepath, html_content)
+
         # Add title with metadata badges (uses merged metadata: JSON > frontmatter)
         completed_badge = '<span class="meta-badge completed" title="Completed">✅ Completed</span>' if display_meta['completed'] else '<span class="meta-badge incomplete" title="Not completed">📝 In Progress</span>'
         revision_badge = f'<span class="meta-badge revision" title="Revision count">🔄 Rev {display_meta["revision_count"]}</span>' if display_meta['revision_count'] > 0 else ''
@@ -18418,7 +18423,7 @@ def get_local_ip():
         return '127.0.0.1'
 
 def main():
-    global VAULT_PATH, EXTRA_STUDY_ACTIVITY, EXTRA_HOME_HTML
+    global VAULT_PATH, EXTRA_STUDY_ACTIVITY, EXTRA_HOME_HTML, EXTRA_NOTE_HTML
     
     parser = argparse.ArgumentParser(
         description='View your Obsidian vault from any device on your local network',
@@ -18471,6 +18476,7 @@ Examples:
         if german_practice.register(app, VAULT_PATH):
             EXTRA_STUDY_ACTIVITY = german_practice.study_activity
             EXTRA_HOME_HTML = german_practice.home_panel
+            EXTRA_NOTE_HTML = german_practice.note_html
             print("🎯 German practice enabled at /practice/<lesson>")
     except Exception as e:
         print(f"⚠️  German practice not loaded: {e}")

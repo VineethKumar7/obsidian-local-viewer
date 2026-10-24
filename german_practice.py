@@ -10,11 +10,13 @@ Routes (registered by app.py via register(app, vault_path)):
   POST /practice/api/goal         {goal}                     -> change the daily XP goal
   GET  /practice/phrases/<id>     "🔊 Phrases only": every phrase + story line of a lesson, played one after another
   POST /practice/api/revisit      {lesson}                   -> a phrases-only replay counts as a revisit (Today check-ins)
+  GET  /practice/api/lesson/<id>                             -> one lesson's items (the inline Practice box on lesson notes)
   GET  /practice/checkin/<id>?next=/path                     -> "✓ Done" on a due check-in: counts as a revisit, back to next
 The study dashboard (📊 in the viewer) also counts these answers: app.py calls study_activity().
 Progress lives in <vault>/Practice/state.json (logic shared with the Today page: tools/german/practice_state.py).
 """
 import json
+import re
 import os
 import subprocess
 import sys
@@ -55,6 +57,30 @@ def study_activity():
 def _short(iso):
 	y, m, d = iso.split("-")
 	return f"{int(d)} {['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][int(m) - 1]}"
+
+
+_by_note = {"mtime": None, "map": {}}
+
+
+def _lesson_for_note(path):
+	"""Lesson id of a vault note path (exercises.json "note"), cached until the file changes."""
+	f = _vault / "Practice" / "exercises.json"
+	m = f.stat().st_mtime
+	if _by_note["mtime"] != m:
+		_by_note["map"] = {l["note"]: l["id"] for l in json.loads(f.read_text(encoding="utf-8"))["lessons"]}
+		_by_note["mtime"] = m
+	return _by_note["map"].get(path)
+
+
+def note_html(path, html):
+	"""app.py EXTRA_NOTE_HTML: on a lesson note, the plain Q:/A: "Flashcards" list becomes an interactive quiz + flashcards box."""
+	lid = _vault and _lesson_for_note(path)
+	if not lid:
+		return html
+	m = re.search(r'<h2[^>]*>\s*Flashcards\s*</h2>', html)
+	if not m:
+		return html
+	return html[:m.start()] + NOTE_WIDGET.replace("__LESSON__", json.dumps(lid))
 
 
 def home_panel():
@@ -200,6 +226,13 @@ def register(app, vault_path):
 		subprocess.Popen([sys.executable, str(GERMAN_TOOLS / "build_course.py"), "--today"],
 			stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True)
 		return jsonify({"ok": True})
+
+	@bp.route("/practice/api/lesson/<lesson_id>")
+	def lesson_data(lesson_id):
+		les = next((l for l in json.loads(data_file.read_text(encoding="utf-8"))["lessons"] if l["id"] == lesson_id), None)
+		if not les:
+			abort(404)
+		return jsonify(les)
 
 	@bp.route("/practice/checkin/<lesson_id>")
 	def checkin(lesson_id):
@@ -648,4 +681,102 @@ fetch('/practice/api/data').then(r => r.json()).then(d => {
   document.querySelectorAll('.row button').forEach(b => b.onclick = () => { running = false; $('#playall').textContent = '▶ Play all'; play(+b.closest('.row').dataset.i, false); });
 });
 </script></body></html>
+"""
+
+
+# Inline "🏋️ Practice" box that replaces the Q:/A: list at the end of a lesson note (same look as the YouTube study page).
+NOTE_WIDGET = r"""<h2 id="flashcards">🏋️ Practice</h2>
+<div class="gpw" id="gpw"><p class="m">Loading…</p></div>
+<style>
+.gpw{--l:#d0d7de;--m:#6b7280;--a:#7c3aed;--g:#16a34a;--r:#dc2626;--o:#b45309;--card:#fff}
+body.dark-theme .gpw{--l:#3c3c3c;--m:#9a9a9a;--a:#a78bfa;--g:#3fb37f;--r:#e05555;--o:#f0a050;--card:#1e1e1e}
+.gpw .box{border:1px solid var(--l);border-radius:12px;padding:16px;background:var(--card);margin-bottom:14px}
+.gpw h3{font-size:17px;margin:0 0 10px;display:flex;gap:8px;align-items:baseline;flex-wrap:wrap}
+.gpw .m{color:var(--m);font-size:13.5px;font-weight:400}
+.gpw .btn{padding:8px 14px;border-radius:8px;border:1px solid var(--l);background:rgba(128,128,128,.13);color:inherit;cursor:pointer;font:inherit;font-size:15px;text-decoration:none;display:inline-flex;gap:6px;align-items:center}
+.gpw .btn.p{background:var(--a);border-color:var(--a);color:#fff;font-weight:600}
+.gpw .q{margin-bottom:16px}.gpw .q .opts{display:grid;gap:6px;margin-top:6px}
+.gpw .opt{text-align:left;padding:10px 12px;border-radius:8px;border:1px solid var(--l);background:none;color:inherit;font:inherit;font-size:15.5px;cursor:pointer}
+.gpw .opt.right{border-color:var(--g);background:rgba(63,179,127,.15)}.gpw .opt.wrong{border-color:var(--r);background:rgba(224,85,85,.13)}
+.gpw .gap{display:inline-block;min-width:3em;border-bottom:2px solid var(--a);text-align:center;color:var(--a);font-weight:600}
+.gpw .why{font-size:14px;margin-top:8px;line-height:1.4}
+.gpw .why div{padding-left:8px;margin-top:4px;border-left:3px solid var(--g)}.gpw .why div.pick{border-color:var(--r)}
+.gpw .why .de{font-weight:600}.gpw .why .en{color:var(--m)}
+.gpw .fc{max-width:460px;margin:0 auto}.gpw .fci{cursor:pointer;user-select:none}
+.gpw .fcf{min-height:170px;border:1px solid var(--l);border-radius:14px;display:flex;flex-direction:column;gap:6px;align-items:center;justify-content:center;padding:18px;text-align:center;background:rgba(128,128,128,.09)}
+.gpw .fcf.b,.gpw .fci.flip .fcf.f{display:none}.gpw .fci.flip .fcf.b{display:flex;animation:gpwturn .28s ease-out}
+@keyframes gpwturn{from{transform:perspective(900px) rotateY(-90deg);opacity:.3}to{transform:none;opacity:1}}
+.gpw .big{font-size:22px;font-weight:650;line-height:1.3}.gpw .big.de{color:var(--o)}
+.gpw .fcbar{display:flex;gap:8px;justify-content:center;margin-top:12px;flex-wrap:wrap}
+</style>
+<script>
+(() => {
+const LESSON = __LESSON__, box = document.getElementById('gpw');
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;'}[c]));
+const shuffle = a => { a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+let player = null;
+const play = src => { if (!src) return; if (player) player.pause(); player = new Audio('/raw/' + src.split('/').map(encodeURIComponent).join('/')); player.play().catch(() => {}); };
+const record = (item, correct) => fetch('/practice/api/answer', {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({item, correct})}).catch(() => {});
+const line = (de, en, cls = '') => `<div class="${cls}"><span class="de">${esc(de)}</span>${en ? ` — <span class="en">${esc(en)}</span>` : ''}</div>`;
+
+fetch('/practice/api/lesson/' + encodeURIComponent(LESSON)).then(r => r.ok ? r.json() : Promise.reject(r.status)).then(L => {
+  const items = L.items;
+  // quiz: every multiple-choice question + every gap, each with the meaning of the right option and of the one picked
+  const Q = [];
+  items.filter(x => x.kind === 'cloze').forEach(c => c.answers.forEach((a, k) => {
+    const g = c.gaps && c.gaps[k], n = {i: 0};
+    const text = esc(c.text).replace(/\{\{(.+?)\}\}/g, (_, w) => n.i++ === k ? '<span class="gap">?</span>' : `<b>${w}</b>`);
+    Q.push({id: c.id, html: 'Fill the gap: ' + text, opts: g ? g : [{opt: a, de: c.text.replace(/\{\{(.+?)\}\}/g, '$1'), en: c.en || ''}], answer: a, en: c.en});
+  }));
+  items.filter(x => x.kind === 'mcq').forEach(m => Q.push({id: m.id, html: esc(m.q), opts: m.mean || [m.correct, ...m.wrong].map(o => ({opt: o, de: o, en: ''})), answer: m.correct}));
+  const ph = {}; items.forEach(x => { if (x.de && x.a) ph[x.de] = x.a; });
+  const W = items.filter(x => x.kind === 'card').map(c => ({en: c.q, de: c.a, a: ph[c.a]}));
+  box.innerHTML = (Q.length ? `<div class="box"><h3>Quiz <span class="m" id="gpwqs"></span></h3><div id="gpwq"></div></div>` : '')
+    + (W.length ? `<div class="box"><h3>Flashcards <span class="m" id="gpwfn"></span></h3><div id="gpwfc"></div></div>` : '')
+    + `<p><a class="btn p" href="/practice/${encodeURIComponent(LESSON)}">🎯 Full practice session</a> <span class="m">listening, word tiles, typing — and it ticks the lesson Completed</span></p>`;
+  if (Q.length) quiz(shuffle(Q));
+  if (W.length) cards(W);
+}).catch(e => box.innerHTML = `<p class="m">Couldn't load the practice (${esc(e)}).</p>`);
+
+function quiz(Q) {
+  const qb = document.getElementById('gpwq'); let right = 0, answered = 0;
+  qb.innerHTML = Q.map((q, k) => `<div class="q" data-k="${k}"><div><b>${k + 1}.</b> ${q.html}</div><div class="opts">${shuffle(q.opts).map(o => `<button class="opt" data-o="${esc(o.opt)}">${esc(o.opt)}</button>`).join('')}</div><div class="why" hidden></div></div>`).join('')
+    + `<button class="btn" id="gpwqa">↻ Try again</button>`;
+  qb.querySelectorAll('.q').forEach(qd => qd.querySelectorAll('.opt').forEach(b => b.onclick = () => {
+    if (qd.dataset.done) return; qd.dataset.done = 1; answered++;
+    const q = Q[+qd.dataset.k], ok = b.dataset.o === q.answer, c = q.opts.find(o => o.opt === q.answer), p = q.opts.find(o => o.opt === b.dataset.o);
+    if (ok) right++; else b.classList.add('wrong');
+    [...qd.querySelectorAll('.opt')].find(x => x.dataset.o === q.answer).classList.add('right');
+    const w = qd.querySelector('.why');
+    w.innerHTML = line(c.de, q.en || c.en) + (ok || !p ? '' : line(p.de, p.en, 'pick')); w.hidden = false;
+    record(q.id, ok);
+    document.getElementById('gpwqs').textContent = `${right} / ${answered} right${answered === Q.length && right === Q.length ? ' — perfect! 🎉' : ''}`;
+  }));
+  document.getElementById('gpwqa').onclick = () => { document.getElementById('gpwqs').textContent = ''; quiz(shuffle(Q)); };
+}
+
+function cards(W) {
+  const fb = document.getElementById('gpwfc'); let deck = shuffle(W), k = 0, again = [], dir = 'en';
+  const show = () => {
+    if (k >= deck.length) {
+      if (again.length) { deck = shuffle(again); again = []; k = 0; }
+      else { fb.innerHTML = `<p style="text-align:center">All ${W.length} done ✓ <button class="btn" id="gpwfr">↻ Again</button></p>`; document.getElementById('gpwfr').onclick = () => { deck = shuffle(W); k = 0; show(); }; document.getElementById('gpwfn').textContent = ''; return; }
+    }
+    const c = deck[k];
+    const front = dir === 'en' ? `<div class="big">${esc(c.en)}</div><div class="m">say it in German · tap to turn</div>` : `<div class="big de">${esc(c.de)}</div><div class="m">what does it mean? · tap to turn</div>`;
+    const back = `<div class="big de">${esc(c.de)}</div><div>${esc(c.en)}</div>`;
+    document.getElementById('gpwfn').textContent = `${k + 1} / ${deck.length}${again.length ? ` · ${again.length} to repeat` : ''}`;
+    fb.innerHTML = `<div class="fc"><div class="fci" id="gpwfi"><div class="fcf f">${front}</div><div class="fcf b">${back}</div></div></div>
+      <div class="fcbar">${c.a ? `<button class="btn" id="gpwfh">🔊 Hear it</button>` : ''}<button class="btn" id="gpwfx">✗ Again</button><button class="btn p" id="gpwfo">✓ Knew it</button>
+      <button class="btn" id="gpwfd" title="Switch direction">${dir === 'en' ? 'EN → DE' : 'DE → EN'}</button></div>`;
+    document.getElementById('gpwfi').onclick = e => { e.currentTarget.classList.toggle('flip'); if (e.currentTarget.classList.contains('flip') && dir === 'en') play(c.a); };
+    const h = document.getElementById('gpwfh'); if (h) h.onclick = () => play(c.a);
+    document.getElementById('gpwfx').onclick = () => { again.push(c); k++; show(); };
+    document.getElementById('gpwfo').onclick = () => { k++; show(); };
+    document.getElementById('gpwfd').onclick = () => { dir = dir === 'en' ? 'de' : 'en'; show(); };
+  };
+  show();
+}
+})();
+</script>
 """
