@@ -78,21 +78,28 @@ def home_panel():
 	top.append('<a class="gp-big" href="/view/00%20-%20Phrasebook.md">📒 Phrasebook<small>every phrase so far, with audio</small></a>')
 
 	done_btn = lambda x, l: f'<a class="gp-done" href="/practice/checkin/{l["id"]}?next=/" title="Mark today\'s check-in as done">✓ Done</a>' if x["due"] else ''
-	rows = []
-	for x in sorted(seen, key=lambda x: not x["due"])[:8]:
+	def row(x):
 		l = by_id[x["lesson"]]
 		info = [f"last {_short(x['last'])}" if x["last"] else "ticked, not practised yet"]
 		if x["score"]:
 			info.append(f"{x['score'][0]}/{x['score'][1]}")
 		badge = '<span class="gp-badge">check-in today</span>' if x["due"] else f'<span class="gp-next">back on {_short(x["checkin"])}</span>'
-		rows.append(f'<div class="gp-row"><div class="gp-name"><b>{name(l)}</b> {badge}<small>{" · ".join(info)}</small></div>'
+		return (f'<div class="gp-row"><div class="gp-name"><b>{name(l)}</b> {badge}<small>{" · ".join(info)}</small></div>'
 			f'<div class="gp-acts">{done_btn(x, l)}<a href="{view(l["note"])}">📖 Reread</a><a href="/practice/{l["id"]}">🎯 Practise again</a>'
 			f'<a href="/practice/phrases/{l["id"]}">🔊 Phrases only</a></div></div>')
-	if not rows:
+	# only today's check-ins up front; a lesson ticked ✓ Done drops into the collapsed list until its next date
+	due = [x for x in seen if x["due"]]
+	rows = [row(x) for x in due]
+	if not seen:
 		rows.append('<div class="gp-empty">Lessons you finish show up here, so you can come back to them.</div>')
+	else:
+		if not due:
+			nxt = min(seen, key=lambda x: x["checkin"])
+			rows.append(f'<div class="gp-empty">Nothing to revisit today ✅ · next check-in: <b>{name(by_id[nxt["lesson"]])}</b> on {_short(nxt["checkin"])}</div>')
+		rows.append(f'<details class="gp-all"><summary>📚 Your lessons so far ({len(seen)})</summary>{"".join(row(x) for x in seen)}</details>')
 	return f"""<style>
 .gp{{background:#1e1e1e;border:1px solid #3c3c3c;border-radius:16px;padding:24px;margin-bottom:30px}}
-.gp h2{{margin:0 0 16px;font-size:1.4em}}.gp h3{{margin:22px 0 10px;font-size:1.05em;color:#cfcfcf}}
+.gp h2{{margin:0 0 16px;font-size:1.4em;color:#e0e0e0}}.gp h3{{margin:22px 0 10px;font-size:1.05em;color:#cfcfcf}}
 .gp-top{{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}}
 .gp a.gp-big{{display:flex;flex-direction:column;gap:4px;padding:14px 16px;border-radius:12px;background:#252526;border:1px solid #3c3c3c;color:#e0e0e0 !important;text-decoration:none}}
 .gp-big b{{font-size:1.05em}}.gp-big small,.gp-name small{{color:#9a9a9a;font-size:.85em}}
@@ -105,7 +112,8 @@ def home_panel():
 .gp-acts a:hover{{border-color:#7c3aed}}
 .gp .gp-acts a.gp-done{{background:#16a34a;border-color:#16a34a;color:#fff !important;font-weight:600}}
 .gp-badge{{align-self:flex-start;padding:1px 8px;border-radius:99px;background:#22c55e30;color:#4ade80;font-size:.75em;font-weight:600}}
-.gp-next{{align-self:flex-start;color:#8a8a8a;font-size:.8em}}.gp-empty{{color:#9a9a9a}}
+.gp-next{{align-self:flex-start;color:#8a8a8a;font-size:.8em}}.gp-empty{{color:#9a9a9a;padding:6px 0 10px}}
+.gp-all summary{{cursor:pointer;color:#9a9a9a;padding:8px 0}}
 </style>
 <div class="gp">
  <h2>🇩🇪 Pick up where you left off</h2>
