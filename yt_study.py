@@ -238,6 +238,10 @@ body.dark-theme .yts{--bg:#252526}
 .yts .dock{position:fixed;bottom:12px;z-index:50;border:1px solid var(--l);border-radius:14px;
   padding:8px 12px;display:flex;gap:10px;align-items:center;background:var(--bg);box-shadow:0 6px 24px rgba(0,0,0,.25)}
 .yts .dock .pp{width:40px;height:40px;border-radius:50%;border:none;background:var(--a);color:#fff;font-size:16px;cursor:pointer;flex:none}
+.yts .dock .skip{height:36px;padding:0 9px;border:1px solid var(--l);border-radius:18px;background:transparent;color:inherit;font-size:13px;white-space:nowrap;cursor:pointer;flex:none;touch-action:manipulation}
+.yts .dock .skip:hover{border-color:var(--a);background:var(--a2)}
+.yts .dock.two{flex-wrap:wrap;row-gap:6px}.yts .dock.two::before{content:"";flex-basis:100%;order:1}
+.yts .dock.two .ts,.yts .dock.two input[type=range]{order:2}.yts .dock.two select{margin-left:auto}.yts .dock.two .now{display:none}
 .yts .dock input[type=range]{flex:1;min-width:60px;accent-color:var(--a)}
 .yts .dock .now{font-size:12.5px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .yts .dock select{background:transparent;color:inherit;border:1px solid var(--l);border-radius:6px;padding:4px}
@@ -266,7 +270,7 @@ body.dark-theme .yts{--bg:#252526}
   .yts .yopen{display:inline-flex;margin-left:auto;padding:5px 10px;font-size:13px}
   .yts .yclose{display:block;position:absolute;top:8px;right:8px;border:none;background:none;color:inherit;font-size:22px;cursor:pointer}
 }
-@media (max-width:700px){.yts .hero{grid-template-columns:1fr}.yts h1{font-size:24px}.yts .dock .now{display:none}.yts .pn{grid-template-columns:1fr}}
+@media (max-width:700px){.yts .hero{grid-template-columns:1fr}.yts h1{font-size:24px}.yts .dock .now{display:none}.yts .dock{bottom:66px}.yts .pn{grid-template-columns:1fr}}
 </style>
 <div class="yts" id="yts"><p class="m">Loading…</p></div>
 <script>
@@ -342,7 +346,7 @@ function render(){
   ${P ? `<div class="pn">${P.prev ? `<a href="${link(P.prev)}"><small>‹ Previous</small>${esc(P.prev.title)}</a>` : '<span></span>'}
     ${P.next ? `<a class="nx" href="${link(P.next)}"><small>Next ›</small>${esc(P.next.title)}</a>` : ''}</div>` : ''}
 
-  ${D.media ? `<div class="dock"><button class="pp" id="pp" aria-label="Play">▶</button><span class="ts" id="cur">0:00</span>
+  ${D.media ? `<div class="dock"><button class="skip" id="back5" aria-label="Back 5 seconds">↺ 5s</button><button class="pp" id="pp" aria-label="Play">▶</button><button class="skip" id="fwd5" aria-label="Forward 5 seconds">5s ↻</button><span class="ts" id="cur">0:00</span>
     <input type="range" id="seek" min="0" max="${D.duration || 0}" step="1" value="0"><span class="ts">${mmss(D.duration)}</span>
     <span class="now m" id="nowch"></span>
     <select id="rate" title="Speed">${[0.6, 0.75, 0.9, 1, 1.25].map(r => `<option ${r === 1 ? 'selected' : ''} value="${r}">${r}×</option>`).join('')}</select>
@@ -400,13 +404,16 @@ function wire(){
   document.addEventListener('scroll', spy, {passive: true, capture: true}); spy();   // the viewer scrolls an inner pane, not the window
   if (!audio) return;
   const dock = root.querySelector('.dock');   // fixed to the screen, but as wide as the page column (the sidebar can open/close)
-  const fit = () => { const r = root.querySelector('.ytmain').getBoundingClientRect(); dock.style.left = r.left + 'px'; dock.style.width = r.width - (innerWidth < 700 ? 52 : 0) + 'px'; };   // phone: clear the viewer's round buttons
+  const fit = () => { const r = root.querySelector('.ytmain').getBoundingClientRect(); dock.style.left = r.left + 'px'; dock.style.width = r.width - (innerWidth < 700 ? 52 : 0) + 'px'; dock.classList.toggle('two', dock.offsetWidth < 480); };   // phone: clear the viewer's round buttons
   fit(); addEventListener('resize', fit); new ResizeObserver(fit).observe(root);
   const rate = document.getElementById('rate'); rate.onchange = () => audio.playbackRate = +rate.value;
   pp.onclick = () => audio.paused ? audio.play() : audio.pause();
   audio.onplay = () => { pp.textContent = '❚❚'; if (go && !playingBtn) go.textContent = '❚❚ Pause'; };
   audio.onpause = () => { pp.textContent = '▶'; if (go) go.textContent = '▶ Listen'; const b = playingBtn; playingBtn = null; setBtn(b, false); };
   seek.oninput = () => { stopAt = null; audio.currentTime = +seek.value; };
+  const skip = s => { stopAt = null; audio.currentTime = Math.max(0, Math.min(audio.duration || D.duration || 0, audio.currentTime + s)); };
+  document.getElementById('back5').onclick = () => skip(-5);
+  document.getElementById('fwd5').onclick = () => skip(5);
   const lines = [...root.querySelectorAll('.ln')], chs = [...root.querySelectorAll('.chap')], sls = [...root.querySelectorAll('.sl')], trl = document.getElementById('trl');
   const ytl = document.getElementById('yt');
   let lastLine = -1;
