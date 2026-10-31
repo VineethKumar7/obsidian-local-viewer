@@ -112,7 +112,7 @@ def _lesson_for_note(path):
 	f = _vault / "Practice" / "exercises.json"
 	m = f.stat().st_mtime
 	if _by_note["mtime"] != m:
-		_by_note["map"] = {l["note"]: l["id"] for l in json.loads(f.read_text(encoding="utf-8"))["lessons"]}
+		_by_note["map"] = {l["note"]: l["id"] for l in json.loads(f.read_text(encoding="utf-8"))["lessons"] if l.get("note")}
 		_by_note["mtime"] = m
 	return _by_note["map"].get(path)
 
@@ -140,7 +140,7 @@ def home_panel():
 	st = practice_state.summary(s)
 	seen = [x for x in practice_state.lessons_seen(s, done, dated=practice_state.videos_done(videos, _profile())) if x["lesson"] in by_id]
 	view = lambda note: "/view/" + quote(note)
-	name = lambda l: escape(Path(l["note"]).stem)
+	name = lambda l: escape(l.get("name") or Path(l["note"]).stem)
 	nxt = next((l for l in lessons if l["id"] not in done), None)
 
 	top = []
@@ -157,7 +157,7 @@ def home_panel():
 		if x["score"]:
 			info.append(f"{x['score'][0]}/{x['score'][1]}")
 		badge = '<span class="gp-badge">check-in today</span>' if x["due"] else f'<span class="gp-next">back on {_short(x["checkin"])}</span>'
-		acts = (f'<a href="{view(l["note"])}">📺 Open video</a><a href="/practice/{l["id"]}">🎯 Practise again</a>' if l.get("video") else
+		acts = (f'<a href="{escape(l["url"])}">📺 Open video</a><a href="/practice/{l["id"]}">🎯 Practise again</a>' if l.get("video") else
 			f'<a href="{view(l["note"])}">📖 Reread</a><a href="/practice/{l["id"]}">🎯 Practise again</a><a href="/practice/phrases/{l["id"]}">🔊 Phrases only</a>')
 		return (f'<div class="gp-row"><div class="gp-name"><b>{name(l)}</b> {badge}<small>{" · ".join(info)}</small></div>'
 			f'<div class="gp-acts">{done_btn(x, l)}{acts}</div></div>')
@@ -212,7 +212,7 @@ def register(app, vault_path):
 	def lesson_note(lesson_id):
 		for les in json.loads(data_file.read_text(encoding="utf-8"))["lessons"]:
 			if les["id"] == lesson_id:
-				return les["note"]
+				return les.get("note") or les.get("url")
 		return None
 
 	def state_reply(s):
@@ -292,6 +292,14 @@ def register(app, vault_path):
 		if not les:
 			abort(404)
 		return jsonify(les)
+
+	@bp.route("/practice/api/video/<channel>/<vid>")
+	def video_lesson(channel, vid):
+		"""The practice ids of a video page's quiz and flashcards, whatever playlist it came from (404 = no written lesson yet)."""
+		les = next((l for l in json.loads(data_file.read_text(encoding="utf-8"))["lessons"] if l.get("channel") == channel and l.get("vid") == vid), None)
+		if not les:
+			abort(404)
+		return jsonify({"lesson": les["id"], "ids": {it["key"]: it["id"] for it in les["items"]}})
 
 	@bp.route("/practice/checkin/<lesson_id>")
 	def checkin(lesson_id):
@@ -654,15 +662,15 @@ async function renderEnd() {
   const pct = Math.min(100, Math.round(100 * s.xp_today / s.goal));
   const les = LESSON === 'review' || LESSON === 'mistakes' ? null : LESS[LESSON];
   const list = DATA.lessons, pos = les ? list.indexOf(les) : -1, after = pos >= 0 ? list[pos + 1] : null, next = after && !after.video === !les.video ? after : null;
-  const viewUrl = n => '/view/' + n.split('/').map(encodeURIComponent).join('/');
+  const viewUrl = l => l.url || '/view/' + l.note.split('/').map(encodeURIComponent).join('/');
   $('#main').innerHTML = `<div class="end"><h2>${LESSON === 'review' ? 'Review done!' : LESSON === 'mistakes' ? 'Mistakes practised! 💪' : 'Lektion geschafft! 🎉'}</h2>
     <div class="ring" style="background:conic-gradient(var(--acc) ${pct}%, var(--line) 0)"><span>${s.xp_today}/${s.goal} XP</span></div>
     <div>${s.met_today ? '✅ Daily goal reached' : `${s.goal - s.xp_today} XP to today's goal`}</div>
     <div class="stats"><div class="stat"><b>+${sessionXP}</b>XP this round</div><div class="stat"><b>${correctCount}/${answered}</b>right first time</div><div class="stat"><b>🔥 ${s.streak}</b>day streak${s.freeze_used ? ' 🧊' : ''}</div></div>
     <div class="links">
-      ${next ? `<a class="go" href="${viewUrl(next.note)}">Next lesson: ${esc(next.id)} · ${esc(next.title)}</a>` : ''}
+      ${next ? `<a class="go" href="${viewUrl(next)}">Next lesson: ${esc(next.id)} · ${esc(next.title)}</a>` : ''}
       ${s.due ? `<a class="go sec" href="/practice/review">🔁 Practise mistakes & reviews (${s.due})</a>` : ''}
-      ${les ? `<a class="go sec" href="${viewUrl(les.note)}">Back to the lesson</a>` : ''}
+      ${les ? `<a class="go sec" href="${viewUrl(les)}">Back to the lesson</a>` : ''}
       <a class="go sec" href="/view/00%20-%20Today.md">Today page</a>
     </div>
     <div class="goalsel">Daily goal: ${[5,10,20,30,50].map(g => `<button class="${g === s.goal ? 'on' : ''}" onclick="setGoal(${g})">${g} XP</button>`).join('')}</div></div>`;
@@ -684,7 +692,7 @@ async function setGoal(g) { const r = await fetch('/practice/api/goal', { method
     if (!queue.length) { $('#foot').style.display = 'none'; $('#main').innerHTML = '<div class="end"><h2>Nothing to review right now 🎉</h2><p>Practise a lesson and the words you miss come back here at the right time.</p><div class="links"><a class="go" href="/view/00%20-%20Today.md">Today page</a></div></div>'; return; }
   } else {
     const les = LESS[LESSON];
-    $('#exit').href = '/view/' + les.note.split('/').map(encodeURIComponent).join('/');
+    $('#exit').href = les.url || '/view/' + les.note.split('/').map(encodeURIComponent).join('/');
     queue = buildLessonQueue(les);
   }
   $('#main').innerHTML = `<div class="end"><h2>${LESSON === 'review' ? '🔁 Review' : LESSON === 'mistakes' ? '😬 Mistakes to fix' : esc(LESSON + ' · ' + LESS[LESSON].title)}</h2><p>${queue.length} quick exercises · about 5 minutes</p><p class="hint">Sound on 🔊 — you'll hear every sentence.</p></div>`;

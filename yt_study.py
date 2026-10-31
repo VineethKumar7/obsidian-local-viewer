@@ -18,7 +18,7 @@ Lesson schema (study/<id>.json; t = seconds into the video, every field optional
    "notes": ["vault/relative/path.md"]}
 Words for the flashcards = every section item.
 Quiz + flashcard answers go to the German practice progress when that module runs in this viewer and knows the lesson
-(/practice/api/lesson/<level>-<NN>, tools/german/yt/videos.py exercise_lessons); anywhere else the page just doesn't record them.
+(/practice/api/video/<channel>/<id>, any playlist: tools/german/yt/videos.py exercise_lessons); anywhere else the page just doesn't record them.
 """
 import datetime
 import json
@@ -369,7 +369,7 @@ function render(){
     document.getElementById('yclose').onclick = () => side.classList.remove('open');
     document.addEventListener('click', e => { if (side.classList.contains('open') && !side.contains(e.target) && e.target.id !== 'yopen') side.classList.remove('open'); });   // tap outside closes the drawer
   }
-  startTracking(L);
+  startTracking();
   if (L?.quiz?.length) quiz(L.quiz);
   if (W.length) cards(W);
 }
@@ -483,10 +483,9 @@ function slide(i){   // big slide + the words taught while it is on screen; ‹ 
 // answers count like a book lesson's: Mistakes to fix, reviews, XP and the dashboard graphs (id = /practice item, key = question or German word)
 let TRACK = null, trackStarted = false;
 const practicePost = (path, body) => fetch('/practice/api/' + path, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)}).catch(() => {});
-function startTracking(L){
-  if (trackStarted || !L?.level || !L?.n) return; trackStarted = true;
-  const lesson = `${L.level}-${String(L.n).padStart(2, '0')}`;
-  fetch('/practice/api/lesson/' + lesson).then(r => r.ok ? r.json() : null).then(x => { if (x?.video) TRACK = {lesson, ids: Object.fromEntries(x.items.map(i => [i.key, i.id]))}; }).catch(() => {});
+function startTracking(){
+  if (trackStarted) return; trackStarted = true;
+  fetch(`/practice/api/video/${name}/${vid}`).then(r => r.ok ? r.json() : null).then(x => { if (x) TRACK = x; }).catch(() => {});
 }
 function track(key, correct, source){ const item = TRACK?.ids[key]; if (item) practicePost('answer', {item, correct, source}); }
 
