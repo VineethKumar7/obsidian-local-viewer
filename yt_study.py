@@ -289,6 +289,7 @@ let D, audio, stopAt = null, playingBtn = null;
 function md(s){   // **bold**, *italic*, `code` — the lesson text is written by hand, nothing else
   return esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/\*(.+?)\*/g, '<i>$1</i>').replace(/`(.+?)`/g, '<code>$1</code>');
 }
+const meaning = en => en.replace(/^\S{1,2} — /, '');   // alphabet items: "S — sun" read as the word's sound; only the meaning goes on this line
 function words(L){ return (L?.sections || []).flatMap(s => (s.items || []).filter(i => i.de && i.en)); }
 
 function render(){
@@ -328,7 +329,7 @@ function render(){
       <h3>${esc(s.title)}${s.t != null ? `<button class="tsb" data-t="${s.t}">▶ ${mmss(s.t)}</button>` : ''}</h3>
       ${s.text ? `<p class="text">${md(s.text)}</p>` : ''}
       ${s.items?.length ? `<div class="words">${s.items.map(i => `<div class="w">${i.t != null ? `<button class="play" data-t="${i.t}" data-e="${i.end ?? ''}" title="Hear it (${mmss(i.t)})">▶</button>` : ''}
-        <div><div class="de">${esc(i.de)}</div>${i.ml ? `<div class="ml" lang="ml"><small>DE</small> ${esc(i.ml)}</div>` : ''}${i.en ? `<div class="tr">${md(i.en)}</div>` : ''}${i.men ? `<div class="ml" lang="ml"><small>EN</small> ${esc(i.men)}</div>` : ''}${i.note ? `<div class="nt">${md(i.note)}</div>` : ''}</div></div>`).join('')}</div>` : ''}
+        <div><div class="de">${esc(i.de)}</div>${i.ml ? `<div class="ml" lang="ml"><small>DE</small> ${esc(i.ml)}</div>` : ''}${i.en ? `<div class="tr"><small class="m">Meaning:</small> ${md(meaning(i.en))}</div>` : ''}${i.men ? `<div class="ml" lang="ml"><small>EN</small> ${esc(i.men)}</div>` : ''}${i.note ? `<div class="nt">${md(i.note)}</div>` : ''}</div></div>`).join('')}</div>` : ''}
       ${s.table ? `<div class="tblw"><table>${s.table.head ? `<tr>${s.table.head.map(h => `<th>${md(h)}</th>`).join('')}</tr>` : ''}${s.table.rows.map(r => `<tr>${r.map(c => `<td>${md(c)}</td>`).join('')}</tr>`).join('')}</table></div>` : ''}
     </div>`).join('')}</section>` : ''}
 
@@ -512,7 +513,7 @@ function cards(W){
   const show = () => {
     if (k >= deck.length) { if (again.length) { deck = shuffle(again); again = []; k = 0; } else { if (TRACK) practicePost('revisit', {lesson: TRACK.lesson}); box.innerHTML = `<p style="text-align:center">All ${W.length} done ✓ <button class="btn" id="fcre">↻ Again</button></p>`; document.getElementById('fcre').onclick = () => { deck = shuffle(W); k = 0; show(); }; document.getElementById('fcn').textContent = ''; return; } }
     const c = deck[k], front = dir === 'en' ? `<div class="big">${md(c.en)}</div><div class="m">say it in German · tap to turn</div>` : `<div class="big de">${esc(c.de)}</div><div class="m">what does it mean? · tap to turn</div>`;
-    const back = `<div class="big de">${esc(c.de)}</div>${c.ml ? `<div lang="ml"><small class="m">DE</small> ${esc(c.ml)}</div>` : ''}<div>${md(c.en)}</div>${c.men ? `<div lang="ml"><small class="m">EN</small> ${esc(c.men)}</div>` : ''}${c.note ? `<div class="m">${md(c.note)}</div>` : ''}`;
+    const back = `<div class="big de">${esc(c.de)}</div>${c.ml ? `<div lang="ml"><small class="m">DE</small> ${esc(c.ml)}</div>` : ''}<div><small class="m">Meaning:</small> ${md(meaning(c.en))}</div>${c.men ? `<div lang="ml"><small class="m">EN</small> ${esc(c.men)}</div>` : ''}${c.note ? `<div class="m">${md(c.note)}</div>` : ''}`;
     document.getElementById('fcn').textContent = `${k + 1} / ${deck.length}${again.length ? ` · ${again.length} to repeat` : ''}`;
     box.innerHTML = `<div class="fc"><div class="fci" id="fci"><div class="fcf f">${front}</div><div class="fcf b">${back}</div></div></div>
       <div class="fcbar"><button class="btn" id="fcs" aria-pressed="${soundOn()}">${soundOn() ? '🔊 Sound on' : '🔇 Sound off'}</button><button class="btn" id="fcx">✗ Again</button><button class="btn p" id="fco">✓ Knew it</button>

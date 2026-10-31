@@ -869,7 +869,7 @@ function cards(W) {
     }
     const c = deck[k];
     const front = dir === 'en' ? `<div class="big">${esc(c.en)}</div><div class="m">say it in German · tap to turn</div>` : `<div class="big de">${esc(c.de)}</div><div class="m">what does it mean? · tap to turn</div>`;
-    const back = `<div class="big de">${esc(c.de)}</div>${c.ml ? `<div lang="ml"><small class="m">DE</small> ${esc(c.ml)}</div>` : ''}<div>${esc(c.en)}</div>${c.men ? `<div lang="ml"><small class="m">EN</small> ${esc(c.men)}</div>` : ''}`;
+    const back = `<div class="big de">${esc(c.de)}</div>${c.ml ? `<div lang="ml"><small class="m">DE</small> ${esc(c.ml)}</div>` : ''}<div><small class="m">Meaning:</small> ${esc(c.en.replace(/^\S{1,2} — /, ''))}</div>${c.men ? `<div lang="ml"><small class="m">EN</small> ${esc(c.men)}</div>` : ''}`;
     document.getElementById('gpwfn').textContent = `${k + 1} / ${deck.length}${again.length ? ` · ${again.length} to repeat` : ''}`;
     fb.innerHTML = `<div class="fc"><div class="fci" id="gpwfi"><div class="fcf f">${front}</div><div class="fcf b">${back}</div></div></div>
       <div class="fcbar"><button class="btn" id="gpwfs" aria-pressed="${soundOn()}">${soundOn() ? '🔊 Sound on' : '🔇 Sound off'}</button><button class="btn" id="gpwfx">✗ Again</button><button class="btn p" id="gpwfo">✓ Knew it</button>
