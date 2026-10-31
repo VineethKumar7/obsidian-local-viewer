@@ -590,12 +590,12 @@ $('#go').onclick = () => {
   go.textContent = 'Continue'; go.disabled = false;
 };
 // ---------- meanings: what the right answer, and the one picked, actually say ----------
-function meanLine(label, de, en, cls) {
+function meanLine(label, de, en, cls, ml, men) {
   if (!de && !en) return '';
-  return `<div class="mean ${cls}"><small>${label}</small>${de ? `<span class="de">${esc(de)}</span>` : ''}${de && en ? ' — ' : ''}${en ? `<span class="en">${esc(en)}</span>` : ''}</div>`;
+  return `<div class="mean ${cls}"><small>${label}</small>${de ? `<span class="de">${esc(de)}</span>` : ''}${ml ? ` <span class="en" lang="ml">DE ${esc(ml)}</span>` : ''}${de && en ? ' — ' : ''}${en ? `<span class="en">${esc(en)}</span>` : ''}${men ? ` <span class="en" lang="ml">EN ${esc(men)}</span>` : ''}</div>`;
 }
 function meanings(e, ok) {
-  const right = (de, en) => meanLine(ok ? 'Meaning' : 'Correct', de, en, 'right');
+  const right = (de, en) => meanLine(ok ? 'Meaning' : 'Correct', de, en, 'right', de === e.it?.de ? e.it.ml : '', de === e.it?.de ? e.it.men : '');
   if (e.type === 'tiles') return right(e.it.de, e.it.en) + (ok ? '' : meanLine('You wrote', built.map(i => e.bank[i]).join(' '), '', 'pick'));
   if (e.type === 'type') return right(e.it.de, e.it.en) + (ok ? '' : meanLine('You typed', $('#inp').value.trim(), '', 'pick'));
   if (e.type === 'listen') {
@@ -739,7 +739,7 @@ fetch('/practice/api/data').then(r => r.json()).then(d => {
   items.forEach((it, i) => {
     const sec = it.kind === 'phrase' ? 'Phrases' : 'Story';
     if (sec !== last) { html += `<h2>${sec}</h2>`; last = sec; }
-    html += `<div class="row" data-i="${i}"><button aria-label="Play">▶</button><div>${it.who ? `<div class="who">${esc(it.who)}</div>` : ''}<div class="de">${esc(it.de)}</div><div class="en">${esc(it.en)}</div></div></div>`;
+    html += `<div class="row" data-i="${i}"><button aria-label="Play">▶</button><div>${it.who ? `<div class="who">${esc(it.who)}</div>` : ''}<div class="de">${esc(it.de)}</div>${it.ml ? `<div class="en" lang="ml"><small>DE</small> ${esc(it.ml)}</div>` : ''}<div class="en">${esc(it.en)}</div>${it.men ? `<div class="en" lang="ml"><small>EN</small> ${esc(it.men)}</div>` : ''}</div></div>`;
   });
   $('#list').innerHTML = html;
   document.querySelectorAll('.row button').forEach(b => b.onclick = () => { running = false; $('#playall').textContent = '▶ Play all'; play(+b.closest('.row').dataset.i, false); });
@@ -794,8 +794,8 @@ fetch('/practice/api/lesson/' + encodeURIComponent(LESSON)).then(r => r.ok ? r.j
   }));
   items.filter(x => x.kind === 'mcq').forEach(m => Q.push({id: m.id, html: esc(m.q), opts: m.mean || [m.correct, ...m.wrong].map(o => ({opt: o, de: o, en: ''})), answer: m.correct}));
   const ph = {}; items.forEach(x => { if (x.de && x.a) ph[x.de] = x.a; });
-  const W = items.filter(x => x.kind === 'card').map(c => ({id: c.id, en: c.q, de: c.a, a: ph[c.a]}));
-  if (LESSON === 'mistakes') items.filter(x => (x.kind === 'phrase' || x.kind === 'line') && x.de).forEach(x => W.push({id: x.id, en: x.en, de: x.de, a: x.a}));
+  const W = items.filter(x => x.kind === 'card').map(c => ({id: c.id, en: c.q, de: c.a, a: ph[c.a] || c.au, ml: c.ml, men: c.men}));
+  if (LESSON === 'mistakes') items.filter(x => (x.kind === 'phrase' || x.kind === 'line') && x.de).forEach(x => W.push({id: x.id, en: x.en, de: x.de, a: x.a, ml: x.ml, men: x.men}));
   box.innerHTML = (Q.length ? `<div class="box"><h3>Quiz <span class="m" id="gpwqs"></span></h3><div id="gpwq"></div></div>` : '')
     + (W.length ? `<div class="box"><h3>Flashcards <span class="m" id="gpwfn"></span></h3><div id="gpwfc"></div></div>` : '')
     + (LESSON === 'mistakes' ? (Q.length || W.length ? '' : '<p>No mistakes left for today 🎉</p>') + `<p><a class="btn p" href="/practice/mistakes">🎯 Practice lesson</a> <a class="btn" href="/#studyDashboard">📊 Study dashboard</a></p>`
@@ -823,6 +823,9 @@ function quiz(Q) {
 
 function cards(W) {
   const fb = document.getElementById('gpwfc'); let deck = shuffle(W), k = 0, again = [], dir = 'en';
+  // the German is said only when a card is turned over, never when a new one appears: that would give the answer away; the choice is remembered on this device
+  const soundOn = () => { try { return localStorage.getItem('german-card-sound') !== 'off'; } catch { return true; } };
+  const setSound = v => { try { localStorage.setItem('german-card-sound', v ? 'on' : 'off'); } catch {} };
   const show = () => {
     if (k >= deck.length) {
       if (again.length) { deck = shuffle(again); again = []; k = 0; }
@@ -830,13 +833,14 @@ function cards(W) {
     }
     const c = deck[k];
     const front = dir === 'en' ? `<div class="big">${esc(c.en)}</div><div class="m">say it in German · tap to turn</div>` : `<div class="big de">${esc(c.de)}</div><div class="m">what does it mean? · tap to turn</div>`;
-    const back = `<div class="big de">${esc(c.de)}</div><div>${esc(c.en)}</div>`;
+    const back = `<div class="big de">${esc(c.de)}</div>${c.ml ? `<div lang="ml"><small class="m">DE</small> ${esc(c.ml)}</div>` : ''}<div>${esc(c.en)}</div>${c.men ? `<div lang="ml"><small class="m">EN</small> ${esc(c.men)}</div>` : ''}`;
     document.getElementById('gpwfn').textContent = `${k + 1} / ${deck.length}${again.length ? ` · ${again.length} to repeat` : ''}`;
     fb.innerHTML = `<div class="fc"><div class="fci" id="gpwfi"><div class="fcf f">${front}</div><div class="fcf b">${back}</div></div></div>
-      <div class="fcbar">${c.a ? `<button class="btn" id="gpwfh">🔊 Hear it</button>` : ''}<button class="btn" id="gpwfx">✗ Again</button><button class="btn p" id="gpwfo">✓ Knew it</button>
+      <div class="fcbar"><button class="btn" id="gpwfs" aria-pressed="${soundOn()}">${soundOn() ? '🔊 Sound on' : '🔇 Sound off'}</button><button class="btn" id="gpwfx">✗ Again</button><button class="btn p" id="gpwfo">✓ Knew it</button>
       <button class="btn" id="gpwfd" title="Switch direction">${dir === 'en' ? 'EN → DE' : 'DE → EN'}</button></div>`;
-    document.getElementById('gpwfi').onclick = e => { e.currentTarget.classList.toggle('flip'); if (e.currentTarget.classList.contains('flip') && dir === 'en') play(c.a); };
-    const h = document.getElementById('gpwfh'); if (h) h.onclick = () => play(c.a);
+    const say = () => { if (soundOn()) play(c.a); };
+    document.getElementById('gpwfi').onclick = e => { if (e.currentTarget.classList.toggle('flip')) say(); };
+    document.getElementById('gpwfs').onclick = e => { setSound(!soundOn()); e.currentTarget.textContent = soundOn() ? '🔊 Sound on' : '🔇 Sound off'; e.currentTarget.setAttribute('aria-pressed', soundOn()); if (!soundOn() && player) player.pause(); };
     // every ✗ Again puts the card on the mistakes list (study dashboard); ✓ Knew it counts towards taking it off
     document.getElementById('gpwfx').onclick = () => { record(c.id, false, 'flashcard'); again.push(c); k++; show(); };
     document.getElementById('gpwfo').onclick = () => { record(c.id, true, 'flashcard'); k++; show(); };

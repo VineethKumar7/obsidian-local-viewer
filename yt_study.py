@@ -198,9 +198,11 @@ body.dark-theme .yts{--bg:#252526}
 .yts .tsb{font-size:12px;color:var(--a);background:none;border:none;cursor:pointer;padding:0;font:inherit;font-size:12px}
 .yts .words{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:8px}
 .yts .w{display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:10px;border:1px solid var(--l);background:rgba(128,128,128,.05)}
-.yts .w .de{color:var(--o);font-weight:650;font-size:16.5px;line-height:1.25}.yts .w .tr{font-size:14px}.yts .w .nt{font-size:12.5px;color:var(--m);margin-top:2px}
+.yts .w .de{color:var(--o);font-weight:650;font-size:16.5px;line-height:1.25}.yts .w .ml{font-size:14.5px;color:var(--a);line-height:1.5}.yts .w .tr{font-size:14px}.yts .w .nt{font-size:12.5px;color:var(--m);margin-top:2px}
 .yts .play{flex:none;width:32px;height:32px;border-radius:50%;border:1px solid var(--a);background:none;color:var(--a);cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center}
 .yts .play.on{background:var(--a);color:#fff}
+.yts .w.saying{background:var(--o);border-color:var(--o);box-shadow:0 0 0 2px var(--o)}
+.yts .w.saying .de,.yts .w.saying .ml,.yts .w.saying .tr,.yts .w.saying .nt,.yts .w.saying .tr *,.yts .w.saying .nt *{color:#111}.yts .w.saying .play{border-color:#111;color:#111}
 .yts .text{white-space:pre-line;margin:0 0 10px}
 .yts table{border-collapse:collapse;width:100%;margin:6px 0 4px;font-size:14.5px}
 .yts th,.yts td{border:1px solid var(--l);padding:7px 10px;text-align:left;vertical-align:top}.yts th{background:rgba(128,128,128,.12)}
@@ -213,7 +215,7 @@ body.dark-theme .yts{--bg:#252526}
 .yts .lb{position:fixed;inset:0;z-index:10000;background:rgba(10,12,14,.97);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:14px;gap:12px;color:#eee}
 .yts .lb img{width:min(96vw,1100px,calc((100vh - 220px) * 16 / 9));aspect-ratio:16/9;border-radius:8px;background:#111;object-fit:contain}
 .yts .lb .lbw{max-width:min(96vw,1100px);max-height:24vh;overflow:auto;text-align:center;font-size:15px}
-.yts .lb .lbw b{color:var(--o);font-size:18px}.yts .lb .lbbar{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.yts .lb .lbw b{color:var(--o);font-size:18px}.yts .lb .lbw .saying{background:var(--o);color:#111;border-radius:6px}.yts .lb .lbw .saying b{color:#111}.yts .lb .lbbar{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
 .yts .lb .btn{background:#2a2d31;color:#eee;border-color:#555}
 .yts .q{margin-bottom:14px}.yts .q .opts{display:grid;gap:6px;margin-top:6px}
 .yts .opt{text-align:left;padding:10px 12px;border-radius:8px;border:1px solid var(--l);background:none;color:inherit;font:inherit;cursor:pointer}
@@ -324,7 +326,7 @@ function render(){
       <h3>${esc(s.title)}${s.t != null ? `<button class="tsb" data-t="${s.t}">▶ ${mmss(s.t)}</button>` : ''}</h3>
       ${s.text ? `<p class="text">${md(s.text)}</p>` : ''}
       ${s.items?.length ? `<div class="words">${s.items.map(i => `<div class="w">${i.t != null ? `<button class="play" data-t="${i.t}" data-e="${i.end ?? ''}" title="Hear it (${mmss(i.t)})">▶</button>` : ''}
-        <div><div class="de">${esc(i.de)}</div>${i.en ? `<div class="tr">${md(i.en)}</div>` : ''}${i.note ? `<div class="nt">${md(i.note)}</div>` : ''}</div></div>`).join('')}</div>` : ''}
+        <div><div class="de">${esc(i.de)}</div>${i.ml ? `<div class="ml" lang="ml"><small>DE</small> ${esc(i.ml)}</div>` : ''}${i.en ? `<div class="tr">${md(i.en)}</div>` : ''}${i.men ? `<div class="ml" lang="ml"><small>EN</small> ${esc(i.men)}</div>` : ''}${i.note ? `<div class="nt">${md(i.note)}</div>` : ''}</div></div>`).join('')}</div>` : ''}
       ${s.table ? `<div class="tblw"><table>${s.table.head ? `<tr>${s.table.head.map(h => `<th>${md(h)}</th>`).join('')}</tr>` : ''}${s.table.rows.map(r => `<tr>${r.map(c => `<td>${md(c)}</td>`).join('')}</tr>`).join('')}</table></div>` : ''}
     </div>`).join('')}</section>` : ''}
 
@@ -417,8 +419,27 @@ function wire(){
   const lines = [...root.querySelectorAll('.ln')], chs = [...root.querySelectorAll('.chap')], sls = [...root.querySelectorAll('.sl')], trl = document.getElementById('trl');
   const ytl = document.getElementById('yt');
   let lastLine = -1;
+  // the Learn word being said right now lights up (every time it is said: says from build_lessons.py, else its own ▶ stretch)
+  const learn = document.getElementById('s-learn');
+  const cards = learn ? [...learn.querySelectorAll('.w')] : [];
+  const spans = (D.lesson?.sections || []).flatMap(s => s.items || []).map(i => i.says || (i.t != null ? [[i.t, i.end ?? i.t + 3]] : []));
+  let lit = '', handScroll = 0;
+  ['wheel', 'touchmove'].forEach(e => document.addEventListener(e, () => handScroll = Date.now(), {passive: true, capture: true}));
+  const mark = () => {
+    const t = audio.currentTime, on = cards.filter((c, i) => spans[i].some(([a, b]) => a <= t && t < b));
+    const key = on.map(c => cards.indexOf(c)).join();
+    if (key === lit) return;
+    lit = key; cards.forEach(c => c.classList.toggle('saying', on.includes(c)));
+    root.querySelectorAll('.lb [data-k]').forEach(d => d.classList.toggle('saying', on.includes(cards[+d.dataset.k])));   // the big slide's word list too
+    if (!on.length || audio.paused || root.querySelector('.lb') || Date.now() - handScroll < 6000) return;   // never fight someone scrolling by hand
+    const s = learn.getBoundingClientRect(), r = on[0].getBoundingClientRect();
+    if (s.top < innerHeight && s.bottom > 0 && (r.top < 60 || r.bottom > innerHeight - 90)) on[0].scrollIntoView({block: 'center', behavior: 'smooth'});   // only while reading Learn; 90 = the dock
+  };
+  const tick = () => { mark(); if (!audio.paused) requestAnimationFrame(tick); };   // timeupdate is only ~4×/s: too late for a word under a second
+  audio.addEventListener('play', tick);
   audio.ontimeupdate = () => {
     const t = audio.currentTime;
+    mark();
     if (stopAt != null && t >= stopAt) { audio.pause(); stopAt = null; }
     seek.value = Math.floor(t); cur.textContent = mmss(t);
     ytl.href = `https://www.youtube.com/watch?v=${vid}&t=${Math.floor(t)}s`;
@@ -435,11 +456,12 @@ function wire(){
 function slide(i){   // big slide + the words taught while it is on screen; ‹ › / arrow keys step, Esc closes
   document.querySelector('.yts .lb')?.remove();
   const S = D.slides, s = S[i]; if (!s) return;
+  const all = (D.lesson?.sections || []).flatMap(x => x.items || []);
   const said = words(D.lesson).filter(w => w.t != null && w.t >= s.t - 1 && w.t < s.end);
   const lines = D.transcript.lines.filter(l => l.end > s.t && l.t < s.end);
   const lb = document.createElement('div'); lb.className = 'lb';
   lb.innerHTML = `<img src="${esc(s.src)}?big=1" alt="">
-    <div class="lbw">${said.length ? said.map(w => `<div><b>${esc(w.de)}</b> — ${md(w.en)}</div>`).join('') : lines.map(l => esc(l.text)).join(' ')}</div>
+    <div class="lbw">${said.length ? said.map(w => `<div data-k="${all.indexOf(w)}"><b>${esc(w.de)}</b> — ${md(w.en)}${w.ml ? `<div lang="ml"><small>DE</small> ${esc(w.ml)}${w.men ? ` · <small>EN</small> ${esc(w.men)}` : ''}</div>` : ''}</div>`).join('') : lines.map(l => esc(l.text)).join(' ')}</div>
     <div class="lbbar"><button class="btn" id="lbp">‹</button><button class="btn p" id="lbh">▶ Hear it</button><span class="m" style="align-self:center">${i + 1} / ${S.length} · ${mmss(s.t)}</span>
       <button class="btn" id="lbn">›</button><button class="btn" id="lbx">✕ Close</button></div>`;
   root.appendChild(lb);
@@ -470,16 +492,20 @@ function quiz(Q){
 }
 function cards(W){
   const box = document.getElementById('fc'); let deck = shuffle(W), k = 0, again = [], dir = 'en';
+  // the German is said only when a card is turned over, never when a new one appears: that would give the answer away; the choice is remembered on this device
+  const soundOn = () => { try { return localStorage.getItem('german-card-sound') !== 'off'; } catch { return true; } };
+  const setSound = v => { try { localStorage.setItem('german-card-sound', v ? 'on' : 'off'); } catch {} };
   const show = () => {
     if (k >= deck.length) { if (again.length) { deck = shuffle(again); again = []; k = 0; } else { box.innerHTML = `<p style="text-align:center">All ${W.length} done ✓ <button class="btn" id="fcre">↻ Again</button></p>`; document.getElementById('fcre').onclick = () => { deck = shuffle(W); k = 0; show(); }; document.getElementById('fcn').textContent = ''; return; } }
     const c = deck[k], front = dir === 'en' ? `<div class="big">${md(c.en)}</div><div class="m">say it in German · tap to turn</div>` : `<div class="big de">${esc(c.de)}</div><div class="m">what does it mean? · tap to turn</div>`;
-    const back = `<div class="big de">${esc(c.de)}</div><div>${md(c.en)}</div>${c.note ? `<div class="m">${md(c.note)}</div>` : ''}`;
+    const back = `<div class="big de">${esc(c.de)}</div>${c.ml ? `<div lang="ml"><small class="m">DE</small> ${esc(c.ml)}</div>` : ''}<div>${md(c.en)}</div>${c.men ? `<div lang="ml"><small class="m">EN</small> ${esc(c.men)}</div>` : ''}${c.note ? `<div class="m">${md(c.note)}</div>` : ''}`;
     document.getElementById('fcn').textContent = `${k + 1} / ${deck.length}${again.length ? ` · ${again.length} to repeat` : ''}`;
     box.innerHTML = `<div class="fc"><div class="fci" id="fci"><div class="fcf f">${front}</div><div class="fcf b">${back}</div></div></div>
-      <div class="fcbar">${c.t != null ? `<button class="btn" id="fch">▶ Hear it</button>` : ''}<button class="btn" id="fcx">✗ Again</button><button class="btn p" id="fco">✓ Knew it</button>
+      <div class="fcbar"><button class="btn" id="fcs" aria-pressed="${soundOn()}">${soundOn() ? '🔊 Sound on' : '🔇 Sound off'}</button><button class="btn" id="fcx">✗ Again</button><button class="btn p" id="fco">✓ Knew it</button>
       <button class="btn" id="fcd" title="Switch direction">${dir === 'en' ? 'EN → DE' : 'DE → EN'}</button></div>`;
-    document.getElementById('fci').onclick = e => e.currentTarget.classList.toggle('flip');
-    const h = document.getElementById('fch'); if (h) h.onclick = () => { const all = W.map(x => x.t).filter(x => x > c.t); play(c.t, c.end ?? (all.length ? Math.min(Math.min(...all), c.t + 8) : c.t + 5), h); };
+    const say = () => { if (c.t == null || !soundOn()) return; const all = W.map(x => x.t).filter(x => x > c.t); play(c.t, c.end ?? (all.length ? Math.min(Math.min(...all), c.t + 8) : c.t + 5)); };
+    document.getElementById('fci').onclick = e => { if (e.currentTarget.classList.toggle('flip')) say(); };
+    document.getElementById('fcs').onclick = e => { setSound(!soundOn()); e.currentTarget.textContent = soundOn() ? '🔊 Sound on' : '🔇 Sound off'; e.currentTarget.setAttribute('aria-pressed', soundOn()); if (!soundOn() && audio && stopAt != null) audio.pause(); };
     document.getElementById('fcx').onclick = () => { again.push(c); k++; show(); };
     document.getElementById('fco').onclick = () => { k++; show(); };
     document.getElementById('fcd').onclick = () => { dir = dir === 'en' ? 'de' : 'en'; show(); };
