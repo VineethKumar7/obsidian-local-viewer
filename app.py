@@ -11177,7 +11177,7 @@ def index():
 .mk-acts{{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}}.mk-acts a{{text-decoration:none;text-align:center}}
 .mk-list{{max-height:420px;overflow-y:auto;border:1px solid #3c3c3c;border-radius:10px}}
 .mk-row{{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 14px;border-top:1px solid #333}}.mk-row:first-child{{border-top:none}}
-.mk-row.done{{opacity:.55}}.mk-text{{min-width:0}}.mk-de{{font-weight:600}}.mk-en{{color:#9a9a9a;font-size:.92em}}.mk-meta{{color:#777;font-size:.78em;margin-top:2px}}
+.mk-row.done{{opacity:.55}}.mk-text{{min-width:0}}.mk-de{{font-weight:600;color:#e0e0e0}}.mk-en{{color:#9a9a9a;font-size:.92em}}.mk-meta{{color:#777;font-size:.78em;margin-top:2px}}
 .mk-prog{{display:flex;gap:4px;align-items:center;flex-shrink:0}}.mk-prog small{{color:#4ade80;margin-left:4px;font-size:.75em}}
 .mk-dot{{width:10px;height:10px;border-radius:50%;border:2px solid #6b7280}}.mk-dot.on{{background:#22c55e;border-color:#22c55e}}
 .mk-empty{{color:#9a9a9a;padding:6px 0}}`;

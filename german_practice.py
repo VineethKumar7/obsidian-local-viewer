@@ -132,11 +132,13 @@ def home_panel():
 	"""HTML for the viewer's start page (app.py EXTRA_HOME_HTML): reviews due, today's lesson, lessons to revisit."""
 	lessons = json.loads((_vault / "Practice" / "exercises.json").read_text(encoding="utf-8"))["lessons"]
 	get_meta = _app.config["FILE_METADATA"][0]  # profile-aware "completed" (app.py)
+	videos = [l for l in lessons if l.get("video")]  # the video pages: they count for Revisit, but "Today" stays the book course
+	lessons = [l for l in lessons if not l.get("video")]
 	done = [l["id"] for l in lessons if get_meta(l["note"]).get("completed")]
-	by_id = {l["id"]: l for l in lessons}
+	by_id = {l["id"]: l for l in lessons + videos}
 	s = practice_state.load(_state_file())
 	st = practice_state.summary(s)
-	seen = [x for x in practice_state.lessons_seen(s, done) if x["lesson"] in by_id]
+	seen = [x for x in practice_state.lessons_seen(s, done, dated=practice_state.videos_done(videos, _profile())) if x["lesson"] in by_id]
 	view = lambda note: "/view/" + quote(note)
 	name = lambda l: escape(Path(l["note"]).stem)
 	nxt = next((l for l in lessons if l["id"] not in done), None)
@@ -155,9 +157,10 @@ def home_panel():
 		if x["score"]:
 			info.append(f"{x['score'][0]}/{x['score'][1]}")
 		badge = '<span class="gp-badge">check-in today</span>' if x["due"] else f'<span class="gp-next">back on {_short(x["checkin"])}</span>'
+		acts = (f'<a href="{view(l["note"])}">📺 Open video</a><a href="/practice/{l["id"]}">🎯 Practise again</a>' if l.get("video") else
+			f'<a href="{view(l["note"])}">📖 Reread</a><a href="/practice/{l["id"]}">🎯 Practise again</a><a href="/practice/phrases/{l["id"]}">🔊 Phrases only</a>')
 		return (f'<div class="gp-row"><div class="gp-name"><b>{name(l)}</b> {badge}<small>{" · ".join(info)}</small></div>'
-			f'<div class="gp-acts">{done_btn(x, l)}<a href="{view(l["note"])}">📖 Reread</a><a href="/practice/{l["id"]}">🎯 Practise again</a>'
-			f'<a href="/practice/phrases/{l["id"]}">🔊 Phrases only</a></div></div>')
+			f'<div class="gp-acts">{done_btn(x, l)}{acts}</div></div>')
 	# only today's check-ins up front; a lesson ticked ✓ Done drops into the collapsed list until its next date
 	due = [x for x in seen if x["due"]]
 	rows = [row(x) for x in due]
@@ -177,7 +180,7 @@ def home_panel():
 .gp a.gp-big.due{{background:linear-gradient(135deg,#7c3aed,#5b21b6);border-color:#7c3aed;color:#fff !important}}.gp-big.due small{{color:#e9ddff}}
 .gp-big:hover{{transform:translateY(-2px)}}
 .gp-row{{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;padding:12px 0;border-top:1px solid #333}}
-.gp-name{{display:flex;flex-direction:column;gap:3px;min-width:0}}
+.gp-name b{{color:#e0e0e0}}.gp-name{{display:flex;flex-direction:column;gap:3px;min-width:0}}
 .gp-acts{{display:flex;flex-wrap:wrap;gap:8px}}
 .gp .gp-acts a{{padding:8px 12px;border-radius:10px;background:#252526;border:1px solid #3c3c3c;color:#e0e0e0 !important;text-decoration:none;font-size:.9em;white-space:nowrap}}
 .gp-acts a:hover{{border-color:#7c3aed}}
@@ -202,6 +205,9 @@ def register(app, vault_path):
 	global _vault, _app
 	_vault, _app = vault, app
 	bp = Blueprint("german_practice", __name__)
+
+	def is_video(lesson_id):
+		return any(l["id"] == lesson_id and l.get("video") for l in json.loads(data_file.read_text(encoding="utf-8"))["lessons"])
 
 	def lesson_note(lesson_id):
 		for les in json.loads(data_file.read_text(encoding="utf-8"))["lessons"]:
@@ -241,7 +247,7 @@ def register(app, vault_path):
 			bonus = practice_state.finish_session(s, lesson, int(body.get("correct", 0)), int(body.get("total", 0)))
 			practice_state.save(s, _state_file())
 			note = lesson_note(lesson) if lesson != "review" else None
-			if note:  # finishing the practice = lesson done (same field as the viewer's ⓘ "Completed", per profile)
+			if note and not is_video(lesson):  # a video is done by its own ✓ Mark as done. Finishing the practice = lesson done (same field as the viewer's ⓘ "Completed", per profile)
 				get_meta, set_meta = app.config["FILE_METADATA"]
 				set_meta(note, {**get_meta(note), "completed": True})
 			reply = {"bonus": bonus, **state_reply(s)}
@@ -454,7 +460,7 @@ function distractors(answer, pool, n = 3) {
 // ---------- exercise builders ----------
 function seenPool(it) {  // words from this lesson and earlier ones only (no spoilers from later lessons)
   const lid = it.id.split(':')[0], pos = DATA.lessons.findIndex(l => l.id === lid);
-  const same = LESS[lid].items, earlier = DATA.lessons.slice(Math.max(0, pos - 6), pos).flatMap(l => l.items);
+  const same = LESS[lid].video ? LESS[lid].items.filter(x => x.kind === 'card').map(c => ({ id: c.id, de: c.a })) : LESS[lid].items, earlier = DATA.lessons.slice(Math.max(0, pos - 6), pos).flatMap(l => l.items);
   return { same, earlier };
 }
 function exTiles(it) {
@@ -478,9 +484,26 @@ function exGap(it, gapIndex) {
   return { type: 'gap', it, gapIndex, options: shuffle([ans, ...distractors(ans, pool)]) };
 }
 const exMcq = it => ({ type: 'mcq', it, options: shuffle([it.correct, ...it.wrong]) });
+// a flashcard too short for word tiles: pick the German. Without this, one-word cards never came up in a session and could only leave the list via the flashcards
+function exPick(c) {
+  const german = xs => xs.filter(x => x.kind === 'card' && x.au && x.a !== c.a).map(x => x.a);
+  let wrong = pick([...new Set(german(LESS[c.id.split(':')[0]].items))], 3);
+  if (wrong.length < 3) wrong = [...new Set([...wrong, ...pick(german(ALL), 6)])].slice(0, 3);
+  return exMcq({ id: c.id, q: c.q, de: c.a, ml: c.ml, men: c.men, au: c.au, correct: c.a, wrong, mean: [{ opt: c.a, de: c.a, en: c.q }] });
+}
 function exMatch(items) { return { type: 'match', items, left: shuffle(items), right: shuffle(items) }; }
 
+function buildVideoQueue(les) {
+  const cards = les.items.filter(x => x.kind === 'card');
+  const tiles = pick(cards.map(cardAsPhrase).filter(x => usable(x.de)), 6).map(exTiles);
+  const picks = pick(cards.filter(c => !usable(c.a)), 6).map(exPick);
+  const mcqs = pick(les.items.filter(x => x.kind === 'mcq'), 4).map(exMcq);
+  const pairs = shuffle(cards.filter(c => c.a.length <= 28 && c.q.length <= 32)).map(c => ({ id: c.id, de: c.a, en: c.q, a: c.au }));
+  const match = pairs.length >= 4 ? [exMatch(pairs.slice(0, 4))] : [];
+  return shuffle([...tiles, ...picks, ...mcqs, ...match]).slice(0, 15);
+}
 function buildLessonQueue(les) {
+  if (les.video) return buildVideoQueue(les);
   const items = les.items;
   const sayable = items.filter(x => (x.kind === 'phrase' || x.kind === 'line') && usable(x.de));
   const short = sayable.filter(x => words(x.de).length <= 6);
@@ -504,7 +527,7 @@ function buildReviewQueue(due, max = 15) {
   const q = [];
   due.forEach((id, n) => {
     const it = ITEM[id]; if (!it) return;
-    if (it.kind === 'card') { const c = cardAsPhrase(it); if (usable(c.de)) q.push(exTiles(c)); }  // a flashcard → build it from word tiles
+    if (it.kind === 'card') { const c = cardAsPhrase(it); q.push(usable(c.de) ? exTiles(c) : exPick(it)); }  // a flashcard → build it from word tiles
     else if (it.kind === 'cloze') q.push(exGap(it, 0));
     else if (it.kind === 'mcq') q.push(exMcq(it));
     else if (it.kind === 'phrase' || it.kind === 'line') q.push(usable(it.de) ? (n % 3 === 0 ? exType(it) : n % 3 === 1 ? exTiles(it) : exListen(it, ALL)) : exListen(it, ALL));
@@ -512,7 +535,7 @@ function buildReviewQueue(due, max = 15) {
   return q.slice(0, max);
 }
 // a flashcard as a phrase (EN prompt → German), with the audio of the phrase that has the same German, if any
-const cardAsPhrase = c => { const p = ALL.find(x => x.de === c.a && x.a); return { id: c.id, kind: 'phrase', de: c.a, en: c.q, a: p && p.a, s: p && p.s }; };
+const cardAsPhrase = c => { const p = ALL.find(x => x.de === c.a && x.a); return { id: c.id, kind: 'phrase', de: c.a, en: c.q, a: (p && p.a) || c.au, s: p && p.s, ml: c.ml, men: c.men }; };
 
 // ---------- rendering ----------
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -574,7 +597,7 @@ $('#go').onclick = () => {
   if (e.type === 'tiles') { ok = built.map(i => e.bank[i]).join(' ') === e.target.join(' '); sol = e.it.de; audio = e.it.a; }
   else if (e.type === 'type') { const r = checkTyped($('#inp').value, e.it.de); ok = r.ok; note = r.note || ''; sol = e.it.de; audio = e.it.a; }
   else if (e.type === 'listen') { ok = e.options[sel] === e.it.en; sol = `${e.it.de} = ${e.it.en}`; audio = e.it.a; }
-  else if (e.type === 'mcq') { ok = e.options[sel] === e.it.correct; sol = e.it.correct; }
+  else if (e.type === 'mcq') { ok = e.options[sel] === e.it.correct; sol = e.it.correct; audio = e.it.au; }
   else if (e.type === 'gap') { ok = e.options[sel] === e.it.answers[e.gapIndex]; sol = e.it.text.replace(/\{\{(.+?)\}\}/g, '$1'); }
   else if (e.type === 'match') { ok = matchErr === 0; sol = matchErr ? 'You got there — the mixed-up pairs come back in your reviews.' : ''; }
   const means = meanings(e, ok);
@@ -630,7 +653,7 @@ async function renderEnd() {
   const s = summary || { xp_today: 0, goal: 10, streak: 0, due: 0 };
   const pct = Math.min(100, Math.round(100 * s.xp_today / s.goal));
   const les = LESSON === 'review' || LESSON === 'mistakes' ? null : LESS[LESSON];
-  const list = DATA.lessons, pos = les ? list.indexOf(les) : -1, next = pos >= 0 ? list[pos + 1] : null;
+  const list = DATA.lessons, pos = les ? list.indexOf(les) : -1, after = pos >= 0 ? list[pos + 1] : null, next = after && !after.video === !les.video ? after : null;
   const viewUrl = n => '/view/' + n.split('/').map(encodeURIComponent).join('/');
   $('#main').innerHTML = `<div class="end"><h2>${LESSON === 'review' ? 'Review done!' : LESSON === 'mistakes' ? 'Mistakes practised! 💪' : 'Lektion geschafft! 🎉'}</h2>
     <div class="ring" style="background:conic-gradient(var(--acc) ${pct}%, var(--line) 0)"><span>${s.xp_today}/${s.goal} XP</span></div>

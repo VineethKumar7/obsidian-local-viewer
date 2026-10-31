@@ -17,6 +17,8 @@ Lesson schema (study/<id>.json; t = seconds into the video, every field optional
    "chapters": [{"start_time", "title"}]  (replaces YouTube's when its titles are bad), "tips": ["..."], "quiz": [{"q", "a", "wrong": [...], "why"}], "speak": [{"prompt", "answer"}],
    "notes": ["vault/relative/path.md"]}
 Words for the flashcards = every section item.
+Quiz + flashcard answers go to the German practice progress when that module runs in this viewer and knows the lesson
+(/practice/api/lesson/<level>-<NN>, tools/german/yt/videos.py exercise_lessons); anywhere else the page just doesn't record them.
 """
 import datetime
 import json
@@ -367,6 +369,7 @@ function render(){
     document.getElementById('yclose').onclick = () => side.classList.remove('open');
     document.addEventListener('click', e => { if (side.classList.contains('open') && !side.contains(e.target) && e.target.id !== 'yopen') side.classList.remove('open'); });   // tap outside closes the drawer
   }
+  startTracking(L);
   if (L?.quiz?.length) quiz(L.quiz);
   if (W.length) cards(W);
 }
@@ -477,6 +480,16 @@ function slide(i){   // big slide + the words taught while it is on screen; ‹ 
   play(s.t, s.end, h);
 }
 
+// answers count like a book lesson's: Mistakes to fix, reviews, XP and the dashboard graphs (id = /practice item, key = question or German word)
+let TRACK = null, trackStarted = false;
+const practicePost = (path, body) => fetch('/practice/api/' + path, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)}).catch(() => {});
+function startTracking(L){
+  if (trackStarted || !L?.level || !L?.n) return; trackStarted = true;
+  const lesson = `${L.level}-${String(L.n).padStart(2, '0')}`;
+  fetch('/practice/api/lesson/' + lesson).then(r => r.ok ? r.json() : null).then(x => { if (x?.video) TRACK = {lesson, ids: Object.fromEntries(x.items.map(i => [i.key, i.id]))}; }).catch(() => {});
+}
+function track(key, correct, source){ const item = TRACK?.ids[key]; if (item) practicePost('answer', {item, correct, source}); }
+
 function shuffle(a){ a = [...a]; for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
 function quiz(Q){
   const box = document.getElementById('quiz'); let right = 0, answered = 0;
@@ -485,6 +498,8 @@ function quiz(Q){
   box.querySelectorAll('.q').forEach(qd => qd.querySelectorAll('.opt').forEach(b => b.onclick = () => {
     if (qd.dataset.done) return; qd.dataset.done = 1; answered++;
     if (b.dataset.ok === '1') right++; else b.classList.add('wrong');
+    track(Q[+qd.dataset.k].q, b.dataset.ok === '1');
+    if (answered === Q.length && TRACK) practicePost('finish', {lesson: TRACK.lesson, correct: right, total: Q.length});   // a finished quiz = a session: score + check-in dates in Revisit
     qd.querySelector('[data-ok="1"]').classList.add('right'); const w = qd.querySelector('.why'); if (w.textContent.trim()) w.hidden = false;
     document.getElementById('qscore').textContent = `${right} / ${answered} right${answered === Q.length ? (right === Q.length ? ' — perfect! 🎉' : '') : ''}`;
   }));
@@ -496,7 +511,7 @@ function cards(W){
   const soundOn = () => { try { return localStorage.getItem('german-card-sound') !== 'off'; } catch { return true; } };
   const setSound = v => { try { localStorage.setItem('german-card-sound', v ? 'on' : 'off'); } catch {} };
   const show = () => {
-    if (k >= deck.length) { if (again.length) { deck = shuffle(again); again = []; k = 0; } else { box.innerHTML = `<p style="text-align:center">All ${W.length} done ✓ <button class="btn" id="fcre">↻ Again</button></p>`; document.getElementById('fcre').onclick = () => { deck = shuffle(W); k = 0; show(); }; document.getElementById('fcn').textContent = ''; return; } }
+    if (k >= deck.length) { if (again.length) { deck = shuffle(again); again = []; k = 0; } else { if (TRACK) practicePost('revisit', {lesson: TRACK.lesson}); box.innerHTML = `<p style="text-align:center">All ${W.length} done ✓ <button class="btn" id="fcre">↻ Again</button></p>`; document.getElementById('fcre').onclick = () => { deck = shuffle(W); k = 0; show(); }; document.getElementById('fcn').textContent = ''; return; } }
     const c = deck[k], front = dir === 'en' ? `<div class="big">${md(c.en)}</div><div class="m">say it in German · tap to turn</div>` : `<div class="big de">${esc(c.de)}</div><div class="m">what does it mean? · tap to turn</div>`;
     const back = `<div class="big de">${esc(c.de)}</div>${c.ml ? `<div lang="ml"><small class="m">DE</small> ${esc(c.ml)}</div>` : ''}<div>${md(c.en)}</div>${c.men ? `<div lang="ml"><small class="m">EN</small> ${esc(c.men)}</div>` : ''}${c.note ? `<div class="m">${md(c.note)}</div>` : ''}`;
     document.getElementById('fcn').textContent = `${k + 1} / ${deck.length}${again.length ? ` · ${again.length} to repeat` : ''}`;
@@ -506,8 +521,8 @@ function cards(W){
     const say = () => { if (c.t == null || !soundOn()) return; const all = W.map(x => x.t).filter(x => x > c.t); play(c.t, c.end ?? (all.length ? Math.min(Math.min(...all), c.t + 8) : c.t + 5)); };
     document.getElementById('fci').onclick = e => { if (e.currentTarget.classList.toggle('flip')) say(); };
     document.getElementById('fcs').onclick = e => { setSound(!soundOn()); e.currentTarget.textContent = soundOn() ? '🔊 Sound on' : '🔇 Sound off'; e.currentTarget.setAttribute('aria-pressed', soundOn()); if (!soundOn() && audio && stopAt != null) audio.pause(); };
-    document.getElementById('fcx').onclick = () => { again.push(c); k++; show(); };
-    document.getElementById('fco').onclick = () => { k++; show(); };
+    document.getElementById('fcx').onclick = () => { track(c.de, false, 'flashcard'); again.push(c); k++; show(); };
+    document.getElementById('fco').onclick = () => { track(c.de, true, 'flashcard'); k++; show(); };
     document.getElementById('fcd').onclick = () => { dir = dir === 'en' ? 'de' : 'en'; show(); };
   };
   show();
