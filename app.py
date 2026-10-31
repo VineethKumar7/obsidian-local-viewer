@@ -9,6 +9,7 @@ import os
 import sys
 import re
 import html
+import calendar
 import json
 import argparse
 import socket
@@ -1434,6 +1435,8 @@ def merge_extra_activity(sessions, extra):
         s['cardsReviewed'] = s.get('cardsReviewed', 0) + a['cards']
         s['correct'] = s.get('correct', 0) + a['correct']
         s['wrong'] = s.get('wrong', 0) + a['wrong']
+        s['xp'] = a.get('xp', 0)
+        s['lessons'] = a.get('lessons', [])
         hourly = {h: dict(v) for h, v in s.get('hourly', {}).items()}
         for h, (ok, bad) in a.get('hours', {}).items():
             slot = hourly.setdefault(h, {'cards': 0, 'correct': 0, 'wrong': 0})
@@ -10910,17 +10913,32 @@ def index():
             white-space: nowrap;
             box-shadow: 0 4px 12px rgba(0,0,0,0.3);
             display: none;
+            white-space: normal;
+            width: max-content;
+            max-width: min(300px, calc(100vw - 16px));
+            line-height: 1.4;
         }}
         .heatmap-tooltip.visible {{
             display: block;
         }}
         .heatmap-tooltip .date {{
-            color: #7c3aed;
+            color: #a78bfa;
             font-weight: 600;
         }}
-        .heatmap-tooltip .count {{
-            color: #22c55e;
-        }}
+        .heatmap-tooltip .tip-big {{ font-size: 1.15em; font-weight: 600; margin-top: 2px; }}
+        .heatmap-tooltip .tip-none {{ color: #9a9a9a; margin-top: 2px; }}
+        .heatmap-tooltip .tip-bar {{ height: 6px; border-radius: 3px; background: #ef4444; overflow: hidden; margin: 5px 0 3px; }}
+        .heatmap-tooltip .tip-bar i {{ display: block; height: 100%; background: #22c55e; }}
+        .heatmap-tooltip .tip-row {{ color: #c8c8c8; margin-top: 2px; display: flex; flex-wrap: wrap; gap: 0 8px; }}
+        .heatmap-tooltip .ok {{ color: #4ade80; }}
+        .heatmap-tooltip .bad {{ color: #f87171; }}
+        .heatmap-tooltip .tip-h {{ color: #9a9a9a; font-size: .85em; margin-top: 7px; padding-top: 5px; border-top: 1px solid #3c3c3c; }}
+        .heatmap-tooltip .tip-l {{ display: flex; justify-content: space-between; gap: 12px; }}
+        .heatmap-tooltip .tip-l small {{ white-space: nowrap; }}
+        .heatmap-tooltip .tip-more {{ color: #9a9a9a; font-size: .85em; }}
+        .study-chart-bar-container {{ cursor: pointer; border-radius: 6px; justify-content: flex-end; }}
+        .study-chart-bar-container.tip-on {{ background: rgba(124,58,237,.14); }}
+        .study-heatmap-day.tip-on {{ outline: 2px solid #a78bfa; }}
         .study-loading {{
             text-align: center;
             padding: 40px;
@@ -11057,7 +11075,7 @@ def index():
                 if (count >= 10) level = 2;
                 if (count >= 25) level = 3;
                 if (count >= 50) level = 4;
-                heatmapHtml += `<div class="study-heatmap-day level-${{level}}" data-date="${{date}}" data-count="${{count}}"></div>`;
+                heatmapHtml += `<div class="study-heatmap-day level-${{level}}" data-tip data-date="${{date}}"></div>`;
             }}
             
             const progressPct = Math.min(100, ((d.today.progress ?? d.today.reviewed) / d.today.goal) * 100);
@@ -11066,11 +11084,11 @@ def index():
             const viewData = d[currentStudyView] || d.daily;
             const maxCards = Math.max(...viewData.map(v => v.cards), 1);
             
-            let chartHtml = viewData.map(item => {{
+            let chartHtml = viewData.map((item, i) => {{
                 const height = (item.cards / maxCards) * 100;
                 return `
-                    <div class="study-chart-bar-container">
-                        <div class="study-chart-bar" style="height: ${{Math.max(height, 2)}}%;" title="${{item.cards}} cards"></div>
+                    <div class="study-chart-bar-container" data-tip data-view="${{currentStudyView in studyData ? currentStudyView : 'daily'}}" data-i="${{i}}">
+                        <div class="study-chart-bar" style="height: ${{Math.max(height, 2)}}%;"></div>
                         <div class="study-chart-bar-label">${{item.label}}</div>
                     </div>
                 `;
@@ -11138,8 +11156,6 @@ def index():
                     <div class="study-heatmap">${{heatmapHtml}}</div>
                 </div>
                 
-                <div id="heatmapTooltip" class="heatmap-tooltip"></div>
-                
                 <div class="study-actions">
                     <button class="study-btn primary" onclick="${{d.reviewUrl ? `location.href='${{d.reviewUrl}}'` : "startVaultReview('due')"}}" ${{d.dueCount === 0 ? 'disabled' : ''}}>
                         📚 Review Due Cards (${{d.dueCount}})
@@ -11190,55 +11206,93 @@ def index():
         }}
         
         function setupHeatmapTooltips() {{
-            const tooltip = document.getElementById('heatmapTooltip');
-            const heatmapDays = document.querySelectorAll('.study-heatmap-day');
-            
-            heatmapDays.forEach(day => {{
-                const date = day.dataset.date;
-                const count = day.dataset.count;
-                
-                // Format date nicely
-                const dateObj = new Date(date);
-                const formatted = dateObj.toLocaleDateString('en-US', {{ 
-                    weekday: 'short', 
-                    month: 'short', 
-                    day: 'numeric' 
-                }});
-                
-                const showTooltip = (e) => {{
-                    tooltip.innerHTML = `<span class="date">${{formatted}}</span><br><span class="count">${{count}} cards</span>`;
-                    tooltip.classList.add('visible');
-                    
-                    // Position tooltip
-                    const rect = day.getBoundingClientRect();
-                    let left = rect.left + rect.width / 2;
-                    let top = rect.top - 50;
-                    
-                    // Keep tooltip in viewport
-                    if (left < 100) left = 100;
-                    if (left > window.innerWidth - 100) left = window.innerWidth - 100;
-                    if (top < 10) top = rect.bottom + 10;
-                    
-                    tooltip.style.left = left + 'px';
-                    tooltip.style.top = top + 'px';
-                    tooltip.style.transform = 'translateX(-50%)';
-                }};
-                
-                const hideTooltip = () => {{
-                    tooltip.classList.remove('visible');
-                }};
-                
-                // Desktop hover
-                day.addEventListener('mouseenter', showTooltip);
-                day.addEventListener('mouseleave', hideTooltip);
-                
-                // Mobile touch
-                day.addEventListener('touchstart', (e) => {{
-                    e.preventDefault();
-                    showTooltip(e);
-                    setTimeout(hideTooltip, 2000);
-                }});
+            // one listener on the dashboard: its contents are rebuilt on every tab switch. Mouse = hover, touch (iPad) = tap, tap again or elsewhere closes
+            const dash = document.getElementById('studyDashboard');
+            const tip = document.createElement('div');
+            tip.id = 'heatmapTooltip'; tip.className = 'heatmap-tooltip';
+            document.body.appendChild(tip);
+            let current = null;
+            const hide = () => {{ tip.classList.remove('visible'); if (current) current.classList.remove('tip-on'); current = null; }};
+            const show = el => {{
+                if (current) current.classList.remove('tip-on');
+                current = el; el.classList.add('tip-on');
+                tip.innerHTML = tipHtml(el);
+                tip.classList.add('visible');
+                const r = el.getBoundingClientRect(), w = tip.offsetWidth, h = tip.offsetHeight;
+                tip.style.left = Math.max(8, Math.min(r.left + r.width / 2 - w / 2, innerWidth - w - 8)) + 'px';
+                tip.style.top = (r.top - h - 8 >= 8 ? r.top - h - 8 : Math.min(r.bottom + 8, innerHeight - h - 8)) + 'px';
+            }};
+            const target = e => e.target.closest && e.target.closest('[data-tip]');
+            dash.addEventListener('pointerover', e => {{ if (e.pointerType === 'mouse' && target(e)) show(target(e)); }});
+            dash.addEventListener('pointerout', e => {{ if (e.pointerType === 'mouse' && target(e) && !target(e).contains(e.relatedTarget)) hide(); }});
+            document.addEventListener('click', e => {{
+                const t = target(e);
+                if (!t) return hide();
+                if (t === current && matchMedia('(hover: none)').matches) return hide();
+                show(t);
             }});
+            addEventListener('scroll', hide, {{ passive: true, capture: true }});
+        }}
+
+        const tipEsc = s => String(s ?? '').replace(/[&<>"]/g, c => ({{ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }}[c]));
+        const tipDate = (iso, opts) => new Date(iso + 'T12:00').toLocaleDateString('en-GB', opts);
+        const tipIso = () => {{ const n = new Date(); return `${{n.getFullYear()}}-${{String(n.getMonth() + 1).padStart(2, '0')}}-${{String(n.getDate()).padStart(2, '0')}}`; }};
+
+        // A day, or several added up: answers, right/wrong, XP, goal, busiest hour, what was practised
+        function tipTotals(dates) {{
+            const days = studyData.days || {{}}, t = {{ cards: 0, correct: 0, wrong: 0, xp: 0, timeMs: 0, active: 0, goalDays: 0, best: null, lessons: {{}} }};
+            for (const date of dates) {{
+                const d = days[date]; if (!d || !d.cards) continue;
+                t.cards += d.cards; t.correct += d.correct; t.wrong += d.wrong; t.xp += d.xp || 0; t.timeMs += d.timeMs || 0; t.active++;
+                if (d.goalMet) t.goalDays++;
+                if (!t.best || d.cards > t.best.cards) t.best = {{ date, cards: d.cards }};
+                for (const l of d.lessons || []) {{ const x = t.lessons[l.id] || (t.lessons[l.id] = {{ name: l.name, ok: 0, bad: 0 }}); x.ok += l.ok; x.bad += l.bad; }}
+            }}
+            return t;
+        }}
+        function tipBody(t) {{
+            if (!t.cards) return '<div class="tip-none">Nothing practised</div>';
+            const done = t.correct + t.wrong, pct = done ? Math.round(100 * t.correct / done) : 0;
+            return `<div class="tip-big">${{t.cards}} answered</div>`
+                + (done ? `<div class="tip-bar"><i style="width:${{pct}}%"></i></div><div class="tip-row"><span class="ok">✓ ${{t.correct}}</span> <span class="bad">✗ ${{t.wrong}}</span> <span>${{pct}}% right</span></div>` : '');
+        }}
+        function tipLessons(t) {{
+            const rows = Object.values(t.lessons).sort((a, b) => (b.ok + b.bad) - (a.ok + a.bad));
+            if (!rows.length) return '';
+            return `<div class="tip-h">Practised</div>` + rows.slice(0, 4).map(l => `<div class="tip-l"><span>${{tipEsc(l.name)}}</span><small><span class="ok">${{l.ok}}</span> / <span class="bad">${{l.bad}}</span></small></div>`).join('')
+                + (rows.length > 4 ? `<div class="tip-more">+ ${{rows.length - 4}} more</div>` : '');
+        }}
+        function tipDay(date) {{
+            const d = (studyData.days || {{}})[date] || {{}}, t = tipTotals([date]), goal = studyData.today.goal, unit = studyData.today.unit;
+            let html = `<div class="date">${{date === tipIso() ? 'Today · ' : ''}}${{tipDate(date, {{ weekday: 'long', day: 'numeric', month: 'short' }})}}</div>` + tipBody(t);
+            if (t.cards) {{
+                html += `<div class="tip-row">${{unit ? `⭐ ${{t.xp}} / ${{goal}} ${{tipEsc(unit)}}` : `🎯 ${{t.cards}} / ${{goal}} cards`}} ${{d.goalMet ? '· ✅ goal reached' : '· goal not reached'}}</div>`;
+                if (d.bestHour) html += `<div class="tip-row">⏰ Busiest: ${{d.bestHour.label}} (${{d.bestHour.cards}})</div>`;
+                if (t.timeMs) html += `<div class="tip-row">⏱ ${{Math.max(1, Math.round(t.timeMs / 60000))}} min</div>`;
+            }}
+            return html + tipLessons(t);
+        }}
+        function tipRange(title, dates) {{
+            const t = tipTotals(dates);
+            let html = `<div class="date">${{tipEsc(title)}}</div>` + tipBody(t);
+            if (t.cards) {{
+                html += `<div class="tip-row">📅 ${{t.active}} of ${{dates.length}} days active · ${{t.goalDays}} goal${{t.goalDays === 1 ? '' : 's'}} reached</div>`;
+                if (studyData.today.unit) html += `<div class="tip-row">⭐ ${{t.xp}} ${{tipEsc(studyData.today.unit)}}</div>`;
+                html += `<div class="tip-row">🏆 Best day: ${{tipDate(t.best.date, {{ weekday: 'short', day: 'numeric', month: 'short' }})}} (${{t.best.cards}})</div>`;
+                if (t.timeMs) html += `<div class="tip-row">⏱ ${{Math.max(1, Math.round(t.timeMs / 60000))}} min</div>`;
+            }}
+            return html + tipLessons(t);
+        }}
+        function tipHtml(el) {{
+            if (el.dataset.date) return tipDay(el.dataset.date);
+            const item = studyData[el.dataset.view][+el.dataset.i];
+            if (el.dataset.view === 'hourly') {{
+                const all = studyData.hourly.reduce((n, h) => n + h.cards, 0), h = item.hour;
+                return `<div class="date">Today · ${{String(h).padStart(2, '0')}}:00–${{String((h + 1) % 24).padStart(2, '0')}}:00</div>` + tipBody(item)
+                    + (item.cards ? `<div class="tip-row">${{Math.round(100 * item.cards / all)}}% of today's ${{all}} answers</div>` : '');
+            }}
+            if (el.dataset.view === 'daily') return tipDay(item.date);
+            return tipRange(item.range, item.dates);
         }}
         
         function startVaultReview(mode) {{
@@ -16309,6 +16363,19 @@ def api_study_dashboard(folder_path=None):
             else:
                 heatmap[date] = 0
         
+        # Everything the charts' tooltips show, per day
+        goal = extra['goal'] if extra else settings.get('dailyGoal', 50)
+        day_info = {}
+        for date, session in sessions.items():
+            hours = session.get('hourly', {})
+            best = max(hours, key=lambda h: hours[h].get('cards', 0), default=None)
+            day_info[date] = {
+                'cards': session.get('cardsReviewed', 0), 'correct': session.get('correct', 0), 'wrong': session.get('wrong', 0),
+                'xp': session.get('xp', 0), 'timeMs': session.get('timeSpentMs', 0), 'lessons': session.get('lessons', []),
+                'goalMet': (session.get('xp', 0) if extra else session.get('cardsReviewed', 0)) >= goal,
+                'bestHour': {'label': f'{best}:00', 'cards': hours[best]['cards']} if best and hours[best].get('cards') else None
+            }
+
         # Build time-based views
         now = datetime.now()
         
@@ -16348,53 +16415,59 @@ def api_study_dashboard(folder_path=None):
             week_start = now - timedelta(days=now.weekday() + (w * 7))
             week_end = week_start + timedelta(days=6)
             week_label = f"{week_start.strftime('%b %d')}"
+            week_dates = [(week_start + timedelta(days=d)).strftime('%Y-%m-%d') for d in range(7)]
             
-            total_cards = 0
-            total_correct = 0
-            total_wrong = 0
-            total_time = 0
+            period_cards = 0
+            period_correct = 0
+            period_wrong = 0
+            period_time = 0
             
-            for d in range(7):
-                date = (week_start + timedelta(days=d)).strftime('%Y-%m-%d')
+            for date in week_dates:
                 session = sessions.get(date, {})
-                total_cards += session.get('cardsReviewed', 0)
-                total_correct += session.get('correct', 0)
-                total_wrong += session.get('wrong', 0)
-                total_time += session.get('timeSpentMs', 0)
+                period_cards += session.get('cardsReviewed', 0)
+                period_correct += session.get('correct', 0)
+                period_wrong += session.get('wrong', 0)
+                period_time += session.get('timeSpentMs', 0)
             
             weekly_data.append({
                 'label': week_label,
-                'cards': total_cards,
-                'correct': total_correct,
-                'wrong': total_wrong,
-                'timeMs': total_time
+                'range': f"{week_start.day} {week_start.strftime('%b')} – {week_end.day} {week_end.strftime('%b')}",
+                'dates': week_dates,
+                'cards': period_cards,
+                'correct': period_correct,
+                'wrong': period_wrong,
+                'timeMs': period_time
             })
         
         # Monthly view - last 6 months
         monthly_data = []
         for m in range(5, -1, -1):
-            month_date = now - timedelta(days=m * 30)
+            # real calendar months (30-day steps listed October twice on the 31st and could skip a month)
+            year, month = (now.year * 12 + now.month - 1 - m) // 12, (now.year * 12 + now.month - 1 - m) % 12 + 1
+            month_date = datetime(year, month, 1)
             month_label = month_date.strftime('%b')
             month_str = month_date.strftime('%Y-%m')
             
-            total_cards = 0
-            total_correct = 0
-            total_wrong = 0
-            total_time = 0
+            period_cards = 0
+            period_correct = 0
+            period_wrong = 0
+            period_time = 0
             
             for date_str, session in sessions.items():
                 if date_str.startswith(month_str):
-                    total_cards += session.get('cardsReviewed', 0)
-                    total_correct += session.get('correct', 0)
-                    total_wrong += session.get('wrong', 0)
-                    total_time += session.get('timeSpentMs', 0)
+                    period_cards += session.get('cardsReviewed', 0)
+                    period_correct += session.get('correct', 0)
+                    period_wrong += session.get('wrong', 0)
+                    period_time += session.get('timeSpentMs', 0)
             
             monthly_data.append({
                 'label': month_label,
-                'cards': total_cards,
-                'correct': total_correct,
-                'wrong': total_wrong,
-                'timeMs': total_time
+                'range': month_date.strftime('%B %Y'),
+                'dates': [f'{month_str}-{d:02d}' for d in range(1, calendar.monthrange(year, month)[1] + 1)],
+                'cards': period_cards,
+                'correct': period_correct,
+                'wrong': period_wrong,
+                'timeMs': period_time
             })
         
         today_info = {
@@ -16420,6 +16493,7 @@ def api_study_dashboard(folder_path=None):
                 'weakCards': weak_cards,
                 'masteryPercent': round((mastered_cards / total_cards * 100) if total_cards > 0 else 0, 1),
                 'heatmap': heatmap,
+                'days': day_info,
                 'reviewUrl': extra['reviewUrl'] if extra else None,
                 'mistakes': extra.get('mistakesList') if extra else None,
                 'mistakesUrl': extra.get('mistakesUrl') if extra else None,

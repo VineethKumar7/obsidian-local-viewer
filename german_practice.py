@@ -53,7 +53,12 @@ def study_activity():
 	"""Practice answers in the shape app.py's study dashboard merges in (EXTRA_STUDY_ACTIVITY)."""
 	s = practice_state.load(_state_file())
 	st = practice_state.summary(s)
-	return {"days": practice_state.activity(s), "goal": st["goal"], "unit": "XP", "today": st["xp_today"],
+	lessons = json.loads((_vault / "Practice" / "exercises.json").read_text(encoding="utf-8"))["lessons"]
+	names = {l["id"]: l.get("name") or Path(l["note"]).stem for l in lessons}
+	days = practice_state.activity(s)
+	for d in days.values():  # names for the charts' tooltips
+		d["lessons"] = [{"id": k, "name": names.get(k, k), "ok": v[0], "bad": v[1]} for k, v in d["lessons"].items()]
+	return {"days": days, "goal": st["goal"], "unit": "XP", "today": st["xp_today"],
 		"streak": st["streak"], "due": st["due"], "mistakes": st["mistakes"], "reviewUrl": "/practice/review",
 		"mistakesUrl": "/practice/mistakes", "mistakesList": _mistakes_list(s, st)}
 
